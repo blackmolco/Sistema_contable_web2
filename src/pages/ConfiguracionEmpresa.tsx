@@ -41,6 +41,7 @@ export default function ConfiguracionEmpresa() {
   const appEmpresas = useAppStore((s) => s.empresas);
   const appEmpresaActiva = useAppStore((s) => s.empresaActiva);
   const setEmpresaActivaById = useAppStore((s) => s.setEmpresaActivaById);
+  const cambiarEmpresa = useAppStore((s) => s.cambiarEmpresa);
   const addEmpresa = useAppStore((s) => s.addEmpresa);
   const deleteEmpresa = useAppStore((s) => s.deleteEmpresa);
   const updateEmpresa = useAppStore((s) => s.updateEmpresa);
@@ -68,8 +69,7 @@ export default function ConfiguracionEmpresa() {
   const [actividadSeleccionada, setActividadSeleccionada] = useState<string>('');
 
   const seleccionarEmpresa = (empresa: Empresa) => {
-    setEmpresaActivaById(empresa.id);
-    setEmpresaActiva(empresa);
+    cambiarEmpresa(empresa.id);
   };
 
   const crearEmpresa = () => {
