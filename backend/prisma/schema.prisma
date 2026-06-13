@@ -1,0 +1,470 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============ AUTENTICACIÓN Y USUARIOS ============
+
+model Usuario {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  nombre        String
+  rut           String
+  rol           String   @default("contador")
+  passwordHash  String
+  activo        Boolean  @default(true)
+  ultimoAcceso  DateTime?
+  fechaCreacion DateTime @default(now())
+  empresaId     String?
+
+  empresa       Empresa?        @relation(fields: [empresaId], references: [id])
+  sesiones      Sesion[]
+  asientos      AsientoContable[] @relation("AsientoUsuario")
+  auditLogs     AuditLog[]
+  documentos    Documento[]     @relation("DocumentoUsuario")
+}
+
+model Sesion {
+  id             String   @id @default(uuid())
+  usuarioId      String
+  token          String   @unique
+  refreshToken   String?  @unique
+  fechaInicio    DateTime @default(now())
+  fechaExpiracion DateTime
+  ipOrigen      String?
+  userAgent     String?
+
+  usuario        Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([refreshToken])
+  @@index([usuarioId])
+}
+
+// ============ MULTI-EMPRESA ============
+
+model Empresa {
+  id                String   @id @default(uuid())
+  rut               String   @unique
+  razonSocial       String
+  nombreFantasia    String?
+  giro              String?
+  direccion         String?
+  comuna            String?
+  ciudad            String?
+  telefono          String?
+  email             String?
+  representanteLegal String?
+  rutRepresentante  String?
+  logo              String?
+  configuracion     String?  @default("{}")
+  activo            Boolean  @default(true)
+  fechaCreacion     DateTime @default(now())
+
+  usuarios          Usuario[]
+  cuentas           Cuenta[]
+  asientos          AsientoContable[]
+  trabajadores      Trabajador[]
+  documentos        DocumentoTributario[]
+  archivos          Documento[]          @relation("DocumentoEmpresa")
+  librosCompra      LibroCompra[]
+  librosVenta       LibroVenta[]
+  honorarios        Honorario[]
+  activosFijos      ActivoFijo[]
+  tesoreriaMovimientos TesoreriaMovimiento[]
+}
+
+// ============ CONTABILIDAD ============
+
+model Cuenta {
+  id            String   @id @default(uuid())
+  codigo        String
+  nombre        String
+  tipo          String
+  naturaleza    String   @default("deudora")
+  nivel         Int      @default(1)
+  padreId       String?
+  afectaIva     Boolean  @default(false)
+  descripcion   String?
+  refSII        String?
+  permiteMovimiento Boolean @default(true)
+  activo        Boolean  @default(true)
+  empresaId     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  empresa       Empresa?        @relation(fields: [empresaId], references: [id])
+  padre         Cuenta?         @relation("CuentaJerarquia", fields: [padreId], references: [id])
+  hijos         Cuenta[]        @relation("CuentaJerarquia")
+  detallesAsiento DetalleAsiento[]
+
+  @@unique([codigo, empresaId], name: "codigo_empresaId")
+  @@index([empresaId])
+  @@index([tipo])
+}
+
+model AsientoContable {
+  id            String   @id @default(uuid())
+  numero        Int
+  fecha         DateTime
+  glosa         String
+  estado        String   @default("pendiente")
+  tipo          String?
+  usuarioId     String?
+  empresaId     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  usuario       Usuario?        @relation("AsientoUsuario", fields: [usuarioId], references: [id])
+  empresa       Empresa?        @relation(fields: [empresaId], references: [id])
+  detalles      DetalleAsiento[]
+
+  @@unique([numero, empresaId, fecha])
+  @@index([empresaId])
+  @@index([fecha])
+  @@index([estado])
+}
+
+model DetalleAsiento {
+  id            String   @id @default(uuid())
+  asientoId     String
+  cuentaId      String
+  debe          Float    @default(0)
+  haber         Float    @default(0)
+  glosa         String?
+
+  asiento       AsientoContable @relation(fields: [asientoId], references: [id], onDelete: Cascade)
+  cuenta        Cuenta          @relation(fields: [cuentaId], references: [id])
+
+  @@index([asientoId])
+  @@index([cuentaId])
+}
+
+// ============ REMUNERACIONES ============
+
+model Trabajador {
+  id                String   @id @default(uuid())
+  rut               String
+  nombres           String
+  apellidos         String
+  email             String?
+  fechaNacimiento   DateTime?
+  cargo             String?
+  departamento      String?
+  fechaIngreso      DateTime
+  fechaTermino      DateTime?
+  tipoContrato      String
+  sueldoBase        Float
+  colacion          Float    @default(0)
+  movilizacion      Float    @default(0)
+  bonificacion      Float    @default(0)
+  afp               String
+  isapre            String?
+  saludPactado      Float    @default(7)
+  afc               Float    @default(0)
+  cargasFamiliares  Int      @default(0)
+  estado            String   @default("activo")
+  empresaId         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  empresa           Empresa?          @relation(fields: [empresaId], references: [id])
+  liquidaciones     LiquidacionSueldo[]
+  documentos        Documento[]       @relation("DocumentoTrabajador")
+
+  @@index([empresaId])
+  @@index([rut])
+}
+
+model LiquidacionSueldo {
+  id                String   @id @default(uuid())
+  trabajadorId      String
+  periodo           String
+  sueldoBase        Float
+  bonos             Float    @default(0)
+  horasExtras       Float    @default(0)
+  montoHorasExtras  Float    @default(0)
+  gratificacion     Float    @default(0)
+  totalImponible    Float
+  colacion          Float    @default(0)
+  movilizacion      Float    @default(0)
+  descuentoAFP      Float
+  descuentoSalud    Float
+  descuentoAFC      Float    @default(0)
+  descuentoImpuesto Float
+  otrosDescuentos   Float    @default(0)
+  totalDescuentos   Float
+  asignacionFamiliar Float   @default(0)
+  sueldoLiquido     Float
+  estado            String   @default("calculada")
+  fechaPago         DateTime?
+  ufValor           Float?
+  utmValor          Float?
+  createdAt         DateTime @default(now())
+
+  trabajador        Trabajador  @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
+
+  @@index([trabajadorId])
+  @@index([periodo])
+  @@unique([trabajadorId, periodo])
+}
+
+// ============ FACTURACIÓN Y DOCUMENTOS TRIBUTARIOS ============
+
+model DocumentoTributario {
+  id                  String   @id @default(uuid())
+  tipo                String
+  folio               Int
+  rutEmisor           String
+  rutReceptor         String
+  razonSocialReceptor String
+  giroReceptor        String?
+  direccionReceptor   String?
+  comunaReceptor      String?
+  fechaEmision        DateTime
+  fechaVencimiento    DateTime?
+  montoNeto           Float
+  iva                 Float
+  montoExento         Float   @default(0)
+  montoTotal          Float
+  estado              String  @default("emitido")
+  tipoTransaccion     String
+  glosa               String?
+  numeroAutorizacion  String?
+  fechaRecepcionSII   DateTime?
+  empresaId           String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  empresa             Empresa?  @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId])
+  @@index([tipo])
+  @@index([fechaEmision])
+  @@index([estado])
+  @@index([folio])
+  @@unique([tipo, folio, empresaId])
+}
+
+model LibroCompra {
+  id              String   @id @default(uuid())
+  periodo         String
+  tipoDocumento   String
+  numeroDocumento String
+  fecha           DateTime
+  rutProveedor    String
+  razonSocial     String
+  montoNeto       Float
+  montoExento     Float
+  iva             Float
+  ivaNoRecuperable Float  @default(0)
+  montoTotal      Float
+  empresaId       String?
+  createdAt       DateTime @default(now())
+
+  empresa         Empresa?  @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId])
+  @@index([periodo])
+}
+
+model LibroVenta {
+  id              String   @id @default(uuid())
+  periodo         String
+  tipoDocumento   String
+  numeroDocumento String
+  fecha           DateTime
+  rutCliente      String
+  razonSocial     String
+  montoNeto       Float
+  montoExento     Float
+  iva             Float
+  montoTotal      Float
+  empresaId       String?
+  createdAt       DateTime @default(now())
+
+  empresa         Empresa?  @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId])
+  @@index([periodo])
+}
+
+model Honorario {
+  id           String   @id @default(uuid())
+  rut          String
+  nombre       String
+  direccion    String?
+  periodo      String
+  montoBruto   Float
+  retencion    Float
+  montoLiquido Float
+  fechaPago    DateTime?
+  estado       String   @default("pendiente")
+  empresaId    String?
+  createdAt    DateTime @default(now())
+
+  empresa      Empresa?  @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId])
+  @@index([periodo])
+}
+
+// ============ ACTIVOS FIJOS ============
+
+model ActivoFijo {
+  id              String   @id @default(uuid())
+  codigo          String
+  descripcion     String
+  categoria       String
+  fechaAdquisicion DateTime
+  valorAdquisicion Float
+  vidaUtilMeses   Int
+  depreciacionMensual Float
+  depreciacionAcumulada Float @default(0)
+  valorNeto       Float
+  ubicacion       String?
+  estado          String   @default("activo")
+  empresaId       String?
+  createdAt       DateTime @default(now())
+
+  empresa         Empresa?  @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId])
+}
+
+// ============ TESORERÍA ============
+
+model TesoreriaMovimiento {
+  id          String   @id @default(uuid())
+  fecha       DateTime
+  tipo        String
+  categoria   String
+  descripcion String
+  monto       Float
+  origen      String
+  estado      String   @default("proyectado")
+  empresaId   String?
+  createdAt   DateTime @default(now())
+
+  empresa     Empresa?  @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId])
+  @@index([fecha])
+}
+
+// ============ DOCUMENTOS Y ARCHIVOS ============
+
+model Documento {
+  id            String   @id @default(uuid())
+  nombre        String
+  tipo          String
+  categoria     String
+  empresaId     String?
+  trabajadorId  String?
+  asientoId     String?
+  usuarioId     String?
+  ruta          String
+  tamano        Int
+  mimeType      String
+  etiquetas     String?
+  descripcion   String?
+  fechaDoc      DateTime?
+  fechaSubida   DateTime @default(now())
+  version       Int      @default(1)
+  activo        Boolean  @default(true)
+
+  empresa       Empresa?        @relation("DocumentoEmpresa", fields: [empresaId], references: [id])
+  trabajador    Trabajador?     @relation("DocumentoTrabajador", fields: [trabajadorId], references: [id])
+  usuario       Usuario?        @relation("DocumentoUsuario", fields: [usuarioId], references: [id])
+  versiones     ArchivoVersion[]
+
+  @@index([empresaId])
+  @@index([trabajadorId])
+  @@index([categoria])
+}
+
+model ArchivoVersion {
+  id          String   @id @default(uuid())
+  documentoId String
+  ruta        String
+  version     Int
+  fecha       DateTime @default(now())
+  tamano      Int
+
+  documento   Documento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+
+  @@index([documentoId])
+}
+
+model CategoriaDocumento {
+  id    Int    @id @default(autoincrement())
+  nombre String @unique
+  color  String
+  icono  String
+}
+
+// ============ CONFIGURACIÓN Y NORMATIVA ============
+
+model ConfiguracionNormativa {
+  id          String   @id @default(uuid())
+  clave       String   @unique
+  valor       String
+  descripcion String?
+  vigenteDesde DateTime
+  vigenteHasta DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clave])
+  @@index([vigenteDesde])
+}
+
+model TablaSII {
+  id        String   @id @default(uuid())
+  tipo      String
+  codigo    String
+  descripcion String
+  valor     String?
+  vigente   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([tipo])
+  @@index([codigo])
+  @@unique([tipo, codigo], name: "tipo_codigo")
+}
+
+// ============ AUDITORÍA ============
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  usuarioId String
+  accion    String
+  entidad   String
+  entidadId String
+  detalles  String?
+  ipOrigen  String?
+  userAgent String?
+  fecha     DateTime @default(now())
+
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@index([entidad])
+  @@index([fecha])
+  @@index([entidadId])
+}
+
+model Backup {
+  id          String   @id @default(uuid())
+  fecha       DateTime @default(now())
+  tipo        String
+  tamano      Int
+  ruta        String
+  estado      String   @default("completado")
+  creadoPor   String?
+}

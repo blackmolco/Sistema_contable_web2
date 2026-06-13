@@ -1,0 +1,307 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 217 47% 24%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --ease-out-strong:  cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer:      cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 47% 24%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+
+  body {
+    @apply bg-gray-50/80 dark:bg-gray-950 text-gray-900 dark:text-gray-100 antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  h1 { @apply text-3xl font-bold tracking-tight; }
+  h2 { @apply text-2xl font-bold tracking-tight; }
+  h3 { @apply text-xl font-semibold tracking-tight; }
+  h4 { @apply text-base font-semibold; }
+}
+
+@layer components {
+  /* Glassmorphism */
+  .glass {
+    @apply bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border border-white/20 dark:border-gray-800/50;
+  }
+  .glass-dark {
+    @apply bg-gray-900/80 backdrop-blur-xl border border-gray-800/50;
+  }
+
+  /* Card modern */
+  .card-modern {
+    @apply bg-white dark:bg-gray-900 rounded-xl border border-gray-200/60 dark:border-gray-800/60 shadow-sm
+    transition-all duration-200 hover:shadow-md hover:border-gray-300/60 dark:hover:border-gray-700/60;
+  }
+
+  /* Button modern */
+  .btn-modern {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+    transition-all duration-150 active:scale-[0.98]
+    focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:ring-offset-2 dark:focus:ring-offset-gray-900;
+  }
+  /* verde = marca/acción primaria (ver convención en tailwind.config.js) */
+  .btn-primary {
+    @apply btn-modern bg-primary text-white hover:bg-primary/90 active:bg-primary/80
+    shadow-sm hover:shadow-md;
+  }
+  .btn-secondary {
+    @apply btn-modern bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700
+    hover:bg-gray-50 dark:hover:bg-gray-700 active:bg-gray-100 dark:active:bg-gray-600;
+  }
+  .btn-ghost {
+    @apply btn-modern text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700;
+  }
+
+  /* Input modern */
+  .input-modern {
+    @apply w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm
+    transition-all duration-150
+    focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-400
+    hover:border-gray-300 dark:hover:border-gray-600;
+  }
+
+  /* Badge with pulse */
+  .badge-modern {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+  .badge-success { @apply badge-modern bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400; }
+  .badge-warning { @apply badge-modern bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400; }
+  .badge-danger { @apply badge-modern bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400; }
+  .badge-info { @apply badge-modern bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400; }
+  .badge-neutral { @apply badge-modern bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300; }
+
+  .badge-dot {
+    @apply w-1.5 h-1.5 rounded-full;
+  }
+  .badge-dot-success { @apply badge-dot bg-emerald-500; }
+  .badge-dot-warning { @apply badge-dot bg-amber-500; }
+  .badge-dot-danger { @apply badge-dot bg-red-500; }
+  .badge-dot-info { @apply badge-dot bg-blue-500; }
+  .badge-dot-pulse {
+    @apply animate-pulse;
+  }
+
+  /* Table modern */
+  .table-modern {
+    @apply w-full border-collapse;
+  }
+  .table-modern thead th {
+    @apply px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider
+    border-b border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50;
+  }
+  .table-modern tbody tr {
+    @apply border-b border-gray-100 dark:border-gray-800/50
+    transition-colors duration-150 hover:bg-gray-50/80 dark:hover:bg-gray-800/40;
+  }
+  .table-modern tbody td {
+    @apply px-4 py-3 text-sm;
+  }
+}
+
+@layer utilities {
+  /* ── Números contables ──────────────────────────────────────────────── */
+  /* Dígitos de ancho fijo para alinear columnas de montos */
+  .tnum { font-variant-numeric: tabular-nums; }
+  /* dark: se maneja con clase Tailwind en el componente (<Monto />) */
+  .monto-negativo { color: rgb(220 38 38); }
+
+  /* Scrollbar ultra-fina */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-gray-300/60 dark:bg-gray-600/60 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-gray-400/80 dark:bg-gray-500/80; }
+
+  /* Selection */
+  ::selection { @apply bg-blue-500/20 text-blue-900 dark:text-blue-100; }
+
+  /* Font smoothing */
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+  /* Consistent border-radius */
+  .rounded-card { @apply rounded-xl; }
+  .rounded-btn { @apply rounded-lg; }
+  .rounded-input { @apply rounded-md; }
+
+  /* KPI gradient backgrounds */
+  .kpi-gradient-blue { @apply bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 border-blue-100 dark:border-blue-900/50; }
+  .kpi-gradient-green { @apply bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50 border-emerald-100 dark:border-emerald-900/50; }
+  .kpi-gradient-amber { @apply bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 border-amber-100 dark:border-amber-900/50; }
+  .kpi-gradient-red { @apply bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/50 dark:to-rose-950/50 border-red-100 dark:border-red-900/50; }
+  .kpi-gradient-purple { @apply bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/50 dark:to-violet-950/50 border-purple-100 dark:border-purple-900/50; }
+
+  /* Icon circle */
+  .icon-circle {
+    @apply w-10 h-10 rounded-lg flex items-center justify-center
+    bg-white/80 dark:bg-gray-800/80 shadow-sm;
+  }
+
+  /* Page transition */
+  .page-enter {
+    animation: pageEnter 300ms var(--ease-out-strong) both;
+  }
+  @keyframes pageEnter {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* animate-page-in — usado por PageTransition.tsx */
+  .animate-page-in {
+    animation: animPageIn 180ms var(--ease-out-strong) both;
+  }
+  @keyframes animPageIn {
+    from { opacity: 0; transform: translateY(6px) scale(0.995); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
+  }
+
+  /* animate-fade-in */
+  .animate-fade-in {
+    animation: animFadeIn 200ms ease-out both;
+  }
+  @keyframes animFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* animate-count — para KPI count-up flash */
+  .animate-count-flash {
+    animation: countFlash 600ms var(--ease-out-strong);
+  }
+  @keyframes countFlash {
+    0%   { transform: scale(1.08); color: var(--accent-color, #10B981); }
+    100% { transform: scale(1);    color: inherit; }
+  }
+
+  /* Bento grid */
+  .bento-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+  .bento-span-2 { @apply md:col-span-2; }
+  .bento-span-3 { @apply md:col-span-2 lg:col-span-3; }
+  .bento-span-full { @apply col-span-1 md:col-span-2 lg:col-span-3; }
+}
+
+/* ── CSS custom property defaults (override via ThemeContext) ─────────── */
+:root {
+  --brand-color: #1E3A5F;
+  --brand-h: 217;
+  --brand-s: 52%;
+  --brand-l: 24%;
+  --accent-color: #10B981;
+  --radius-card: 0.875rem;
+  --font-scale: 1;
+}
+
+/* Apply radius-card to card-modern */
+.card-modern { border-radius: var(--radius-card); }
+
+/* Apply font-scale to root */
+html { font-size: calc(16px * var(--font-scale, 1)); }
+
+/* ── Table row hover with left border accent ──────────────────────────── */
+.table-modern tbody tr:hover {
+  background-color: hsl(var(--brand-h) var(--brand-s) var(--brand-l) / 0.04) !important;
+}
+.table-modern tbody tr:hover td:first-child {
+  border-left: 2px solid hsl(var(--brand-h) var(--brand-s) var(--brand-l) / 0.35);
+}
+
+/* ── Notification badge ────────────────────────────────────────────────── */
+.notif-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  padding: 0 3px;
+  pointer-events: none;
+}
+
+/* ── Print styles ─────────────────────────────────────────────────────── */
+@media print {
+  /* Hide chrome */
+  .cc-sidebar, header, .cc-no-print { display: none !important; }
+  main { margin-left: 0 !important; padding: 0 !important; }
+  body { background: white !important; color: black !important; }
+
+  /* Company membrete header injected via ::before on printable sections */
+  .cc-printable::before {
+    content: attr(data-company) " · RUT: " attr(data-rut);
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1E3A5F;
+    border-bottom: 2px solid #1E3A5F;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+  }
+
+  /* Ensure tables print without shadows */
+  .card-modern, .table-modern {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+  .table-modern tbody tr:hover {
+    background: none !important;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
