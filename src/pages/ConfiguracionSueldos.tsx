@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   DollarSign,
   RefreshCw,
@@ -16,7 +16,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { Card, Button } from '../components/ui/Cards';
-import { PreviRedService, DatosPreviRed } from '../services/previRedService';
+import { PreviRedService, DatosPreviRed } from '../services/PreviRedService';
 import {
   SUELDO_MINIMO,
   ASIGNACION_FAMILIAR,
@@ -25,7 +25,7 @@ import {
   JORNADA_LABORAL,
 } from '../data/normativa';
 
-// ─── tipos locales ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ tipos locales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface CalcHorasExtras {
   sueldoBase: number;
   horasOrdinarias: number;
@@ -46,7 +46,7 @@ const PERIODOS = Array.from({ length: 12 }, (_, i) =>
   `${ANIO}-${String(i + 1).padStart(2, '0')}`
 );
 
-// ─── helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function periodoActual(): string {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
@@ -61,9 +61,9 @@ function formatCLP(value: number) {
   }).format(value);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 export default function ConfiguracionSueldos() {
-  // Período seleccionado — por defecto el mes actual o el último disponible
+  // PerÃ­odo seleccionado â€” por defecto el mes actual o el Ãºltimo disponible
   const [periodo, setPeriodo] = useState<string>(() => {
     const actual = periodoActual();
     return PERIODOS.includes(actual) ? actual : '2026-05';
@@ -82,7 +82,7 @@ export default function ConfiguracionSueldos() {
     horasExtras: 10,
   });
 
-  // Cargar datos cuando cambia el período
+  // Cargar datos cuando cambia el perÃ­odo
   useEffect(() => {
     setDatos(PreviRedService.getDatosParaPeriodo(periodo));
     setGuardado(false);
@@ -114,7 +114,7 @@ export default function ConfiguracionSueldos() {
     };
   }, [calcHE]);
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // â”€â”€ Handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const guardarCambios = useCallback(() => {
     PreviRedService.guardarDatosParaPeriodo(datos, periodo);
     setGuardado(true);
@@ -161,7 +161,7 @@ export default function ConfiguracionSueldos() {
     }));
   }, []);
 
-  // Link al PDF PreviRed del período seleccionado
+  // Link al PDF PreviRed del perÃ­odo seleccionado
   const linkPreviRed = useMemo(() => {
     const [anio, mes] = periodo.split('-');
     const MESES_URL: Record<string, string> = {
@@ -173,16 +173,16 @@ export default function ConfiguracionSueldos() {
     return `https://www.previred.com/indicadores-previsionales/`;
   }, [periodo]);
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div className="space-y-6">
 
-      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
+      {/* â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Configuración de Sueldos</h1>
+          <h1 className="text-2xl font-bold text-gray-900">ConfiguraciÃ³n de Sueldos</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Indicadores PreviRed {ANIO} · Ley 21.561 · {JORNADA_LABORAL.HORAS_SEMANA_VIGENTE}h semanales vigentes
+            Indicadores PreviRed {ANIO} Â· Ley 21.561 Â· {JORNADA_LABORAL.HORAS_SEMANA_VIGENTE}h semanales vigentes
           </p>
         </div>
         <div className="flex gap-2">
@@ -191,7 +191,7 @@ export default function ConfiguracionSueldos() {
             target="_blank"
             rel="noopener noreferrer"
             className="px-3 py-2 text-sm text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded-lg flex items-center gap-1.5 transition-colors"
-            title="Ver PDF oficial PreviRed del período"
+            title="Ver PDF oficial PreviRed del perÃ­odo"
           >
             <ExternalLink size={15} /> PDF PreviRed
           </a>
@@ -199,12 +199,12 @@ export default function ConfiguracionSueldos() {
             Restablecer
           </Button>
           <Button onClick={guardarCambios} icon={<Save size={18} />}>
-            {guardado ? '✓ Guardado' : 'Guardar'}
+            {guardado ? 'âœ“ Guardado' : 'Guardar'}
           </Button>
         </div>
       </div>
 
-      {/* ── SELECTOR DE PERÍODO ─────────────────────────────────────────────── */}
+      {/* â”€â”€ SELECTOR DE PERÃODO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Card>
         <div className="flex items-center gap-3 mb-4">
           <button
@@ -272,7 +272,7 @@ export default function ConfiguracionSueldos() {
         </div>
       </Card>
 
-      {/* ── ALERTA UF NO VERIFICADA ─────────────────────────────────────────── */}
+      {/* â”€â”€ ALERTA UF NO VERIFICADA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {!ufInfo.verificado && (
         <div className={`flex items-start gap-3 p-4 rounded-xl border ${
           mesNum < new Date().getMonth() + 1
@@ -283,18 +283,18 @@ export default function ConfiguracionSueldos() {
           <div className="text-sm">
             <p className={`font-medium ${mesNum < new Date().getMonth() + 1 ? 'text-amber-800' : 'text-blue-800'}`}>
               {mesNum < new Date().getMonth() + 1
-                ? `UF de ${MESES_LARGO[mesNum - 1]} es una estimación — verifique con CMF/SII antes de procesar sueldos`
+                ? `UF de ${MESES_LARGO[mesNum - 1]} es una estimaciÃ³n â€” verifique con CMF/SII antes de procesar sueldos`
                 : `UF de ${MESES_LARGO[mesNum - 1]} es un valor proyectado`}
             </p>
             <p className="text-gray-500 mt-0.5">
-              Fuente oficial: <a href="https://www.cmfchile.cl/portal/estadisticas/617/w3-propertyvalue-27311.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-600">CMF Chile — Valor UF</a>
-              {' '}· Edite el campo UF abajo y guarde para este período.
+              Fuente oficial: <a href="https://www.cmfchile.cl/portal/estadisticas/617/w3-propertyvalue-27311.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-600">CMF Chile â€” Valor UF</a>
+              {' '}Â· Edite el campo UF abajo y guarde para este perÃ­odo.
             </p>
           </div>
         </div>
       )}
 
-      {/* ── TÍTULO MES SELECCIONADO ─────────────────────────────────────────── */}
+      {/* â”€â”€ TÃTULO MES SELECCIONADO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">
           {MESES_CORTO[mesNum - 1]}
@@ -306,12 +306,12 @@ export default function ConfiguracionSueldos() {
           <p className="text-xs text-gray-500">
             {ufInfo.verificado
               ? <span className="flex items-center gap-1 text-emerald-600"><CheckCircle2 size={12} /> Datos verificados con fuente oficial</span>
-              : <span className="text-amber-600">Datos estimados — edite la UF del período si tiene el valor oficial</span>}
+              : <span className="text-amber-600">Datos estimados â€” edite la UF del perÃ­odo si tiene el valor oficial</span>}
           </p>
         </div>
       </div>
 
-      {/* ── UF / UTM / SIS ──────────────────────────────────────────────────── */}
+      {/* â”€â”€ UF / UTM / SIS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* UF */}
         <Card>
@@ -323,7 +323,7 @@ export default function ConfiguracionSueldos() {
               ? <span className="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">Verificada</span>
               : <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full">Estimada</span>}
           </div>
-          <p className="text-xs text-gray-500 mb-1">UF — {datos.uf.fecha}</p>
+          <p className="text-xs text-gray-500 mb-1">UF â€” {datos.uf.fecha}</p>
           <input
             type="number"
             step="0.01"
@@ -344,7 +344,7 @@ export default function ConfiguracionSueldos() {
               <TrendingUp size={20} className="text-purple-600" />
             </div>
           </div>
-          <p className="text-xs text-gray-500 mb-1">UTM — {MESES_LARGO[mesNum - 1]} {ANIO}</p>
+          <p className="text-xs text-gray-500 mb-1">UTM â€” {MESES_LARGO[mesNum - 1]} {ANIO}</p>
           <input
             type="number"
             value={datos.utm}
@@ -364,9 +364,9 @@ export default function ConfiguracionSueldos() {
             </div>
             {datos.sis === 1.62
               ? <span className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded-full">Abr 2026+</span>
-              : <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">Ene–Mar 2026</span>}
+              : <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">Eneâ€“Mar 2026</span>}
           </div>
-          <p className="text-xs text-gray-500 mb-1">Tasa SIS — cargo del empleador (%)</p>
+          <p className="text-xs text-gray-500 mb-1">Tasa SIS â€” cargo del empleador (%)</p>
           <input
             type="number"
             step="0.01"
@@ -375,23 +375,23 @@ export default function ConfiguracionSueldos() {
             className="w-full text-2xl font-bold text-gray-900 border border-gray-300 rounded-lg px-3 py-2"
           />
           <div className="mt-2 text-xs text-gray-400 space-y-0.5">
-            <p>Ene–Mar 2026: <strong>1.54%</strong></p>
+            <p>Eneâ€“Mar 2026: <strong>1.54%</strong></p>
             <p>Abr 2026+: <strong>1.62%</strong> (Oficio 7429)</p>
           </div>
         </Card>
       </div>
 
-      {/* ── NOTA COTIZACIÓN ADICIONAL EMPLEADOR ─────────────────────────────── */}
+      {/* â”€â”€ NOTA COTIZACIÃ“N ADICIONAL EMPLEADOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex items-start gap-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-700">
         <Info size={15} className="text-indigo-500 mt-0.5 flex-shrink-0" />
         <div>
-          <strong>Cotización adicional empleador (0.1%) — Reforma Previsional 2026:</strong>{' '}
-          Además del SIS, el empleador paga un 0.1% adicional al AFP del trabajador (columna "Cargo del Empleador" en la tabla PreviRed).
-          Esto aparece en el costo empresa de cada liquidación.
+          <strong>CotizaciÃ³n adicional empleador (0.1%) â€” Reforma Previsional 2026:</strong>{' '}
+          AdemÃ¡s del SIS, el empleador paga un 0.1% adicional al AFP del trabajador (columna "Cargo del Empleador" en la tabla PreviRed).
+          Esto aparece en el costo empresa de cada liquidaciÃ³n.
         </div>
       </div>
 
-      {/* ── JORNADA LABORAL ─────────────────────────────────────────────────── */}
+      {/* â”€â”€ JORNADA LABORAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Card>
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -399,13 +399,13 @@ export default function ConfiguracionSueldos() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-1">
-              <h3 className="font-semibold text-gray-900">Jornada Laboral — Ley 21.561 "40 Horas"</h3>
+              <h3 className="font-semibold text-gray-900">Jornada Laboral â€” Ley 21.561 "40 Horas"</h3>
               <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full font-medium">
                 {JORNADA_LABORAL.HORAS_SEMANA_VIGENTE}h/sem vigentes
               </span>
             </div>
             <p className="text-xs text-gray-500 mb-4">
-              Reducción gradual de la jornada máxima ordinaria. Horas/mes = h/sem × 52 ÷ 12.
+              ReducciÃ³n gradual de la jornada mÃ¡xima ordinaria. Horas/mes = h/sem Ã— 52 Ã· 12.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {JORNADA_LABORAL.ETAPAS.map((etapa) => (
@@ -427,7 +427,7 @@ export default function ConfiguracionSueldos() {
                       <span className="text-xs bg-indigo-600 text-white px-1.5 py-0.5 rounded-full">Hoy</span>
                     )}
                     {etapa.desdeAnio > ANIO && (
-                      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Próximo</span>
+                      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">PrÃ³ximo</span>
                     )}
                   </div>
                   <p className={`text-xs ${etapa.vigente ? 'text-indigo-600 font-medium' : 'text-gray-400'}`}>
@@ -443,18 +443,18 @@ export default function ConfiguracionSueldos() {
         </div>
       </Card>
 
-      {/* ── INDICADORES LEGALES ─────────────────────────────────────────────── */}
+      {/* â”€â”€ INDICADORES LEGALES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Card title="Indicadores Legales">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-blue-50 rounded-lg p-4">
-            <p className="text-xs text-blue-600 font-medium mb-1">Sueldo Mínimo</p>
+            <p className="text-xs text-blue-600 font-medium mb-1">Sueldo MÃ­nimo</p>
             <p className="text-lg font-bold text-blue-900">{formatCLP(SUELDO_MINIMO.MENSUAL)}</p>
             <p className="text-xs text-blue-500 mt-1">{formatCLP(SUELDO_MINIMO.HORA)}/hora</p>
           </div>
           <div className="bg-purple-50 rounded-lg p-4">
             <p className="text-xs text-purple-600 font-medium mb-1">Tope AFP / Salud</p>
             <p className="text-lg font-bold text-purple-900">{formatCLP(datos.rentaTopes.afp)}</p>
-            <p className="text-xs text-purple-500 mt-1">90 UF · UF={formatCLP(datos.uf.valor)}</p>
+            <p className="text-xs text-purple-500 mt-1">90 UF Â· UF={formatCLP(datos.uf.valor)}</p>
           </div>
           <div className="bg-amber-50 rounded-lg p-4">
             <p className="text-xs text-amber-600 font-medium mb-1">Tope AFC</p>
@@ -468,18 +468,18 @@ export default function ConfiguracionSueldos() {
           </div>
         </div>
 
-        {/* Asignación Familiar */}
+        {/* AsignaciÃ³n Familiar */}
         <div className="mt-5">
           <div className="flex items-center gap-2 mb-3">
             <Users size={15} className="text-gray-500" />
-            <p className="text-sm font-semibold text-gray-700">Asignación Familiar 2026 (por carga)</p>
+            <p className="text-sm font-semibold text-gray-700">AsignaciÃ³n Familiar 2026 (por carga)</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-gray-600">
                   <th className="text-left py-2 px-3 font-medium">Tramo</th>
-                  <th className="text-right py-2 px-3 font-medium">Remuneración hasta</th>
+                  <th className="text-right py-2 px-3 font-medium">RemuneraciÃ³n hasta</th>
                   <th className="text-right py-2 px-3 font-medium">Monto por carga</th>
                 </tr>
               </thead>
@@ -496,14 +496,14 @@ export default function ConfiguracionSueldos() {
         {/* AFC */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="border border-gray-200 rounded-lg p-3">
-            <p className="text-xs font-semibold text-gray-600 mb-2">Seg. Cesantía — Contrato Indefinido</p>
+            <p className="text-xs font-semibold text-gray-600 mb-2">Seg. CesantÃ­a â€” Contrato Indefinido</p>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between"><span className="text-gray-500">Trabajador</span><span className="font-medium">{COTIZACIONES.AFC_TRABAJADOR_INDEFINIDO}%</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Empleador</span><span className="font-medium">{COTIZACIONES.AFC_EMPLEADOR_INDEFINIDO}%</span></div>
             </div>
           </div>
           <div className="border border-gray-200 rounded-lg p-3">
-            <p className="text-xs font-semibold text-gray-600 mb-2">Seg. Cesantía — Contrato Plazo Fijo</p>
+            <p className="text-xs font-semibold text-gray-600 mb-2">Seg. CesantÃ­a â€” Contrato Plazo Fijo</p>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between"><span className="text-gray-500">Trabajador</span><span className="font-medium">{COTIZACIONES.AFC_TRABAJADOR_PLAZO}%</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Empleador</span><span className="font-medium">{COTIZACIONES.AFC_EMPLEADOR_PLAZO}%</span></div>
@@ -512,8 +512,8 @@ export default function ConfiguracionSueldos() {
         </div>
       </Card>
 
-      {/* ── TASAS AFP ───────────────────────────────────────────────────────── */}
-      <Card title={`Tasas de Cotización AFP — ${MESES_LARGO[mesNum - 1]} ${ANIO}`}>
+      {/* â”€â”€ TASAS AFP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Card title={`Tasas de CotizaciÃ³n AFP â€” ${MESES_LARGO[mesNum - 1]} ${ANIO}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -523,7 +523,7 @@ export default function ConfiguracionSueldos() {
                   Ahorro<br /><span className="text-xs font-normal text-gray-400">10%</span>
                 </th>
                 <th className="text-right py-3 px-3 font-medium text-gray-600">
-                  Comisión<br /><span className="text-xs font-normal text-gray-400">AFP</span>
+                  ComisiÃ³n<br /><span className="text-xs font-normal text-gray-400">AFP</span>
                 </th>
                 <th className="text-right py-3 px-3 font-medium text-blue-700">
                   Total Trab.<br /><span className="text-xs font-normal">(descuento)</span>
@@ -574,19 +574,19 @@ export default function ConfiguracionSueldos() {
           </table>
         </div>
         <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100 text-xs text-blue-700 space-y-1">
-          <p><strong>Fuente:</strong> Indicadores PreviRed — tasas fijadas por la Superintendencia de Pensiones.</p>
+          <p><strong>Fuente:</strong> Indicadores PreviRed â€” tasas fijadas por la Superintendencia de Pensiones.</p>
           <p>
-            <strong>Trabajador descuenta:</strong> 10% ahorro + comisión AFP = columna "Total Trab."
-            · <strong>Empleador paga:</strong> SIS + 0.1% adicional (reforma 2026)
-            · SIS cambió a 1.62% desde Abril 2026 (Oficio N° 7429 del 14/04/2026)
+            <strong>Trabajador descuenta:</strong> 10% ahorro + comisiÃ³n AFP = columna "Total Trab."
+            Â· <strong>Empleador paga:</strong> SIS + 0.1% adicional (reforma 2026)
+            Â· SIS cambiÃ³ a 1.62% desde Abril 2026 (Oficio NÂ° 7429 del 14/04/2026)
           </p>
         </div>
       </Card>
 
-      {/* ── COMPARACIÓN AFP ─────────────────────────────────────────────────── */}
+      {/* â”€â”€ COMPARACIÃ“N AFP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Card>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-900">Comparación por sueldo de $1.500.000</h3>
+          <h3 className="font-semibold text-gray-900">ComparaciÃ³n por sueldo de $1.500.000</h3>
           <Button variant="ghost" size="sm" onClick={() => setMostrarComparacion(!mostrarComparacion)}>
             {mostrarComparacion ? 'Ocultar' : 'Mostrar'}
           </Button>
@@ -614,8 +614,8 @@ export default function ConfiguracionSueldos() {
         )}
       </Card>
 
-      {/* ── RENTAS TOPES ────────────────────────────────────────────────────── */}
-      <Card title={`Rentas Topes Imponibles — ${MESES_LARGO[mesNum - 1]} ${ANIO}`}>
+      {/* â”€â”€ RENTAS TOPES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Card title={`Rentas Topes Imponibles â€” ${MESES_LARGO[mesNum - 1]} ${ANIO}`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
             { label: 'Tope AFP / Salud', key: 'afp' as const, uf: 90 },
@@ -633,13 +633,13 @@ export default function ConfiguracionSueldos() {
                 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
               />
-              <p className="text-xs text-gray-400 mt-1">{uf} UF × {formatCLP(datos.uf.valor)}</p>
+              <p className="text-xs text-gray-400 mt-1">{uf} UF Ã— {formatCLP(datos.uf.valor)}</p>
             </div>
           ))}
         </div>
       </Card>
 
-      {/* ── CALCULADORA HORAS EXTRAORDINARIAS ───────────────────────────────── */}
+      {/* â”€â”€ CALCULADORA HORAS EXTRAORDINARIAS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Card title="Calculadora de Horas Extraordinarias (Art. 32 CT)">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
           <div>
@@ -651,7 +651,7 @@ export default function ConfiguracionSueldos() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
               min={0}
             />
-            <p className="text-xs text-gray-400 mt-1">Mínimo: {formatCLP(SUELDO_MINIMO.MENSUAL)}</p>
+            <p className="text-xs text-gray-400 mt-1">MÃ­nimo: {formatCLP(SUELDO_MINIMO.MENSUAL)}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Horas Ordinarias / Mes</label>
@@ -679,8 +679,8 @@ export default function ConfiguracionSueldos() {
             />
             <p className={`text-xs mt-1 ${resultadoHE.sobreLimite ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
               {resultadoHE.sobreLimite
-                ? `⚠ Supera el máximo legal (~${resultadoHE.maxLegalMes}h/mes)`
-                : `Máx. legal: 2h/día · 10h/sem (~${resultadoHE.maxLegalMes}h/mes)`}
+                ? `âš  Supera el mÃ¡ximo legal (~${resultadoHE.maxLegalMes}h/mes)`
+                : `MÃ¡x. legal: 2h/dÃ­a Â· 10h/sem (~${resultadoHE.maxLegalMes}h/mes)`}
             </p>
           </div>
         </div>
@@ -691,7 +691,7 @@ export default function ConfiguracionSueldos() {
             <p className="text-xl font-bold text-gray-800">{formatCLP(resultadoHE.valorHoraNormal)}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-gray-500 mb-1">Valor Hora Extra (×1,5)</p>
+            <p className="text-xs text-gray-500 mb-1">Valor Hora Extra (Ã—1,5)</p>
             <p className="text-xl font-bold text-blue-700">{formatCLP(resultadoHE.valorHoraExtra)}</p>
           </div>
           <div className="text-center border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-4">
@@ -704,20 +704,20 @@ export default function ConfiguracionSueldos() {
         <div className="mt-4 flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
           <Info size={15} className="text-blue-500 mt-0.5 flex-shrink-0" />
           <p className="text-xs text-blue-700">
-            <strong>CT Art. 30–32:</strong> Recargo mínimo 50% sobre la hora ordinaria. Límite: 2h/día y 10h/semana.
-            Las horas extras son <strong>imponibles</strong> (AFP, salud, AFC). El pacto debe ser escrito y tiene vigencia máxima de 3 meses renovables.
+            <strong>CT Art. 30â€“32:</strong> Recargo mÃ­nimo 50% sobre la hora ordinaria. LÃ­mite: 2h/dÃ­a y 10h/semana.
+            Las horas extras son <strong>imponibles</strong> (AFP, salud, AFC). El pacto debe ser escrito y tiene vigencia mÃ¡xima de 3 meses renovables.
           </p>
         </div>
       </Card>
 
-      {/* ── CÓMO ACTUALIZAR DESDE PDF PreviRed ──────────────────────────────── */}
+      {/* â”€â”€ CÃ“MO ACTUALIZAR DESDE PDF PreviRed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Card>
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center flex-shrink-0">
             <Upload size={20} className="text-violet-600" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 mb-1">Cómo actualizar los indicadores desde el PDF PreviRed</h3>
+            <h3 className="font-semibold text-gray-900 mb-1">CÃ³mo actualizar los indicadores desde el PDF PreviRed</h3>
             <p className="text-xs text-gray-500 mb-3">
               PreviRed publica un PDF mensual con todos los indicadores. Siga estos pasos para actualizar manualmente:
             </p>
@@ -729,11 +729,11 @@ export default function ConfiguracionSueldos() {
                   previred.com/indicadores-previsionales <ExternalLink size={11} />
                 </a>
               </li>
-              <li>Seleccione el mes correspondiente en el selector de período de arriba</li>
-              <li>Edite el campo <strong>UF</strong> con el valor "Al último día del mes" que aparece en el PDF</li>
+              <li>Seleccione el mes correspondiente en el selector de perÃ­odo de arriba</li>
+              <li>Edite el campo <strong>UF</strong> con el valor "Al Ãºltimo dÃ­a del mes" que aparece en el PDF</li>
               <li>Edite el campo <strong>UTM</strong> con el valor publicado (columna UTM del cuadro superior)</li>
-              <li>Edite el campo <strong>SIS</strong> si cambió (Ene–Mar 2026: 1.54% · Abr 2026+: 1.62%)</li>
-              <li>Haga clic en <strong>Guardar</strong> — los cambios se aplican a todas las liquidaciones del período</li>
+              <li>Edite el campo <strong>SIS</strong> si cambiÃ³ (Eneâ€“Mar 2026: 1.54% Â· Abr 2026+: 1.62%)</li>
+              <li>Haga clic en <strong>Guardar</strong> â€” los cambios se aplican a todas las liquidaciones del perÃ­odo</li>
             </ol>
             <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
               {[
@@ -747,7 +747,7 @@ export default function ConfiguracionSueldos() {
                   <span className="font-medium text-gray-700">{d.mes}</span>
                   <div className="text-right text-gray-500 space-y-0.5">
                     <div>UF ${d.uf}</div>
-                    <div>UTM ${d.utm} · SIS {d.sis}</div>
+                    <div>UTM ${d.utm} Â· SIS {d.sis}</div>
                   </div>
                   {d.ok && <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0 ml-1" />}
                 </div>
@@ -757,8 +757,8 @@ export default function ConfiguracionSueldos() {
         </div>
       </Card>
 
-      {/* ── HISTORIAL / ESTADO DE PERÍODOS ──────────────────────────────────── */}
-      <Card title="Estado de Configuración por Período">
+      {/* â”€â”€ HISTORIAL / ESTADO DE PERÃODOS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Card title="Estado de ConfiguraciÃ³n por PerÃ­odo">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {PERIODOS.map((p) => {
             const m = parseInt(p.split('-')[1], 10) - 1;
@@ -788,7 +788,7 @@ export default function ConfiguracionSueldos() {
                     ? <span className="text-xs text-amber-600 flex items-center gap-0.5"><AlertTriangle size={10} /> Verificar</span>
                     : <span className="text-xs text-gray-400">Proyectado</span>}
                   {editado && !uf.verificado && (
-                    <span className="text-xs text-blue-500 ml-1">· editado</span>
+                    <span className="text-xs text-blue-500 ml-1">Â· editado</span>
                   )}
                 </div>
               </button>
@@ -800,3 +800,4 @@ export default function ConfiguracionSueldos() {
     </div>
   );
 }
+
