@@ -273,7 +273,7 @@ export default function PlanCuentas() {
                       >
                         <div className="flex items-center gap-4">
                           <span
-                            className={`font-mono text-sm w-16 ${
+                            className={`font-mono text-sm w-28 ${
                               cuenta.nivel === 0
                                 ? 'font-bold text-gray-700'
                                 : cuenta.nivel === 1
