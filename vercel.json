@@ -2,8 +2,8 @@
   "buildCommand": "npm install && npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "installCommand": "npm install",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)backend'"
+  ]
 }
