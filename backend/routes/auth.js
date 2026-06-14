@@ -136,4 +136,21 @@ router.post('/logout', authenticateToken, async (req, res) => {
     }
 });
 
+// RUTA TEMPORAL — crear usuario (eliminar después de usar)
+router.post('/create-user', async (req, res) => {
+    const { secret, email, password, nombre } = req.body;
+    if (secret !== 'molco-admin-2024') return res.status(403).json({ error: 'Forbid' });
+    try {
+        const hash = await bcrypt.hash(password, 12);
+        const user = await prisma.usuario.upsert({
+            where: { email },
+            update: { passwordHash: hash, nombre, activo: true },
+            create: { email, passwordHash: hash, nombre, rol: 'usuario', activo: true },
+        });
+        res.json({ ok: true, id: user.id, email: user.email });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;
