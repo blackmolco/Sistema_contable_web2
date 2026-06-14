@@ -80,6 +80,10 @@ export async function saveEmpresa(e: Empresa): Promise<void> {
   });
 }
 
+export async function deleteEmpresa(id: string): Promise<void> {
+  await apiFetch(`/api/empresas/${id}`, { method: 'DELETE' });
+}
+
 // ============ CUENTAS ============
 
 export async function fetchCuentas(): Promise<Cuenta[]> {

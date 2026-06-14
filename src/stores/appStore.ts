@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../utils/calculos';
-import { saveEmpresa, isAuthenticated } from '../services/apiSync';
+import { saveEmpresa, deleteEmpresa as apiDeleteEmpresa, isAuthenticated } from '../services/apiSync';
 
 export interface Empresa {
   id: string;
@@ -207,6 +207,7 @@ export const useAppStore = create<AppState>()(
                 : state.empresaActiva,
           };
         });
+        if (removed && isAuthenticated()) apiDeleteEmpresa(id).catch(() => {});
         return removed;
       },
       validarRUTEmpresa: (rut) => {

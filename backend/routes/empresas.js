@@ -60,4 +60,15 @@ router.post('/', authenticateToken, writeLimiter, validate(empresaSchema), async
     }
 });
 
+router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
+    try {
+        await prisma.empresa.update({ where: { id: req.params.id }, data: { activo: false } });
+        await auditLog(req.usuario.id, 'ELIMINAR', 'Empresa', req.params.id, {}, req.ip, req.headers['user-agent']);
+        res.json({ message: 'Empresa desactivada' });
+    } catch (err) {
+        logger.error({ err }, 'Error eliminando empresa');
+        res.status(500).json({ error: 'Error al eliminar empresa' });
+    }
+});
+
 module.exports = router;
