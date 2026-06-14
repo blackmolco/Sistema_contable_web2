@@ -1,5 +1,7 @@
 // src/services/apiSync.ts
 // Helpers para sincronizar datos entre contextos locales y la API REST.
+// Nota: NO enviamos empresaId del frontend (UUIDs locales != IDs del backend).
+// La segmentación por empresa la maneja el JWT (req.usuario.empresaId) en el backend.
 
 import { apiFetch } from './httpClient';
 import { getToken } from './apiAuth';
@@ -22,34 +24,35 @@ async function fetchAll<T>(path: string, params: Record<string, string> = {}): P
   let totalPages = 1;
 
   while (page <= totalPages) {
-    const qs = new URLSearchParams({ ...params, page: String(page), limit: '200' }).toString();
+    const qs = new URLSearchParams({ ...params, page: String(page), limit: '500' }).toString();
     const res = await apiFetch<PaginatedResponse<T>>(`${path}?${qs}`);
     results.push(...res.data);
-    totalPages = res.totalPages;
+    totalPages = res.totalPages ?? 1;
     page++;
+    if (page > totalPages) break;
   }
   return results;
 }
 
 // ============ CUENTAS ============
 
-export async function fetchCuentas(empresaId: string): Promise<Cuenta[]> {
-  const rows = await fetchAll<Record<string, unknown>>('/api/cuentas', { empresaId });
+export async function fetchCuentas(): Promise<Cuenta[]> {
+  const rows = await fetchAll<Record<string, unknown>>('/api/cuentas');
   return rows.map(r => ({
     id: r.id as string,
     codigo: r.codigo as string,
     nombre: r.nombre as string,
     tipo: r.tipo as Cuenta['tipo'],
     naturaleza: (r.naturaleza as Cuenta['naturaleza']) || 'deudora',
-    permiteMovimiento: r.permiteMovimiento as boolean ?? true,
-    nivel: r.nivel as number ?? 1,
+    permiteMovimiento: (r.permiteMovimiento as boolean) ?? true,
+    nivel: (r.nivel as number) ?? 1,
     padreId: (r.padreId as string) || undefined,
     descripcion: (r.descripcion as string) || undefined,
     refSII: (r.refSII as string) || undefined,
   }));
 }
 
-export async function saveCuenta(cuenta: Cuenta, empresaId: string): Promise<void> {
+export async function saveCuenta(cuenta: Cuenta): Promise<void> {
   await apiFetch('/api/cuentas', {
     method: 'POST',
     body: JSON.stringify({
@@ -64,7 +67,6 @@ export async function saveCuenta(cuenta: Cuenta, empresaId: string): Promise<voi
       descripcion: cuenta.descripcion || null,
       refSII: cuenta.refSII || null,
       afectaIva: false,
-      empresaId,
     }),
   });
 }
@@ -93,18 +95,18 @@ export async function deleteCuenta(id: string): Promise<void> {
 // ============ ASIENTOS ============
 
 const estadoToBackend: Record<string, string> = {
-  'aprobado': 'contabilizado',
-  'pendiente': 'pendiente',
-  'anulado': 'anulado',
+  aprobado: 'contabilizado',
+  pendiente: 'pendiente',
+  anulado: 'anulado',
 };
 const estadoFromBackend: Record<string, AsientoContable['estado']> = {
-  'contabilizado': 'aprobado',
-  'pendiente': 'pendiente',
-  'anulado': 'anulado',
+  contabilizado: 'aprobado',
+  pendiente: 'pendiente',
+  anulado: 'anulado',
 };
 
-export async function fetchAsientos(empresaId: string): Promise<AsientoContable[]> {
-  const rows = await fetchAll<Record<string, unknown>>('/api/asientos', { empresaId });
+export async function fetchAsientos(): Promise<AsientoContable[]> {
+  const rows = await fetchAll<Record<string, unknown>>('/api/asientos');
   return rows.map(r => {
     const detalles = ((r.detalles as Record<string, unknown>[]) || []).map(d => ({
       id: d.id as string,
@@ -130,7 +132,7 @@ export async function fetchAsientos(empresaId: string): Promise<AsientoContable[
   });
 }
 
-export async function saveAsiento(asiento: AsientoContable, empresaId: string): Promise<void> {
+export async function saveAsiento(asiento: AsientoContable): Promise<void> {
   await apiFetch('/api/asientos', {
     method: 'POST',
     body: JSON.stringify({
@@ -140,7 +142,6 @@ export async function saveAsiento(asiento: AsientoContable, empresaId: string): 
       glosa: asiento.glosa,
       estado: estadoToBackend[asiento.estado] ?? 'pendiente',
       tipo: asiento.tipo || null,
-      empresaId,
       detalles: asiento.detalles.map(d => ({
         cuentaId: d.cuentaId,
         debe: d.debe,
@@ -164,18 +165,18 @@ export async function deleteAsiento(id: string): Promise<void> {
 // ============ TRABAJADORES ============
 
 const contratoToBackend: Record<string, string> = {
-  'plazo': 'plazo_fijo',
-  'indefinido': 'indefinido',
-  'honorarios': 'honorarios',
+  plazo: 'plazo_fijo',
+  indefinido: 'indefinido',
+  honorarios: 'honorarios',
 };
 const contratoFromBackend: Record<string, Trabajador['tipoContrato']> = {
-  'plazo_fijo': 'plazo',
-  'indefinido': 'indefinido',
-  'honorarios': 'honorarios',
+  plazo_fijo: 'plazo',
+  indefinido: 'indefinido',
+  honorarios: 'honorarios',
 };
 
-export async function fetchTrabajadores(empresaId: string): Promise<Trabajador[]> {
-  const rows = await fetchAll<Record<string, unknown>>('/api/trabajadores', { empresaId });
+export async function fetchTrabajadores(): Promise<Trabajador[]> {
+  const rows = await fetchAll<Record<string, unknown>>('/api/trabajadores');
   return rows.map(r => ({
     id: r.id as string,
     rut: r.rut as string,
@@ -200,7 +201,7 @@ export async function fetchTrabajadores(empresaId: string): Promise<Trabajador[]
   }));
 }
 
-export async function saveTrabajador(t: Trabajador, empresaId: string): Promise<void> {
+export async function saveTrabajador(t: Trabajador): Promise<void> {
   await apiFetch('/api/trabajadores', {
     method: 'POST',
     body: JSON.stringify({
@@ -219,12 +220,11 @@ export async function saveTrabajador(t: Trabajador, empresaId: string): Promise<
       movilizacion: t.movilizacion || 0,
       bonificacion: t.bonificacion || 0,
       afp: t.afpId,
-      isapre: t.isapreId !== 'fonasa' ? t.isapreId : null,
+      isapre: t.isapreId && t.isapreId !== 'fonasa' ? t.isapreId : null,
       saludPactado: 7,
       afc: 0,
       cargasFamiliares: (t.cargaCivil || 0) + (t.cargaMilitar || 0),
       estado: t.estado || 'activo',
-      empresaId,
     }),
   });
 }
@@ -247,7 +247,7 @@ export async function updateTrabajador(t: Trabajador): Promise<void> {
       movilizacion: t.movilizacion || 0,
       bonificacion: t.bonificacion || 0,
       afp: t.afpId,
-      isapre: t.isapreId !== 'fonasa' ? t.isapreId : null,
+      isapre: t.isapreId && t.isapreId !== 'fonasa' ? t.isapreId : null,
       cargasFamiliares: (t.cargaCivil || 0) + (t.cargaMilitar || 0),
       estado: t.estado || 'activo',
     }),
@@ -261,29 +261,29 @@ export async function deleteTrabajador(id: string): Promise<void> {
 // ============ DOCUMENTOS TRIBUTARIOS ============
 
 const tipoDocToBackend: Record<string, string> = {
-  'factura': 'factura',
-  'factura_compra': 'compra',
-  'factura_exenta': 'factura_exenta',
-  'boleta': 'boleta',
-  'boleta_exenta': 'boleta',
-  'boleta_electronica': 'boleta',
-  'nota_credito': 'nota_credito',
-  'nota_debito': 'nota_debito',
-  'guia_despacho': 'guia_despacho',
+  factura: 'factura',
+  factura_compra: 'compra',
+  factura_exenta: 'factura_exenta',
+  boleta: 'boleta',
+  boleta_exenta: 'boleta',
+  boleta_electronica: 'boleta',
+  nota_credito: 'nota_credito',
+  nota_debito: 'nota_debito',
+  guia_despacho: 'guia_despacho',
 };
 
 const tipoDocFromBackend: Record<string, DocumentoTributario['tipo']> = {
-  'factura': 'factura',
-  'compra': 'factura_compra',
-  'factura_exenta': 'factura_exenta',
-  'boleta': 'boleta',
-  'nota_credito': 'nota_credito',
-  'nota_debito': 'nota_debito',
-  'guia_despacho': 'guia_despacho',
+  factura: 'factura',
+  compra: 'factura_compra',
+  factura_exenta: 'factura_exenta',
+  boleta: 'boleta',
+  nota_credito: 'nota_credito',
+  nota_debito: 'nota_debito',
+  guia_despacho: 'guia_despacho',
 };
 
-export async function fetchDocumentos(empresaId: string): Promise<DocumentoTributario[]> {
-  const rows = await fetchAll<Record<string, unknown>>('/api/documentosTributarios', { empresaId });
+export async function fetchDocumentos(): Promise<DocumentoTributario[]> {
+  const rows = await fetchAll<Record<string, unknown>>('/api/documentosTributarios');
   return rows.map(r => ({
     id: r.id as string,
     tipo: tipoDocFromBackend[r.tipo as string] ?? (r.tipo as DocumentoTributario['tipo']),
@@ -313,7 +313,7 @@ export async function fetchDocumentos(empresaId: string): Promise<DocumentoTribu
   }));
 }
 
-export async function saveDocumento(doc: DocumentoTributario, empresaId: string, rutEmisor: string): Promise<void> {
+export async function saveDocumento(doc: DocumentoTributario, rutEmisor: string): Promise<void> {
   const tipo = tipoDocToBackend[doc.tipo] ?? doc.tipo;
   await apiFetch('/api/documentosTributarios', {
     method: 'POST',
@@ -333,7 +333,6 @@ export async function saveDocumento(doc: DocumentoTributario, empresaId: string,
       estado: doc.estado === 'congelado' ? 'emitido' : (doc.estado || 'emitido'),
       tipoTransaccion: doc.libro === 'compras' ? 'compra' : 'venta',
       glosa: null,
-      empresaId,
     }),
   });
 }
@@ -347,8 +346,8 @@ export async function updateDocumento(id: string, estado: string): Promise<void>
 
 // ============ HONORARIOS ============
 
-export async function fetchHonorarios(empresaId: string): Promise<Honorario[]> {
-  const rows = await fetchAll<Record<string, unknown>>('/api/honorarios', { empresaId });
+export async function fetchHonorarios(): Promise<Honorario[]> {
+  const rows = await fetchAll<Record<string, unknown>>('/api/honorarios');
   return rows.map(r => ({
     id: r.id as string,
     rut: r.rut as string,
@@ -363,7 +362,7 @@ export async function fetchHonorarios(empresaId: string): Promise<Honorario[]> {
   }));
 }
 
-export async function saveHonorario(h: Honorario, empresaId: string): Promise<void> {
+export async function saveHonorario(h: Honorario): Promise<void> {
   await apiFetch('/api/honorarios', {
     method: 'POST',
     body: JSON.stringify({
@@ -377,7 +376,6 @@ export async function saveHonorario(h: Honorario, empresaId: string): Promise<vo
       montoLiquido: h.montoLiquido,
       fechaPago: h.fechaPago || null,
       estado: h.estado || 'pendiente',
-      empresaId,
     }),
   });
 }

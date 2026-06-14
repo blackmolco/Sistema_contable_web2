@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { Trabajador, LiquidacionPeriodo } from '../types';
-import { storageKey, getEmpresaActivaId } from '../utils/empresaStorage';
+import { storageKey } from '../utils/empresaStorage';
 import { isAuthenticated, fetchTrabajadores, saveTrabajador, updateTrabajador, deleteTrabajador } from '../services/apiSync';
 
 const STORAGE_KEY = storageKey('scc_remuneraciones');
@@ -65,8 +65,11 @@ const RemuneracionesContext = createContext<RemuneracionesContextType | undefine
 
 export function RemuneracionesProvider({ children }: { children: ReactNode }) {
   const [state, baseDispatch] = useReducer(reducer, undefined, initFromStorage);
+  const stateRef = useRef(state);
   const isFirstRender = useRef(true);
   const apiLoaded = useRef(false);
+
+  stateRef.current = state;
 
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
@@ -75,27 +78,25 @@ export function RemuneracionesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (apiLoaded.current || !isAuthenticated()) return;
-    const empresaId = getEmpresaActivaId();
-    if (empresaId === 'default') return;
     apiLoaded.current = true;
 
-    fetchTrabajadores(empresaId).then(trabajadores => {
+    fetchTrabajadores().then(trabajadores => {
       if (trabajadores.length > 0) {
         baseDispatch({ type: 'LOAD_REMUNERACIONES', payload: { trabajadores } });
+      } else {
+        // Migración: subir trabajadores locales al servidor
+        stateRef.current.trabajadores.forEach(t => saveTrabajador(t).catch(() => {}));
       }
     }).catch(() => {});
   }, []);
 
   const dispatch = useCallback((action: RemuneracionesAction) => {
     baseDispatch(action);
-
     if (!isAuthenticated()) return;
-    const empresaId = getEmpresaActivaId();
-    if (empresaId === 'default') return;
 
     switch (action.type) {
       case 'ADD_TRABAJADOR':
-        saveTrabajador(action.payload, empresaId).catch(() => {});
+        saveTrabajador(action.payload).catch(() => {});
         break;
       case 'UPDATE_TRABAJADOR':
         updateTrabajador(action.payload).catch(() => {});

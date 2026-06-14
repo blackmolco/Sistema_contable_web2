@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { DocumentoTributario, Honorario } from '../types';
-import { storageKey, getEmpresaActivaId } from '../utils/empresaStorage';
+import { storageKey } from '../utils/empresaStorage';
 import {
   isAuthenticated,
   fetchDocumentos, saveDocumento, updateDocumento,
@@ -75,68 +75,67 @@ const FacturacionContext = createContext<FacturacionContextType | undefined>(und
 
 export function FacturacionProvider({ children }: { children: ReactNode }) {
   const [state, baseDispatch] = useReducer(reducer, undefined, initFromStorage);
+  const stateRef = useRef(state);
   const isFirstRender = useRef(true);
   const apiLoaded = useRef(false);
+
+  stateRef.current = state;
 
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
-  // Get empresa RUT for documento rutEmisor
   const getEmpresaRut = () => {
     try {
       const raw = localStorage.getItem('app-storage');
-      if (raw) {
-        const data = JSON.parse(raw);
-        return data?.state?.empresaActiva?.rut || '00.000.000-0';
-      }
+      if (raw) return JSON.parse(raw)?.state?.empresaActiva?.rut || '00.000.000-0';
     } catch { /* ignore */ }
     return '00.000.000-0';
   };
 
   useEffect(() => {
     if (apiLoaded.current || !isAuthenticated()) return;
-    const empresaId = getEmpresaActivaId();
-    if (empresaId === 'default') return;
     apiLoaded.current = true;
 
-    Promise.all([
-      fetchDocumentos(empresaId),
-      fetchHonorarios(empresaId),
-    ]).then(([documentos, honorarios]) => {
-      baseDispatch({
-        type: 'LOAD_FACTURACION',
-        payload: {
-          documentos: documentos.length > 0 ? documentos : undefined,
-          honorarios: honorarios.length > 0 ? honorarios : undefined,
-          numeroDocumento: documentos.length > 0
-            ? Math.max(...documentos.map(d => d.numero), 0) + 1
-            : undefined,
-        },
-      });
+    Promise.all([fetchDocumentos(), fetchHonorarios()]).then(([apiDocs, apiHonorarios]) => {
+      if (apiDocs.length > 0 || apiHonorarios.length > 0) {
+        baseDispatch({
+          type: 'LOAD_FACTURACION',
+          payload: {
+            documentos: apiDocs.length > 0 ? apiDocs : undefined,
+            honorarios: apiHonorarios.length > 0 ? apiHonorarios : undefined,
+            numeroDocumento: apiDocs.length > 0
+              ? Math.max(...apiDocs.map(d => d.numero), 0) + 1
+              : undefined,
+          },
+        });
+      } else {
+        // Migración: subir datos locales
+        const rut = getEmpresaRut();
+        stateRef.current.documentos.forEach(d => saveDocumento(d, rut).catch(() => {}));
+        stateRef.current.honorarios.forEach(h => saveHonorario(h).catch(() => {}));
+      }
     }).catch(() => {});
   }, []);
 
   const dispatch = useCallback((action: FacturacionAction) => {
     baseDispatch(action);
-
     if (!isAuthenticated()) return;
-    const empresaId = getEmpresaActivaId();
-    if (empresaId === 'default') return;
+    const rut = getEmpresaRut();
 
     switch (action.type) {
       case 'ADD_DOCUMENTO':
-        saveDocumento(action.payload, empresaId, getEmpresaRut()).catch(() => {});
+        saveDocumento(action.payload, rut).catch(() => {});
         break;
       case 'BATCH_ADD_DOCUMENTOS':
-        action.payload.forEach(doc => saveDocumento(doc, empresaId, getEmpresaRut()).catch(() => {}));
+        action.payload.forEach(doc => saveDocumento(doc, rut).catch(() => {}));
         break;
       case 'UPDATE_DOCUMENTO':
         updateDocumento(action.payload.id, action.payload.estado).catch(() => {});
         break;
       case 'ADD_HONORARIO':
-        saveHonorario(action.payload, empresaId).catch(() => {});
+        saveHonorario(action.payload).catch(() => {});
         break;
       case 'UPDATE_HONORARIO':
         updateHonorario(action.payload).catch(() => {});

@@ -2,7 +2,6 @@ import React, { createContext, useContext, useReducer, useEffect, useRef, useCal
 import { Cuenta, AsientoContable, RegistroLibro, PlantillaAsiento } from '../types';
 import { PLAN_CUENTAS_DEFAULT } from '../data/normativa';
 import { storageKey } from '../utils/empresaStorage';
-import { getEmpresaActivaId } from '../utils/empresaStorage';
 import {
   isAuthenticated,
   fetchCuentas, saveCuenta, updateCuenta, deleteCuenta,
@@ -109,8 +108,11 @@ const ContabilidadContext = createContext<ContabilidadContextType | undefined>(u
 
 export function ContabilidadProvider({ children }: { children: ReactNode }) {
   const [state, baseDispatch] = useReducer(reducer, undefined, initFromStorage);
+  const stateRef = useRef(state);
   const isFirstRender = useRef(true);
   const apiLoaded = useRef(false);
+
+  stateRef.current = state;
 
   // Persist to localStorage
   useEffect(() => {
@@ -121,28 +123,33 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
-  // Load from API on mount
+  // Load from API on mount; if API empty, push local data (migración)
   useEffect(() => {
     if (apiLoaded.current || !isAuthenticated()) return;
-    const empresaId = getEmpresaActivaId();
-    if (empresaId === 'default') return;
     apiLoaded.current = true;
 
     Promise.all([
-      fetchCuentas(empresaId),
-      fetchAsientos(empresaId),
-    ]).then(([cuentas, asientos]) => {
-      if (cuentas.length > 0 || asientos.length > 0) {
+      fetchCuentas(),
+      fetchAsientos(),
+    ]).then(([apiCuentas, apiAsientos]) => {
+      if (apiCuentas.length > 0 || apiAsientos.length > 0) {
+        // API tiene datos → usarlos como fuente de verdad
         baseDispatch({
           type: 'LOAD_CONTABILIDAD',
           payload: {
-            cuentas: cuentas.length > 0 ? cuentas : undefined,
-            asientos,
-            numeroAsiento: asientos.length > 0
-              ? Math.max(...asientos.map(a => a.numero), 0) + 1
+            cuentas: apiCuentas.length > 0 ? apiCuentas : undefined,
+            asientos: apiAsientos,
+            numeroAsiento: apiAsientos.length > 0
+              ? Math.max(...apiAsientos.map(a => a.numero), 0) + 1
               : undefined,
           },
         });
+      } else {
+        // API vacía → subir datos locales al servidor (migración única)
+        const local = stateRef.current;
+        const cuentasLocales = local.cuentas.filter(c => !PLAN_CUENTAS_DEFAULT.some(d => d.id === c.id));
+        cuentasLocales.forEach(c => saveCuenta(c).catch(() => {}));
+        local.asientos.forEach(a => saveAsiento(a).catch(() => {}));
       }
     }).catch(() => { /* sin conexión — usar localStorage */ });
   }, []);
@@ -150,14 +157,11 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
   // Dispatch interceptor: sync writes to API
   const dispatch = useCallback((action: ContabilidadAction) => {
     baseDispatch(action);
-
     if (!isAuthenticated()) return;
-    const empresaId = getEmpresaActivaId();
-    if (empresaId === 'default') return;
 
     switch (action.type) {
       case 'ADD_CUENTA':
-        saveCuenta(action.payload, empresaId).catch(() => {});
+        saveCuenta(action.payload).catch(() => {});
         break;
       case 'UPDATE_CUENTA':
         updateCuenta(action.payload).catch(() => {});
@@ -166,10 +170,9 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
         deleteCuenta(action.payload).catch(() => {});
         break;
       case 'ADD_ASIENTO':
-        saveAsiento(action.payload, empresaId).catch(() => {});
+        saveAsiento(action.payload).catch(() => {});
         break;
       case 'UPDATE_ASIENTO':
-        // Only estado changes go through PUT /asientos/:id
         updateAsientoEstado(action.payload.id, action.payload.estado).catch(() => {});
         break;
       case 'DELETE_ASIENTO':
