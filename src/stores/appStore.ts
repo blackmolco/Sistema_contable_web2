@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../utils/calculos';
+import { saveEmpresa, isAuthenticated } from '../services/apiSync';
 
 export interface Empresa {
   id: string;
@@ -177,9 +178,10 @@ export const useAppStore = create<AppState>()(
       addEmpresa: (datos) => {
         const nueva: Empresa = { ...datos, id: generateId() };
         set((state) => ({ empresas: [...state.empresas, nueva] }));
+        if (isAuthenticated()) saveEmpresa(nueva).catch(() => {});
         return nueva;
       },
-      updateEmpresa: (id, updates) =>
+      updateEmpresa: (id, updates) => {
         set((state) => ({
           empresas: state.empresas.map((e) =>
             e.id === id ? { ...e, ...updates } : e
@@ -188,7 +190,10 @@ export const useAppStore = create<AppState>()(
             state.empresaActiva?.id === id
               ? { ...state.empresaActiva, ...updates }
               : state.empresaActiva,
-        })),
+        }));
+        const actualizada = get().empresas.find((e) => e.id === id);
+        if (actualizada && isAuthenticated()) saveEmpresa(actualizada).catch(() => {});
+      },
       deleteEmpresa: (id) => {
         let removed = false;
         set((state) => {

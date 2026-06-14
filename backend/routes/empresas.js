@@ -14,6 +14,7 @@ const writeLimiter = rateLimit({
 });
 
 const empresaSchema = z.object({
+    id: z.string().optional(),
     rut: z.string().min(9),
     razonSocial: z.string().min(2).max(200),
     nombreFantasia: z.string().max(200).optional().nullable(),
@@ -22,9 +23,10 @@ const empresaSchema = z.object({
     comuna: z.string().max(100).optional().nullable(),
     ciudad: z.string().max(100).optional().nullable(),
     telefono: z.string().max(50).optional().nullable(),
-    email: z.string().email().optional().nullable(),
+    email: z.string().email().optional().nullable().or(z.literal('')),
     representanteLegal: z.string().max(200).optional().nullable(),
     rutRepresentante: z.string().max(12).optional().nullable(),
+    logo: z.string().optional().nullable(),
 });
 
 router.get('/', authenticateToken, async (req, res) => {
@@ -42,7 +44,14 @@ router.post('/', authenticateToken, writeLimiter, validate(empresaSchema), async
         if (!validarRut(req.body.rut)) {
             return res.status(400).json({ error: 'RUT invalido' });
         }
-        const empresa = await prisma.empresa.create({ data: req.body });
+        const { id, ...rest } = req.body;
+        if (rest.email === '') rest.email = null;
+        const empresaId = id || require('crypto').randomUUID();
+        const empresa = await prisma.empresa.upsert({
+            where: { id: empresaId },
+            create: { id: empresaId, ...rest },
+            update: rest,
+        });
         await auditLog(req.usuario.id, 'CREAR', 'Empresa', empresa.id, req.body, req.ip, req.headers['user-agent']);
         res.status(201).json(empresa);
     } catch (err) {

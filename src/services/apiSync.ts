@@ -4,6 +4,7 @@
 import { apiFetch } from './httpClient';
 import { getToken } from './apiAuth';
 import { Cuenta, AsientoContable, Trabajador, DocumentoTributario, Honorario } from '../types';
+import type { Empresa } from '../stores/appStore';
 
 export function isAuthenticated(): boolean {
   return !!getToken();
@@ -38,6 +39,45 @@ async function fetchAll<T>(path: string, params: Record<string, string> = {}): P
     if (page > totalPages) break;
   }
   return results;
+}
+
+// ============ EMPRESAS ============
+
+export async function fetchEmpresas(): Promise<Empresa[]> {
+  const rows = await apiFetch<Record<string, unknown>[]>('/api/empresas');
+  return (rows || []).map(r => ({
+    id: r.id as string,
+    rut: r.rut as string,
+    razonSocial: r.razonSocial as string,
+    nombreFantasia: (r.nombreFantasia as string) || (r.razonSocial as string) || '',
+    giro: (r.giro as string) || '',
+    direccion: (r.direccion as string) || '',
+    comuna: (r.comuna as string) || '',
+    ciudad: (r.ciudad as string) || '',
+    email: (r.email as string) || '',
+    telefono: (r.telefono as string) || '',
+    logo: (r.logo as string) || undefined,
+    activa: (r.activo as boolean) ?? true,
+  }));
+}
+
+export async function saveEmpresa(e: Empresa): Promise<void> {
+  await apiFetch('/api/empresas', {
+    method: 'POST',
+    body: JSON.stringify({
+      id: e.id,
+      rut: e.rut,
+      razonSocial: e.razonSocial,
+      nombreFantasia: e.nombreFantasia || null,
+      giro: e.giro || null,
+      direccion: e.direccion || null,
+      comuna: e.comuna || null,
+      ciudad: e.ciudad || null,
+      telefono: e.telefono || null,
+      email: e.email || null,
+      logo: e.logo || null,
+    }),
+  });
 }
 
 // ============ CUENTAS ============

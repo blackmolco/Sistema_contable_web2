@@ -17,6 +17,7 @@ import { ShortcutsHelpModal } from './components/ui/ShortcutsHelpModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { fetchIndicadores } from './services/mindicador';
 import { API_BASE } from './services/httpClient';
+import { fetchEmpresas, saveEmpresa } from './services/apiSync';
 
 // Mantiene el backend de Render despierto enviando un ping cada 14 minutos.
 // También dispara un ping inmediato al cargar para reducir el cold start.
@@ -136,6 +137,38 @@ function AppContent() {
     localStorage.setItem('dark-mode', JSON.stringify(darkMode));
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
+
+  // Sincronizar empresas con el backend (visibilidad multi-dispositivo).
+  // Las empresas se guardan localmente con un id compartido; al iniciar sesión
+  // descargamos las del backend y subimos las locales que aún no estén.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const apiEmpresas = await fetchEmpresas();
+        if (cancelled) return;
+        const store = useAppStore.getState();
+        const locales = store.empresas;
+        const apiIds = new Set(apiEmpresas.map((e) => e.id));
+        // Subir empresas locales que el backend aún no conoce
+        locales.filter((l) => !apiIds.has(l.id)).forEach((l) => saveEmpresa(l).catch(() => {}));
+        // Fusionar: backend + locales no presentes en backend
+        const localOnly = locales.filter((l) => !apiIds.has(l.id));
+        const merged = [...apiEmpresas, ...localOnly];
+        if (merged.length > 0) {
+          store.setEmpresas(merged);
+          const activa = store.empresaActiva;
+          if (!activa || !merged.find((e) => e.id === activa.id)) {
+            store.setEmpresaActiva(merged[0]);
+          }
+        }
+      } catch {
+        /* sin conexión — usar empresas locales */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
 
   // Cargar Indicadores Económicos desde mindicador.cl
   useEffect(() => {
