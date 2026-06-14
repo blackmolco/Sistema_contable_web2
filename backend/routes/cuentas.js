@@ -53,8 +53,8 @@ const cuentaSchema = z.object({
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
-        const { tipo, busqueda } = req.query;
-        const empresaId = req.usuario.empresaId || null;
+        const { tipo, busqueda, empresaId: qEmpresaId } = req.query;
+        const empresaId = qEmpresaId || req.usuario.empresaId || null;
         const where = { activo: true };
         if (tipo) where.tipo = tipo;
         if (empresaId) where.empresaId = empresaId;

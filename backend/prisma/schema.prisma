@@ -67,16 +67,6 @@ model Empresa {
   fechaCreacion     DateTime @default(now())
 
   usuarios          Usuario[]
-  cuentas           Cuenta[]
-  asientos          AsientoContable[]
-  trabajadores      Trabajador[]
-  documentos        DocumentoTributario[]
-  archivos          Documento[]          @relation("DocumentoEmpresa")
-  librosCompra      LibroCompra[]
-  librosVenta       LibroVenta[]
-  honorarios        Honorario[]
-  activosFijos      ActivoFijo[]
-  tesoreriaMovimientos TesoreriaMovimiento[]
 }
 
 // ============ CONTABILIDAD ============
@@ -98,7 +88,6 @@ model Cuenta {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  empresa       Empresa?        @relation(fields: [empresaId], references: [id])
   padre         Cuenta?         @relation("CuentaJerarquia", fields: [padreId], references: [id])
   hijos         Cuenta[]        @relation("CuentaJerarquia")
   detallesAsiento DetalleAsiento[]
@@ -121,7 +110,6 @@ model AsientoContable {
   updatedAt     DateTime @updatedAt
 
   usuario       Usuario?        @relation("AsientoUsuario", fields: [usuarioId], references: [id])
-  empresa       Empresa?        @relation(fields: [empresaId], references: [id])
   detalles      DetalleAsiento[]
 
   @@unique([numero, empresaId, fecha])
@@ -173,7 +161,6 @@ model Trabajador {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  empresa           Empresa?          @relation(fields: [empresaId], references: [id])
   liquidaciones     LiquidacionSueldo[]
   documentos        Documento[]       @relation("DocumentoTrabajador")
 
@@ -241,8 +228,6 @@ model DocumentoTributario {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  empresa             Empresa?  @relation(fields: [empresaId], references: [id])
-
   @@index([empresaId])
   @@index([tipo])
   @@index([fechaEmision])
@@ -267,8 +252,6 @@ model LibroCompra {
   empresaId       String?
   createdAt       DateTime @default(now())
 
-  empresa         Empresa?  @relation(fields: [empresaId], references: [id])
-
   @@index([empresaId])
   @@index([periodo])
 }
@@ -288,8 +271,6 @@ model LibroVenta {
   empresaId       String?
   createdAt       DateTime @default(now())
 
-  empresa         Empresa?  @relation(fields: [empresaId], references: [id])
-
   @@index([empresaId])
   @@index([periodo])
 }
@@ -307,8 +288,6 @@ model Honorario {
   estado       String   @default("pendiente")
   empresaId    String?
   createdAt    DateTime @default(now())
-
-  empresa      Empresa?  @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId])
   @@index([periodo])
@@ -332,8 +311,6 @@ model ActivoFijo {
   empresaId       String?
   createdAt       DateTime @default(now())
 
-  empresa         Empresa?  @relation(fields: [empresaId], references: [id])
-
   @@index([empresaId])
 }
 
@@ -350,8 +327,6 @@ model TesoreriaMovimiento {
   estado      String   @default("proyectado")
   empresaId   String?
   createdAt   DateTime @default(now())
-
-  empresa     Empresa?  @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId])
   @@index([fecha])
@@ -378,7 +353,6 @@ model Documento {
   version       Int      @default(1)
   activo        Boolean  @default(true)
 
-  empresa       Empresa?        @relation("DocumentoEmpresa", fields: [empresaId], references: [id])
   trabajador    Trabajador?     @relation("DocumentoTrabajador", fields: [trabajadorId], references: [id])
   usuario       Usuario?        @relation("DocumentoUsuario", fields: [usuarioId], references: [id])
   versiones     ArchivoVersion[]

@@ -1,7 +1,5 @@
 // src/services/apiSync.ts
 // Helpers para sincronizar datos entre contextos locales y la API REST.
-// Nota: NO enviamos empresaId del frontend (UUIDs locales != IDs del backend).
-// La segmentación por empresa la maneja el JWT (req.usuario.empresaId) en el backend.
 
 import { apiFetch } from './httpClient';
 import { getToken } from './apiAuth';
@@ -9,6 +7,14 @@ import { Cuenta, AsientoContable, Trabajador, DocumentoTributario, Honorario } f
 
 export function isAuthenticated(): boolean {
   return !!getToken();
+}
+
+export function getEmpresaActivaId(): string | null {
+  try {
+    const raw = localStorage.getItem('app-storage');
+    if (raw) return JSON.parse(raw)?.state?.empresaActiva?.id || null;
+  } catch { /* ignore */ }
+  return null;
 }
 
 interface PaginatedResponse<T> {
@@ -37,7 +43,9 @@ async function fetchAll<T>(path: string, params: Record<string, string> = {}): P
 // ============ CUENTAS ============
 
 export async function fetchCuentas(): Promise<Cuenta[]> {
-  const rows = await fetchAll<Record<string, unknown>>('/api/cuentas');
+  const empresaId = getEmpresaActivaId();
+  const params = empresaId ? { empresaId } : {};
+  const rows = await fetchAll<Record<string, unknown>>('/api/cuentas', params);
   return rows.map(r => ({
     id: r.id as string,
     codigo: r.codigo as string,
@@ -67,6 +75,7 @@ export async function saveCuenta(cuenta: Cuenta): Promise<void> {
       descripcion: cuenta.descripcion || null,
       refSII: cuenta.refSII || null,
       afectaIva: false,
+      empresaId: getEmpresaActivaId(),
     }),
   });
 }
@@ -106,7 +115,9 @@ const estadoFromBackend: Record<string, AsientoContable['estado']> = {
 };
 
 export async function fetchAsientos(): Promise<AsientoContable[]> {
-  const rows = await fetchAll<Record<string, unknown>>('/api/asientos');
+  const empresaId = getEmpresaActivaId();
+  const params = empresaId ? { empresaId } : {};
+  const rows = await fetchAll<Record<string, unknown>>('/api/asientos', params);
   return rows.map(r => {
     const detalles = ((r.detalles as Record<string, unknown>[]) || []).map(d => ({
       id: d.id as string,
@@ -142,6 +153,7 @@ export async function saveAsiento(asiento: AsientoContable): Promise<void> {
       glosa: asiento.glosa,
       estado: estadoToBackend[asiento.estado] ?? 'pendiente',
       tipo: asiento.tipo || null,
+      empresaId: getEmpresaActivaId(),
       detalles: asiento.detalles.map(d => ({
         cuentaId: d.cuentaId,
         debe: d.debe,
@@ -176,7 +188,9 @@ const contratoFromBackend: Record<string, Trabajador['tipoContrato']> = {
 };
 
 export async function fetchTrabajadores(): Promise<Trabajador[]> {
-  const rows = await fetchAll<Record<string, unknown>>('/api/trabajadores');
+  const empresaId = getEmpresaActivaId();
+  const params = empresaId ? { empresaId } : {};
+  const rows = await fetchAll<Record<string, unknown>>('/api/trabajadores', params);
   return rows.map(r => ({
     id: r.id as string,
     rut: r.rut as string,
@@ -206,6 +220,7 @@ export async function saveTrabajador(t: Trabajador): Promise<void> {
     method: 'POST',
     body: JSON.stringify({
       id: t.id,
+      empresaId: getEmpresaActivaId(),
       rut: t.rut,
       nombres: t.nombre,
       apellidos: t.apellidos,
@@ -283,7 +298,9 @@ const tipoDocFromBackend: Record<string, DocumentoTributario['tipo']> = {
 };
 
 export async function fetchDocumentos(): Promise<DocumentoTributario[]> {
-  const rows = await fetchAll<Record<string, unknown>>('/api/documentosTributarios');
+  const empresaId = getEmpresaActivaId();
+  const params = empresaId ? { empresaId } : {};
+  const rows = await fetchAll<Record<string, unknown>>('/api/documentosTributarios', params);
   return rows.map(r => ({
     id: r.id as string,
     tipo: tipoDocFromBackend[r.tipo as string] ?? (r.tipo as DocumentoTributario['tipo']),
@@ -320,6 +337,7 @@ export async function saveDocumento(doc: DocumentoTributario, rutEmisor: string)
     body: JSON.stringify({
       id: doc.id,
       tipo,
+      empresaId: getEmpresaActivaId(),
       folio: doc.numero,
       rutEmisor: rutEmisor || '00.000.000-0',
       rutReceptor: doc.receptor?.rut || '00.000.000-0',
@@ -347,7 +365,9 @@ export async function updateDocumento(id: string, estado: string): Promise<void>
 // ============ HONORARIOS ============
 
 export async function fetchHonorarios(): Promise<Honorario[]> {
-  const rows = await fetchAll<Record<string, unknown>>('/api/honorarios');
+  const empresaId = getEmpresaActivaId();
+  const params = empresaId ? { empresaId } : {};
+  const rows = await fetchAll<Record<string, unknown>>('/api/honorarios', params);
   return rows.map(r => ({
     id: r.id as string,
     rut: r.rut as string,
@@ -367,6 +387,7 @@ export async function saveHonorario(h: Honorario): Promise<void> {
     method: 'POST',
     body: JSON.stringify({
       id: h.id,
+      empresaId: getEmpresaActivaId(),
       rut: h.rut,
       nombre: h.nombre,
       direccion: h.direccion || null,
