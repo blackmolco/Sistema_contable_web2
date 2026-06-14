@@ -346,6 +346,7 @@ export default function AsientosContables() {
         onClose={() => setShowModal(false)}
         title={editingAsiento ? `Editar Asiento #${editingAsiento.numero}` : 'Nuevo Asiento'}
         size="xl"
+        closeOnBackdrop={false}
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowModal(false)}>

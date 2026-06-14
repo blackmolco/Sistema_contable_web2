@@ -9,6 +9,11 @@ interface ModalProps {
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   footer?: ReactNode;
+  /** Cerrar al hacer clic en el fondo. Por defecto true. Desactivar en formularios
+   *  con datos sin guardar para evitar perder el avance por un clic accidental. */
+  closeOnBackdrop?: boolean;
+  /** Cerrar con la tecla Escape. Por defecto sigue a closeOnBackdrop. */
+  closeOnEscape?: boolean;
 }
 
 export function Modal({
@@ -18,12 +23,15 @@ export function Modal({
   children,
   size = 'md',
   footer,
+  closeOnBackdrop = true,
+  closeOnEscape,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const escapeHabilitado = closeOnEscape ?? closeOnBackdrop;
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && escapeHabilitado) onClose();
     };
 
     if (isOpen) {
@@ -35,7 +43,7 @@ export function Modal({
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, escapeHabilitado]);
 
   if (!isOpen) return null;
 
@@ -52,7 +60,7 @@ export function Modal({
       {/* Backdrop — fades in with Tailwind animate class */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-backdrop-in"
-        onClick={onClose}
+        onClick={closeOnBackdrop ? onClose : undefined}
       />
 
       {/* Modal — scale 0.95→1 + fade on entry */}
