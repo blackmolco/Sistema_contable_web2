@@ -14,6 +14,7 @@ const writeLimiter = rateLimit({
 });
 
 const honorarioCreateSchema = z.object({
+    id: z.string().uuid().optional(),
     rut: z.string().min(9).max(12),
     nombre: z.string().min(2).max(200),
     direccion: z.string().max(300).optional().nullable(),
@@ -47,8 +48,13 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, writeLimiter, validate(honorarioCreateSchema), async (req, res) => {
     try {
-        const honorario = await prisma.honorario.create({
-            data: { ...req.body, fechaPago: req.body.fechaPago ? new Date(req.body.fechaPago) : null },
+        const { id, ...rest } = req.body;
+        const honorarioId = id || require('crypto').randomUUID();
+        const data = { ...rest, fechaPago: rest.fechaPago ? new Date(rest.fechaPago) : null };
+        const honorario = await prisma.honorario.upsert({
+            where: { id: honorarioId },
+            create: { id: honorarioId, ...data },
+            update: data,
         });
         await auditLog(req.usuario.id, 'CREAR', 'Honorario', honorario.id, req.body, req.ip, req.headers['user-agent']);
         res.status(201).json(honorario);

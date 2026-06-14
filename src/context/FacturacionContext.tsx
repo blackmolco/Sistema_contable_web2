@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { DocumentoTributario, Honorario } from '../types';
-import { storageKey } from '../utils/empresaStorage';
+import { storageKey, getEmpresaActivaId } from '../utils/empresaStorage';
+import {
+  isAuthenticated,
+  fetchDocumentos, saveDocumento, updateDocumento,
+  fetchHonorarios, saveHonorario, updateHonorario, deleteHonorario,
+} from '../services/apiSync';
 
 const STORAGE_KEY = storageKey('scc_facturacion');
 
@@ -69,16 +74,78 @@ interface FacturacionContextType {
 const FacturacionContext = createContext<FacturacionContextType | undefined>(undefined);
 
 export function FacturacionProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, initFromStorage);
+  const [state, baseDispatch] = useReducer(reducer, undefined, initFromStorage);
   const isFirstRender = useRef(true);
+  const apiLoaded = useRef(false);
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  // Get empresa RUT for documento rutEmisor
+  const getEmpresaRut = () => {
+    try {
+      const raw = localStorage.getItem('app-storage');
+      if (raw) {
+        const data = JSON.parse(raw);
+        return data?.state?.empresaActiva?.rut || '00.000.000-0';
+      }
+    } catch { /* ignore */ }
+    return '00.000.000-0';
+  };
+
+  useEffect(() => {
+    if (apiLoaded.current || !isAuthenticated()) return;
+    const empresaId = getEmpresaActivaId();
+    if (empresaId === 'default') return;
+    apiLoaded.current = true;
+
+    Promise.all([
+      fetchDocumentos(empresaId),
+      fetchHonorarios(empresaId),
+    ]).then(([documentos, honorarios]) => {
+      baseDispatch({
+        type: 'LOAD_FACTURACION',
+        payload: {
+          documentos: documentos.length > 0 ? documentos : undefined,
+          honorarios: honorarios.length > 0 ? honorarios : undefined,
+          numeroDocumento: documentos.length > 0
+            ? Math.max(...documentos.map(d => d.numero), 0) + 1
+            : undefined,
+        },
+      });
+    }).catch(() => {});
+  }, []);
+
+  const dispatch = useCallback((action: FacturacionAction) => {
+    baseDispatch(action);
+
+    if (!isAuthenticated()) return;
+    const empresaId = getEmpresaActivaId();
+    if (empresaId === 'default') return;
+
+    switch (action.type) {
+      case 'ADD_DOCUMENTO':
+        saveDocumento(action.payload, empresaId, getEmpresaRut()).catch(() => {});
+        break;
+      case 'BATCH_ADD_DOCUMENTOS':
+        action.payload.forEach(doc => saveDocumento(doc, empresaId, getEmpresaRut()).catch(() => {}));
+        break;
+      case 'UPDATE_DOCUMENTO':
+        updateDocumento(action.payload.id, action.payload.estado).catch(() => {});
+        break;
+      case 'ADD_HONORARIO':
+        saveHonorario(action.payload, empresaId).catch(() => {});
+        break;
+      case 'UPDATE_HONORARIO':
+        updateHonorario(action.payload).catch(() => {});
+        break;
+      case 'DELETE_HONORARIO':
+        deleteHonorario(action.payload).catch(() => {});
+        break;
+    }
+  }, []);
 
   return (
     <FacturacionContext.Provider value={{ state, dispatch }}>

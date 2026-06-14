@@ -14,6 +14,7 @@ const writeLimiter = rateLimit({
 });
 
 const docTributarioSchema = z.object({
+    id: z.string().uuid().optional(),
     tipo: z.enum(['factura', 'factura_exenta', 'boleta', 'nota_credito', 'nota_debito', 'guia_despacho', 'compra']),
     folio: z.number().int().positive(),
     rutEmisor: z.string().min(9),
@@ -89,12 +90,17 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, writeLimiter, validate(docTributarioSchema), async (req, res) => {
     try {
-        const doc = await prisma.documentoTributario.create({
-            data: {
-                ...req.body,
-                fechaEmision: new Date(req.body.fechaEmision),
-                fechaVencimiento: req.body.fechaVencimiento ? new Date(req.body.fechaVencimiento) : null,
-            },
+        const { id, ...rest } = req.body;
+        const docId = id || require('crypto').randomUUID();
+        const data = {
+            ...rest,
+            fechaEmision: new Date(rest.fechaEmision),
+            fechaVencimiento: rest.fechaVencimiento ? new Date(rest.fechaVencimiento) : null,
+        };
+        const doc = await prisma.documentoTributario.upsert({
+            where: { id: docId },
+            create: { id: docId, ...data },
+            update: data,
         });
         await auditLog(req.usuario.id, 'CREAR', 'DocumentoTributario', doc.id, { tipo: doc.tipo, folio: doc.folio }, req.ip, req.headers['user-agent']);
         res.status(201).json(doc);

@@ -14,10 +14,12 @@ const writeLimiter = rateLimit({
 });
 
 const trabajadorSchema = z.object({
+    id: z.string().uuid().optional(),
     rut: z.string().min(9).max(12),
     nombres: z.string().min(2).max(100),
     apellidos: z.string().min(2).max(100),
     email: z.string().email().optional().nullable(),
+    fechaNacimiento: z.string().date().optional().nullable(),
     fechaIngreso: z.string().date(),
     fechaTermino: z.string().date().optional().nullable(),
     tipoContrato: z.enum(['indefinido', 'plazo_fijo', 'por_obra', 'honorarios', 'practica']),
@@ -84,12 +86,18 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, writeLimiter, validate(trabajadorSchema), async (req, res) => {
     try {
-        const trabajador = await prisma.trabajador.create({
-            data: {
-                ...req.body,
-                fechaIngreso: new Date(req.body.fechaIngreso),
-                fechaTermino: req.body.fechaTermino ? new Date(req.body.fechaTermino) : null,
-            },
+        const { id, ...rest } = req.body;
+        const trabajadorId = id || require('crypto').randomUUID();
+        const data = {
+            ...rest,
+            fechaNacimiento: rest.fechaNacimiento ? new Date(rest.fechaNacimiento) : null,
+            fechaIngreso: new Date(rest.fechaIngreso),
+            fechaTermino: rest.fechaTermino ? new Date(rest.fechaTermino) : null,
+        };
+        const trabajador = await prisma.trabajador.upsert({
+            where: { id: trabajadorId },
+            create: { id: trabajadorId, ...data },
+            update: data,
         });
         await auditLog(req.usuario.id, 'CREAR', 'Trabajador', trabajador.id, req.body, req.ip, req.headers['user-agent']);
         res.status(201).json(trabajador);
@@ -102,6 +110,7 @@ router.post('/', authenticateToken, writeLimiter, validate(trabajadorSchema), as
 router.put('/:id', authenticateToken, writeLimiter, validate(trabajadorSchema.partial()), async (req, res) => {
     try {
         const data = { ...req.body };
+        if (data.fechaNacimiento) data.fechaNacimiento = new Date(data.fechaNacimiento);
         if (data.fechaIngreso) data.fechaIngreso = new Date(data.fechaIngreso);
         if (data.fechaTermino) data.fechaTermino = new Date(data.fechaTermino);
         const trabajador = await prisma.trabajador.update({ where: { id: req.params.id }, data });

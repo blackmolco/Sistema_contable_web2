@@ -50,6 +50,7 @@ const detalleAsientoSchema = z.object({
 });
 
 const asientoSchema = z.object({
+    id: z.string().uuid().optional(),
     numero: z.number().int().positive(),
     fecha: z.string().datetime().or(z.string().date()),
     glosa: z.string().min(2).max(1000),
@@ -90,17 +91,27 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, writeLimiter, validate(asientoSchema), async (req, res) => {
     try {
-        const { detalles, ...asientoData } = req.body;
+        const { id, detalles, ...asientoData } = req.body;
+        const asientoId = id || require('crypto').randomUUID();
         const totalDebe = detalles.reduce((sum, d) => sum + d.debe, 0);
         const totalHaber = detalles.reduce((sum, d) => sum + d.haber, 0);
         if (Math.abs(totalDebe - totalHaber) > 0.01) {
             return res.status(400).json({ error: 'El asiento no esta cuadrado', totalDebe, totalHaber, diferencia: totalDebe - totalHaber });
         }
-        const asiento = await prisma.asientoContable.create({
-            data: {
+        // Delete existing detalles if upserting
+        await prisma.detalleAsiento.deleteMany({ where: { asientoId } });
+        const asiento = await prisma.asientoContable.upsert({
+            where: { id: asientoId },
+            create: {
+                id: asientoId,
                 ...asientoData,
                 fecha: new Date(asientoData.fecha),
                 usuarioId: req.usuario.id,
+                detalles: { create: detalles.map(d => ({ ...d })) },
+            },
+            update: {
+                ...asientoData,
+                fecha: new Date(asientoData.fecha),
                 detalles: { create: detalles.map(d => ({ ...d })) },
             },
             include: { detalles: { include: { cuenta: true } } },

@@ -1,7 +1,13 @@
-import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { Cuenta, AsientoContable, RegistroLibro, PlantillaAsiento } from '../types';
 import { PLAN_CUENTAS_DEFAULT } from '../data/normativa';
 import { storageKey } from '../utils/empresaStorage';
+import { getEmpresaActivaId } from '../utils/empresaStorage';
+import {
+  isAuthenticated,
+  fetchCuentas, saveCuenta, updateCuenta, deleteCuenta,
+  fetchAsientos, saveAsiento, updateAsientoEstado, deleteAsiento,
+} from '../services/apiSync';
 
 const STORAGE_KEY = storageKey('scc_contabilidad');
 
@@ -102,9 +108,11 @@ interface ContabilidadContextType {
 const ContabilidadContext = createContext<ContabilidadContextType | undefined>(undefined);
 
 export function ContabilidadProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, initFromStorage);
+  const [state, baseDispatch] = useReducer(reducer, undefined, initFromStorage);
   const isFirstRender = useRef(true);
+  const apiLoaded = useRef(false);
 
+  // Persist to localStorage
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -112,6 +120,63 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  // Load from API on mount
+  useEffect(() => {
+    if (apiLoaded.current || !isAuthenticated()) return;
+    const empresaId = getEmpresaActivaId();
+    if (empresaId === 'default') return;
+    apiLoaded.current = true;
+
+    Promise.all([
+      fetchCuentas(empresaId),
+      fetchAsientos(empresaId),
+    ]).then(([cuentas, asientos]) => {
+      if (cuentas.length > 0 || asientos.length > 0) {
+        baseDispatch({
+          type: 'LOAD_CONTABILIDAD',
+          payload: {
+            cuentas: cuentas.length > 0 ? cuentas : undefined,
+            asientos,
+            numeroAsiento: asientos.length > 0
+              ? Math.max(...asientos.map(a => a.numero), 0) + 1
+              : undefined,
+          },
+        });
+      }
+    }).catch(() => { /* sin conexión — usar localStorage */ });
+  }, []);
+
+  // Dispatch interceptor: sync writes to API
+  const dispatch = useCallback((action: ContabilidadAction) => {
+    baseDispatch(action);
+
+    if (!isAuthenticated()) return;
+    const empresaId = getEmpresaActivaId();
+    if (empresaId === 'default') return;
+
+    switch (action.type) {
+      case 'ADD_CUENTA':
+        saveCuenta(action.payload, empresaId).catch(() => {});
+        break;
+      case 'UPDATE_CUENTA':
+        updateCuenta(action.payload).catch(() => {});
+        break;
+      case 'DELETE_CUENTA':
+        deleteCuenta(action.payload).catch(() => {});
+        break;
+      case 'ADD_ASIENTO':
+        saveAsiento(action.payload, empresaId).catch(() => {});
+        break;
+      case 'UPDATE_ASIENTO':
+        // Only estado changes go through PUT /asientos/:id
+        updateAsientoEstado(action.payload.id, action.payload.estado).catch(() => {});
+        break;
+      case 'DELETE_ASIENTO':
+        deleteAsiento(action.payload).catch(() => {});
+        break;
+    }
+  }, []);
 
   return (
     <ContabilidadContext.Provider value={{ state, dispatch }}>

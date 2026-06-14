@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { Trabajador, LiquidacionPeriodo } from '../types';
-import { storageKey } from '../utils/empresaStorage';
+import { storageKey, getEmpresaActivaId } from '../utils/empresaStorage';
+import { isAuthenticated, fetchTrabajadores, saveTrabajador, updateTrabajador, deleteTrabajador } from '../services/apiSync';
 
 const STORAGE_KEY = storageKey('scc_remuneraciones');
 
@@ -15,8 +16,6 @@ const initialState: RemuneracionesState = {
   liquidaciones: [],
 };
 
-// Lee localStorage de forma síncrona al inicializar — evita el bug de
-// React 18 StrictMode donde el efecto de guardado corre antes que el de carga.
 function initFromStorage(): RemuneracionesState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -31,7 +30,7 @@ export type RemuneracionesAction =
   | { type: 'UPDATE_TRABAJADOR'; payload: Trabajador }
   | { type: 'DELETE_TRABAJADOR'; payload: string }
   | { type: 'ADD_LIQUIDACION'; payload: LiquidacionPeriodo }
-  | { type: 'DELETE_LIQUIDACION'; payload: string }   // payload = periodo 'YYYY-MM'
+  | { type: 'DELETE_LIQUIDACION'; payload: string }
   | { type: 'LOAD_REMUNERACIONES'; payload: Partial<RemuneracionesState> };
 
 // ============ REDUCER ============
@@ -44,7 +43,6 @@ function reducer(state: RemuneracionesState, action: RemuneracionesAction): Remu
     case 'DELETE_TRABAJADOR':
       return { ...state, trabajadores: state.trabajadores.filter(t => t.id !== action.payload) };
     case 'ADD_LIQUIDACION': {
-      // Si ya existe una para el mismo período, la reemplaza
       const sinDuplicado = (state.liquidaciones || []).filter(l => l.periodo !== action.payload.periodo);
       return { ...state, liquidaciones: [...sinDuplicado, action.payload] };
     }
@@ -66,20 +64,47 @@ interface RemuneracionesContextType {
 const RemuneracionesContext = createContext<RemuneracionesContextType | undefined>(undefined);
 
 export function RemuneracionesProvider({ children }: { children: ReactNode }) {
-  // initFromStorage se llama una sola vez como inicializador de useReducer
-  const [state, dispatch] = useReducer(reducer, undefined, initFromStorage);
-
-  // Ref para saber si ya pasamos el primer render — evita guardar el estado
-  // vacío antes de que initFromStorage haya poblado el estado inicial.
+  const [state, baseDispatch] = useReducer(reducer, undefined, initFromStorage);
   const isFirstRender = useRef(true);
+  const apiLoaded = useRef(false);
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return; // no guardar en el primer render: ya está en localStorage
-    }
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    if (apiLoaded.current || !isAuthenticated()) return;
+    const empresaId = getEmpresaActivaId();
+    if (empresaId === 'default') return;
+    apiLoaded.current = true;
+
+    fetchTrabajadores(empresaId).then(trabajadores => {
+      if (trabajadores.length > 0) {
+        baseDispatch({ type: 'LOAD_REMUNERACIONES', payload: { trabajadores } });
+      }
+    }).catch(() => {});
+  }, []);
+
+  const dispatch = useCallback((action: RemuneracionesAction) => {
+    baseDispatch(action);
+
+    if (!isAuthenticated()) return;
+    const empresaId = getEmpresaActivaId();
+    if (empresaId === 'default') return;
+
+    switch (action.type) {
+      case 'ADD_TRABAJADOR':
+        saveTrabajador(action.payload, empresaId).catch(() => {});
+        break;
+      case 'UPDATE_TRABAJADOR':
+        updateTrabajador(action.payload).catch(() => {});
+        break;
+      case 'DELETE_TRABAJADOR':
+        deleteTrabajador(action.payload).catch(() => {});
+        break;
+    }
+  }, []);
 
   return (
     <RemuneracionesContext.Provider value={{ state, dispatch }}>

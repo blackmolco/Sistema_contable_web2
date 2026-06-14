@@ -14,6 +14,7 @@ const writeLimiter = rateLimit({
 });
 
 const cuentaSchema = z.object({
+    id: z.string().uuid().optional(),
     codigo: z.string().min(1).max(20),
     nombre: z.string().min(2).max(200),
     tipo: z.enum(['activo', 'pasivo', 'patrimonio', 'ingreso', 'gasto', 'costo']),
@@ -76,7 +77,13 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, writeLimiter, validate(cuentaSchema), async (req, res) => {
     try {
-        const cuenta = await prisma.cuenta.create({ data: req.body });
+        const { id, ...data } = req.body;
+        const cuentaId = id || require('crypto').randomUUID();
+        const cuenta = await prisma.cuenta.upsert({
+            where: { id: cuentaId },
+            create: { id: cuentaId, ...data },
+            update: data,
+        });
         await auditLog(req.usuario.id, 'CREAR', 'Cuenta', cuenta.id, req.body, req.ip, req.headers['user-agent']);
         res.status(201).json(cuenta);
     } catch (err) {
