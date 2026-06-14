@@ -16,6 +16,18 @@ import { ConfirmDialogProvider } from './components/ui/ConfirmDialog';
 import { ShortcutsHelpModal } from './components/ui/ShortcutsHelpModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { fetchIndicadores } from './services/mindicador';
+import { API_BASE } from './services/httpClient';
+
+// Mantiene el backend de Render despierto enviando un ping cada 14 minutos.
+// También dispara un ping inmediato al cargar para reducir el cold start.
+function useBackendKeepalive() {
+  useEffect(() => {
+    const ping = () => fetch(`${API_BASE}/api/health`, { method: 'GET' }).catch(() => {});
+    ping(); // ping inmediato al abrir la app
+    const id = setInterval(ping, 14 * 60 * 1000); // cada 14 min
+    return () => clearInterval(id);
+  }, []);
+}
 
 // 🚀 Carga diferida (lazy loading) de páginas
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -109,6 +121,7 @@ const PageLoader = () => (
 
 
 function AppContent() {
+  useBackendKeepalive();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
   const [darkMode, setDarkMode] = React.useState(() => {
     const stored = localStorage.getItem('dark-mode');
