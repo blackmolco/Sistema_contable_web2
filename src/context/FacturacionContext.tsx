@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from 'react';
 import { DocumentoTributario, Honorario } from '../types';
+import { storageKey } from '../utils/empresaStorage';
 
-const STORAGE_KEY = 'scc_facturacion';
+const STORAGE_KEY = storageKey('scc_facturacion');
 
 // ============ ESTADO ============
 export interface FacturacionState {

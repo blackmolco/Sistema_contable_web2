@@ -12,11 +12,12 @@ import { FacturacionProvider, useFacturacion } from './FacturacionContext';
 import { ClientesProvider, useClientes } from './ClientesContext';
 import { AuditProvider, useAudit } from './AuditContext';
 import { useAppStore } from '../stores/appStore';
+import { storageKey } from '../utils/empresaStorage';
 
 // Re-exportar hooks especializados para acceso directo
 export { useContabilidad, useRemuneraciones, useFacturacion, useClientes, useAudit };
 
-const STORAGE_KEY = 'scc_app';
+const STORAGE_KEY = storageKey('scc_app');
 const LEGACY_KEY = 'sistemaContableChile';
 
 // ============ ESTADO UI / CONFIG ============
@@ -111,6 +112,29 @@ function initUIFromStorage(): UIState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return { ...uiInicial, ...JSON.parse(raw) };
+    // Primera vez con esta empresa: pre-cargar datos desde el store de Zustand
+    const appRaw = localStorage.getItem('app-storage');
+    if (appRaw) {
+      const app = JSON.parse(appRaw);
+      const emp = app?.state?.empresaActiva;
+      if (emp) {
+        return {
+          ...uiInicial,
+          configuracion: {
+            ...uiInicial.configuracion,
+            razonSocial: emp.razonSocial || uiInicial.configuracion.razonSocial,
+            nombreFantasia: emp.nombreFantasia || uiInicial.configuracion.nombreFantasia,
+            rut: emp.rut || uiInicial.configuracion.rut,
+            giro: emp.giro || uiInicial.configuracion.giro,
+            direccion: emp.direccion || uiInicial.configuracion.direccion,
+            comuna: emp.comuna || uiInicial.configuracion.comuna,
+            ciudad: emp.ciudad || uiInicial.configuracion.ciudad,
+            telefono: emp.telefono || uiInicial.configuracion.telefono,
+            email: emp.email || uiInicial.configuracion.email,
+          },
+        };
+      }
+    }
   } catch { /* datos corruptos */ }
   return uiInicial;
 }

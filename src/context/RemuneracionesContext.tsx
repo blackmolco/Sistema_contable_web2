@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from 'react';
 import { Trabajador, LiquidacionPeriodo } from '../types';
+import { storageKey } from '../utils/empresaStorage';
 
-const STORAGE_KEY = 'scc_remuneraciones';
+const STORAGE_KEY = storageKey('scc_remuneraciones');
 
 // ============ ESTADO ============
 export interface RemuneracionesState {

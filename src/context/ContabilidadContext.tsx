@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from 'react';
 import { Cuenta, AsientoContable, RegistroLibro, PlantillaAsiento } from '../types';
 import { PLAN_CUENTAS_DEFAULT } from '../data/normativa';
+import { storageKey } from '../utils/empresaStorage';
 
-const STORAGE_KEY = 'scc_contabilidad';
+const STORAGE_KEY = storageKey('scc_contabilidad');
 
 // ============ ESTADO ============
 export interface ContabilidadState {

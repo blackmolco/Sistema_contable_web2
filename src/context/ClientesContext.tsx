@@ -6,7 +6,9 @@ import {
   NotaCreditoDebito,
 } from '../types';
 
-const STORAGE_KEY = 'scc_clientes';
+import { storageKey } from '../utils/empresaStorage';
+
+const STORAGE_KEY = storageKey('scc_clientes');
 
 // ============ ESTADO ============
 export interface ClientesState {
