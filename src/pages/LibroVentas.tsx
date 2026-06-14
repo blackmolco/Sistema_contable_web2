@@ -25,17 +25,25 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
   const [selectedMes, setSelectedMes]   = useState<number>(now.getMonth() + 1);
   const [selectedAnio, setSelectedAnio] = useState<number>(now.getFullYear());
 
+  // ── Clasificación robusta compra/venta ────────────────────────────────────────
+  // Usa el campo `libro` (origen explícito) y, como respaldo para documentos
+  // importados del SII sin ese campo, el estado (compras=pendiente, ventas=emitido).
+  const esCompra = (d: typeof state.documentos[number]) =>
+    d.libro === 'compras' ||
+    d.tipo === 'factura_compra' ||
+    (d.libro !== 'ventas' && d.estado === 'pendiente');
+
+  const esVenta = (d: typeof state.documentos[number]) =>
+    d.libro === 'ventas' ||
+    (d.libro !== 'compras' && d.tipo !== 'factura_compra' && d.estado === 'emitido');
+
   // ── Todos los documentos según tipo de libro ──────────────────────────────────
-  const documentos = useMemo(() => state.documentos.filter((d) => {
-    if (tipo === 'ventas') {
-      // Libro ventas: facturas emitidas, boletas, notas de débito — cualquier documento NO de compra
-      return d.estado === 'emitido' && d.tipo !== 'factura_compra';
-    } else {
-      // Libro compras: facturas de proveedor importadas del SII (estado pendiente o tipo factura_compra)
-      return d.tipo === 'factura_compra' ||
-             (d.estado === 'pendiente' && d.tipo !== 'nota_credito' && d.tipo !== 'nota_debito');
-    }
-  }), [state.documentos, tipo]);
+  // Se incluyen TODOS los tipos (facturas afectas/exentas, notas de crédito y
+  // débito). Las notas de crédito restan; ver `signo` más abajo.
+  const documentos = useMemo(
+    () => state.documentos.filter((d) => (tipo === 'ventas' ? esVenta(d) : esCompra(d))),
+    [state.documentos, tipo]
+  );
 
   // ── Filtrar por mes Y año (ambos estados usados directamente) ─────────────────
   const registrosFiltrados = useMemo(() => {
@@ -46,19 +54,23 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
   }, [documentos, selectedMes, selectedAnio]);
 
   // ── Mapear a estructura de registros para la tabla ────────────────────────────
+  // Las notas de crédito (código 61) restan del libro: se registran con signo negativo.
   const registros = useMemo(() => {
-    return registrosFiltrados.map((doc) => ({
-      id: doc.id,
-      fecha: doc.fecha,
-      tipoDocumento: doc.tipo,
-      numeroDocumento: doc.numero ?? 0,
-      rut: doc.receptor?.rut ?? doc.rutCliente ?? '',
-      razonSocial: doc.receptor?.razonSocial ?? doc.razonSocialCliente ?? '',
-      exento: doc.totalExento ?? 0,
-      neto: doc.neto ?? doc.subtotal ?? 0,
-      iva: doc.iva ?? 0,
-      total: doc.total ?? 0,
-    }));
+    return registrosFiltrados.map((doc) => {
+      const signo = doc.tipo === 'nota_credito' ? -1 : 1;
+      return {
+        id: doc.id,
+        fecha: doc.fecha,
+        tipoDocumento: doc.tipo,
+        numeroDocumento: doc.numero ?? 0,
+        rut: doc.receptor?.rut ?? doc.rutCliente ?? '',
+        razonSocial: doc.receptor?.razonSocial ?? doc.razonSocialCliente ?? '',
+        exento: (doc.totalExento ?? 0) * signo,
+        neto: (doc.neto ?? doc.subtotal ?? 0) * signo,
+        iva: (doc.iva ?? 0) * signo,
+        total: (doc.total ?? 0) * signo,
+      };
+    });
   }, [registrosFiltrados]);
 
   // ── Totales ───────────────────────────────────────────────────────────────────
