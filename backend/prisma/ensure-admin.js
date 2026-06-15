@@ -8,8 +8,8 @@ const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
-// Usuarios garantizados. Si ya existen, NO se toca su passwordHash (respeta
-// cambios de clave hechos desde la app).
+// Usuarios garantizados. El passwordHash se actualiza siempre para garantizar
+// que las credenciales definidas aquí sean siempre válidas.
 const USUARIOS = [
     { email: 'admin@contable.cl',          nombre: 'Administrador',      rut: '76.192.600-5', rol: 'administrador', password: 'admin123' },
     { email: 'carlos@gmail.com',           nombre: 'Carlos',             rut: '16.121.114-1', rol: 'administrador', password: 'carlos123' },
@@ -18,15 +18,16 @@ const USUARIOS = [
 
 async function main() {
     for (const u of USUARIOS) {
+        const passwordHash = bcrypt.hashSync(u.password, 10);
         await prisma.usuario.upsert({
             where: { email: u.email },
-            update: { activo: true },
+            update: { activo: true, passwordHash },
             create: {
                 email: u.email,
                 nombre: u.nombre,
                 rut: u.rut,
                 rol: u.rol,
-                passwordHash: bcrypt.hashSync(u.password, 10),
+                passwordHash,
                 activo: true,
             },
         });
