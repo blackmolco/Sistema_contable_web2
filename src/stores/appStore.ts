@@ -182,7 +182,15 @@ export const useAppStore = create<AppState>()(
       addEmpresa: (datos) => {
         const nueva: Empresa = { ...datos, id: generateId() };
         set((state) => ({ empresas: [...state.empresas, nueva] }));
-        if (isAuthenticated()) saveEmpresa(nueva).catch(() => {});
+        if (isAuthenticated()) {
+          saveEmpresa(nueva).catch(() => {
+            get().addToast({
+              type: 'error',
+              message:
+                'No se pudo guardar la empresa en el servidor (revisa el RUT). Al refrescar podría desaparecer.',
+            });
+          });
+        }
         return nueva;
       },
       updateEmpresa: (id, updates) => {
@@ -196,7 +204,14 @@ export const useAppStore = create<AppState>()(
               : state.empresaActiva,
         }));
         const actualizada = get().empresas.find((e) => e.id === id);
-        if (actualizada && isAuthenticated()) saveEmpresa(actualizada).catch(() => {});
+        if (actualizada && isAuthenticated()) {
+          saveEmpresa(actualizada).catch(() => {
+            get().addToast({
+              type: 'error',
+              message: 'No se pudieron guardar los cambios de la empresa en el servidor (revisa el RUT).',
+            });
+          });
+        }
       },
       deleteEmpresa: (id) => {
         let removed = false;

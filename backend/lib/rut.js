@@ -1,7 +1,7 @@
 function validarRut(rut) {
     if (!rut || typeof rut !== 'string') return false;
 
-    const limpio = rut.replace(/[.\s]/g, '').toUpperCase();
+    const limpio = rut.replace(/[.\s\-]/g, '').toUpperCase();
 
     if (!/^[\dkK]$/.test(limpio.slice(-1))) return false;
 
