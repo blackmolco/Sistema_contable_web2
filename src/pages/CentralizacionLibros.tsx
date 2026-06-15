@@ -120,11 +120,20 @@ export default function CentralizacionLibros() {
     setBusquedaCuenta('');
   };
 
+  // ─── Eliminar asientos anteriores del mismo tipo y período ─────────────────
+  const eliminarAsientosExistentes = (prefijo: string, periodo: string) => {
+    const glosa = `${prefijo} — ${periodo}`;
+    state.asientos
+      .filter(a => a.glosa === glosa)
+      .forEach(a => dispatch({ type: 'DELETE_ASIENTO', payload: a.id }));
+  };
+
   // ─── Generar asiento de ventas/boletas directamente ─────────────────────────
   const generarAsientoDirecto = () => {
     const esBoleta = tipo === 'boletas';
     const nombreTipo = esBoleta ? 'Boletas Emitidas' : 'Ventas (Facturas)';
     const periodo = `${MESES_NOMBRE[mes - 1]} ${anio}`;
+    eliminarAsientosExistentes(`Centralización ${nombreTipo}`, periodo);
 
     // Boletas: Banco a Venta + IVA (ya pagadas)
     // Facturas: CxC a Venta + IVA (por cobrar)
@@ -179,6 +188,7 @@ export default function CentralizacionLibros() {
     }
 
     const periodo = `${MESES_NOMBRE[mes - 1]} ${anio}`;
+    eliminarAsientosExistentes('Centralización Libro de Compras', periodo);
     const detalles: any[] = [];
 
     // Un cargo por proveedor a su cuenta de gasto
