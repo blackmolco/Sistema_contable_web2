@@ -14,13 +14,13 @@ const writeLimiter = rateLimit({
 });
 
 const cuentaSchema = z.object({
-    id: z.string().uuid().optional(),
+    id: z.string().min(1).optional(),
     codigo: z.string().min(1).max(20),
     nombre: z.string().min(2).max(200),
     tipo: z.enum(['activo', 'pasivo', 'patrimonio', 'ingreso', 'gasto', 'costo']),
     naturaleza: z.enum(['deudora', 'acreedora']).default('deudora'),
     nivel: z.number().int().min(1).max(5).default(1),
-    padreId: z.string().uuid().optional().nullable(),
+    padreId: z.string().min(1).optional().nullable(),
     afectaIva: z.boolean().default(false),
     descripcion: z.string().max(500).optional().nullable(),
     refSII: z.string().max(50).optional().nullable(),

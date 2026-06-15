@@ -134,7 +134,7 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
     Promise.all([
       fetchCuentas(),
       fetchAsientos(),
-    ]).then(([apiCuentas, apiAsientos]) => {
+    ]).then(async ([apiCuentas, apiAsientos]) => {
       if (apiCuentas.length > 0 || apiAsientos.length > 0) {
         // API tiene datos → usarlos como fuente de verdad
         baseDispatch({
@@ -150,9 +150,14 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
       } else {
         // API vacía → subir datos locales al servidor (migración única)
         const local = stateRef.current;
-        const cuentasLocales = local.cuentas.filter(c => !PLAN_CUENTAS_DEFAULT.some(d => d.id === c.id));
-        cuentasLocales.forEach(c => saveCuenta(c).catch(() => {}));
-        local.asientos.forEach(a => saveAsiento(a).catch(() => {}));
+        // Subir cuentas ordenadas por nivel (padres antes que hijos, FK constraint)
+        const cuentasOrdenadas = [...local.cuentas].sort((a, b) => (a.nivel ?? 1) - (b.nivel ?? 1));
+        for (const c of cuentasOrdenadas) {
+          await saveCuenta(c).catch(() => {});
+        }
+        for (const a of local.asientos) {
+          await saveAsiento(a).catch(() => {});
+        }
       }
     }).catch(() => { /* sin conexión — usar localStorage */ });
   }, [empresaId]);
