@@ -18,20 +18,24 @@ const USUARIOS = [
 
 async function main() {
     for (const u of USUARIOS) {
-        const passwordHash = bcrypt.hashSync(u.password, 10);
-        await prisma.usuario.upsert({
-            where: { email: u.email },
-            update: { activo: true, passwordHash },
-            create: {
-                email: u.email,
-                nombre: u.nombre,
-                rut: u.rut,
-                rol: u.rol,
-                passwordHash,
-                activo: true,
-            },
-        });
-        console.log(`✓ Usuario asegurado: ${u.email}`);
+        try {
+            const passwordHash = bcrypt.hashSync(u.password, 8);
+            await prisma.usuario.upsert({
+                where: { email: u.email },
+                update: { activo: true, passwordHash, nombre: u.nombre, rut: u.rut, rol: u.rol },
+                create: {
+                    email: u.email,
+                    nombre: u.nombre,
+                    rut: u.rut,
+                    rol: u.rol,
+                    passwordHash,
+                    activo: true,
+                },
+            });
+            console.log(`✓ Usuario asegurado: ${u.email}`);
+        } catch (e) {
+            console.error(`✗ Error en ${u.email}:`, e.message);
+        }
     }
 }
 
