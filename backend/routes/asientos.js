@@ -43,7 +43,9 @@ const writeLimiter = rateLimit({
 });
 
 const detalleAsientoSchema = z.object({
-    cuentaId: z.string().min(1),
+    cuentaId: z.string().min(1).optional().nullable(),
+    cuentaCodigo: z.string().max(50).optional().nullable(),
+    cuentaNombre: z.string().max(200).optional().nullable(),
     debe: z.number().min(0).default(0),
     haber: z.number().min(0).default(0),
     glosa: z.string().max(500).optional().nullable(),
