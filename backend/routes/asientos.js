@@ -52,7 +52,7 @@ const detalleAsientoSchema = z.object({
 });
 
 const asientoSchema = z.object({
-    id: z.string().uuid().optional(),
+    id: z.string().min(1).optional(),
     numero: z.number().int().positive(),
     fecha: z.string().datetime().or(z.string().date()),
     glosa: z.string().min(2).max(1000),
