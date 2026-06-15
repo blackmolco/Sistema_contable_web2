@@ -76,7 +76,7 @@ router.get('/', authenticateToken, async (req, res) => {
             prisma.asientoContable.count({ where }),
             prisma.asientoContable.findMany({
                 where,
-                include: { detalles: { include: { cuenta: true } } },
+                include: { detalles: true },
                 orderBy: [{ fecha: 'desc' }, { numero: 'desc' }],
                 skip: offset,
                 take: limit,
@@ -114,7 +114,7 @@ router.post('/', authenticateToken, writeLimiter, validate(asientoSchema), async
                 fecha: new Date(asientoData.fecha),
                 detalles: { create: detalles.map(d => ({ ...d })) },
             },
-            include: { detalles: { include: { cuenta: true } } },
+            include: { detalles: true },
         });
         await auditLog(req.usuario.id, 'CREAR', 'AsientoContable', asiento.id, { numero: asiento.numero, totalDebe, totalHaber }, req.ip, req.headers['user-agent']);
         res.status(201).json(asiento);
@@ -130,7 +130,7 @@ router.put('/:id', authenticateToken, writeLimiter, async (req, res) => {
         const asiento = await prisma.asientoContable.update({
             where: { id: req.params.id },
             data: { estado },
-            include: { detalles: { include: { cuenta: true } } },
+            include: { detalles: true },
         });
         await auditLog(req.usuario.id, 'ACTUALIZAR', 'AsientoContable', asiento.id, { estado }, req.ip, req.headers['user-agent']);
         res.json(asiento);

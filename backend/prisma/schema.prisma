@@ -90,7 +90,6 @@ model Cuenta {
 
   padre         Cuenta?         @relation("CuentaJerarquia", fields: [padreId], references: [id])
   hijos         Cuenta[]        @relation("CuentaJerarquia")
-  detallesAsiento DetalleAsiento[]
 
   @@unique([codigo, empresaId], name: "codigo_empresaId")
   @@index([empresaId])
@@ -121,16 +120,16 @@ model AsientoContable {
 model DetalleAsiento {
   id            String   @id @default(uuid())
   asientoId     String
-  cuentaId      String
+  cuentaId      String?
+  cuentaCodigo  String?
+  cuentaNombre  String?
   debe          Float    @default(0)
   haber         Float    @default(0)
   glosa         String?
 
   asiento       AsientoContable @relation(fields: [asientoId], references: [id], onDelete: Cascade)
-  cuenta        Cuenta          @relation(fields: [cuentaId], references: [id])
 
   @@index([asientoId])
-  @@index([cuentaId])
 }
 
 // ============ REMUNERACIONES ============

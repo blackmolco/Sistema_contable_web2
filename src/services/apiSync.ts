@@ -165,9 +165,9 @@ export async function fetchAsientos(): Promise<AsientoContable[]> {
   return rows.map(r => {
     const detalles = ((r.detalles as Record<string, unknown>[]) || []).map(d => ({
       id: d.id as string,
-      cuentaId: d.cuentaId as string,
-      cuentaCodigo: ((d.cuenta as Record<string, unknown>)?.codigo as string) || '',
-      cuentaNombre: ((d.cuenta as Record<string, unknown>)?.nombre as string) || '',
+      cuentaId: (d.cuentaId as string) || '',
+      cuentaCodigo: (d.cuentaCodigo as string) || '',
+      cuentaNombre: (d.cuentaNombre as string) || '',
       debe: d.debe as number,
       haber: d.haber as number,
     }));
@@ -199,7 +199,9 @@ export async function saveAsiento(asiento: AsientoContable): Promise<void> {
       tipo: asiento.tipo || null,
       empresaId: getEmpresaActivaId(),
       detalles: asiento.detalles.map(d => ({
-        cuentaId: d.cuentaId,
+        cuentaId: d.cuentaId || null,
+        cuentaCodigo: d.cuentaCodigo || null,
+        cuentaNombre: d.cuentaNombre || null,
         debe: d.debe,
         haber: d.haber,
       })),
