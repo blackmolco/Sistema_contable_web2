@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -9,11 +9,14 @@ import {
   CheckCircle,
   BarChart3,
   PieChart,
+  RefreshCw,
 } from 'lucide-react';
 import { Card, Button } from '../components/ui/Cards';
 import { AnalisisFinancieroService, AnalisisFinanciero } from '../services/analisisFinanciero';
+import { useApp } from '../context/AppContext';
 
 export default function AnalisisFinancieroPage() {
+  const { state } = useApp();
   const [analisis, setAnalisis] = useState<AnalisisFinanciero | null>(null);
   const [formData, setFormData] = useState({
     activoCorriente: 0,
@@ -33,6 +36,94 @@ export default function AnalisisFinancieroPage() {
     cuentasPorPagar: 0,
     costoInventario: 0,
   });
+
+  // ── Derivar datos desde asientos contables ────────────────────────────────
+  const datosDesdeAsientos = useMemo(() => {
+    const tipoPorCodigo = new Map<string, string>();
+    state.cuentas.forEach((c) => tipoPorCodigo.set(c.codigo, c.tipo));
+
+    const saldos = new Map<string, { debe: number; haber: number; tipo: string; nombre: string }>();
+
+    state.asientos.filter((a) => a.estado !== 'anulado').forEach((asiento) => {
+      asiento.detalles.forEach((d) => {
+        if (!saldos.has(d.cuentaCodigo)) {
+          saldos.set(d.cuentaCodigo, {
+            debe: 0, haber: 0,
+            tipo: tipoPorCodigo.get(d.cuentaCodigo) ?? '',
+            nombre: d.cuentaNombre,
+          });
+        }
+        const s = saldos.get(d.cuentaCodigo)!;
+        s.debe += d.debe;
+        s.haber += d.haber;
+      });
+    });
+
+    let activoTotal = 0, pasivoCorriente = 0, pasivoTotal = 0, patrimonio = 0;
+    let ventas = 0, costoVentas = 0, gastosOperacionales = 0;
+    let cuentasPorCobrar = 0, cuentasPorPagar = 0, inventario = 0;
+
+    saldos.forEach((s, codigo) => {
+      const saldoNeto = s.debe - s.haber;
+      const codigoNum = parseInt(codigo);
+      switch (s.tipo) {
+        case 'activo':
+          activoTotal += saldoNeto;
+          // Cuentas por cobrar: típicamente códigos 11xxx
+          if (codigoNum >= 11000 && codigoNum < 12000) cuentasPorCobrar += saldoNeto;
+          // Inventario: típicamente 14xxx
+          if (codigoNum >= 14000 && codigoNum < 15000) inventario += saldoNeto;
+          break;
+        case 'pasivo':
+          pasivoTotal += -saldoNeto;
+          // Pasivo corriente: típicamente 21xxx
+          if (codigoNum >= 21000 && codigoNum < 22000) pasivoCorriente += -saldoNeto;
+          // Cuentas por pagar: 21100-21200
+          if (codigoNum >= 21100 && codigoNum < 21300) cuentasPorPagar += -saldoNeto;
+          break;
+        case 'patrimonio':
+          patrimonio += -saldoNeto;
+          break;
+        case 'ingreso':
+          ventas += s.haber - s.debe;
+          break;
+        case 'gasto':
+          // Costo de ventas: típicamente 51xxx; gastos oper: 52xxx+
+          if (codigoNum >= 51000 && codigoNum < 52000) costoVentas += saldoNeto;
+          else gastosOperacionales += saldoNeto;
+          break;
+      }
+    });
+
+    const utilidadBruta = ventas - costoVentas;
+    const utilidadOperacional = utilidadBruta - gastosOperacionales;
+    const activoCorriente = activoTotal * 0.6; // estimación si no hay subclasificación
+
+    return {
+      activoCorriente: Math.round(activoCorriente),
+      pasivoCorriente: Math.round(pasivoCorriente),
+      inventario: Math.round(inventario),
+      activoTotal: Math.round(activoTotal),
+      pasivoTotal: Math.round(pasivoTotal),
+      patrimonio: Math.round(patrimonio),
+      ventas: Math.round(ventas),
+      costoVentas: Math.round(costoVentas),
+      utilidadBruta: Math.round(utilidadBruta),
+      utilidadOperacional: Math.round(utilidadOperacional),
+      utilidadNeta: Math.round(utilidadOperacional),
+      gastosOperacionales: Math.round(gastosOperacionales),
+      interesesDeuda: 0,
+      cuentasPorCobrar: Math.round(cuentasPorCobrar),
+      cuentasPorPagar: Math.round(cuentasPorPagar),
+      costoInventario: Math.round(costoVentas),
+    };
+  }, [state.asientos, state.cuentas]);
+
+  const tieneAsientos = state.asientos.filter((a) => a.estado !== 'anulado').length > 0;
+
+  const cargarDesdeAsientos = () => {
+    setFormData(datosDesdeAsientos);
+  };
 
   useEffect(() => {
     const saved = AnalisisFinancieroService.getUltimoAnalisis();
@@ -95,7 +186,17 @@ export default function AnalisisFinancieroPage() {
       </div>
 
       {/* Formulario de datos */}
-      <Card title="Datos del Estados Financiero">
+      <Card title="Datos del Estados Financiero" action={
+        tieneAsientos ? (
+          <button
+            onClick={cargarDesdeAsientos}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#1E3A5F] border border-[#1E3A5F]/30 rounded-lg hover:bg-[#1E3A5F]/5 transition-colors"
+          >
+            <RefreshCw size={13} />
+            Cargar desde asientos
+          </button>
+        ) : undefined
+      }>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Activos y Pasivos */}
           <div className="space-y-4">

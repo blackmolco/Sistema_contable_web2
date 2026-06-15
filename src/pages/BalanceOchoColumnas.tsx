@@ -28,10 +28,8 @@ export default function BalanceOchoColumnas() {
   const { state } = useApp();
 
   const hoy = new Date();
-  const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
-    .toISOString()
-    .split('T')[0];
-  const [fechaInicio, setFechaInicio] = useState(primerDiaMes);
+  const primerDiaAnio = new Date(hoy.getFullYear(), 0, 1).toISOString().split('T')[0];
+  const [fechaInicio, setFechaInicio] = useState(primerDiaAnio);
   const [fechaFin, setFechaFin] = useState(hoy.toISOString().split('T')[0]);
 
   // ── Cálculo del balance ──────────────────────────────────────────────────────
