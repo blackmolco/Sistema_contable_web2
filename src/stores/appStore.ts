@@ -118,6 +118,7 @@ interface AppState {
 
   // Actions - Empresas
   setEmpresas: (empresas: Empresa[]) => void;
+  setEmpresasServidor: (empresas: Empresa[]) => void;
   setEmpresaActiva: (empresa: Empresa | null) => void;
   setEmpresaActivaById: (id: string) => void;
   addEmpresa: (empresa: Omit<Empresa, 'id'>) => Empresa;
@@ -160,15 +161,18 @@ export const useAppStore = create<AppState>()(
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       setTheme: (theme) => set({ theme }),
 
-      setEmpresas: (empresas) => {
-        // Si está vacío, inicializar con demo
-        if (empresas.length === 0) {
-          const demo = getEmpresasDemo();
-          set({ empresas: demo, empresaActiva: demo[0] });
-          return;
-        }
-        set({ empresas });
-      },
+      setEmpresas: (empresas) => set({ empresas }),
+      // Reemplaza la lista con la del backend (fuente de verdad multi-dispositivo).
+      // NO re-siembra demos ni re-sube locales: si el backend no la tiene, no existe.
+      // Así, una empresa eliminada en otro dispositivo no "revive" al sincronizar.
+      setEmpresasServidor: (empresas) =>
+        set((state) => {
+          const activa =
+            state.empresaActiva && empresas.some((e) => e.id === state.empresaActiva!.id)
+              ? state.empresaActiva
+              : empresas[0] || null;
+          return { empresas, empresaActiva: activa };
+        }),
       setEmpresaActiva: (empresa) => set({ empresaActiva: empresa }),
       setEmpresaActivaById: (id) =>
         set((state) => {
@@ -331,14 +335,14 @@ export const useAppStore = create<AppState>()(
       }),
       onRehydrateStorage: () => {
         return (state) => {
-          if (state && state.empresas.length === 0) {
-            state.setEmpresas([]);
-            if (state.empresaActiva === null) {
-              const demo = getEmpresasDemo();
-              if (demo.length > 0) {
-                state.setEmpresaActiva(demo[0]);
-              }
-            }
+          // Sembrar empresas demo SOLO para usuarios no autenticados (modo demo).
+          // Si el usuario está autenticado, el backend es la fuente de verdad y la
+          // lista se llena al iniciar sesión (ver App.tsx). De este modo, una
+          // empresa eliminada no "revive" desde los datos demo locales.
+          if (state && state.empresas.length === 0 && !isAuthenticated()) {
+            const demo = getEmpresasDemo();
+            state.setEmpresas(demo);
+            state.setEmpresaActiva(demo[0]);
           }
         };
       },
