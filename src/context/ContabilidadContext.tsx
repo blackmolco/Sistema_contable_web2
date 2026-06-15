@@ -7,6 +7,7 @@ import {
   fetchCuentas, saveCuenta, updateCuenta, deleteCuenta,
   fetchAsientos, saveAsiento, updateAsientoEstado, deleteAsiento,
 } from '../services/apiSync';
+import { useAppStore } from '../stores/appStore';
 
 const STORAGE_KEY = storageKey('scc_contabilidad');
 
@@ -110,7 +111,8 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
   const [state, baseDispatch] = useReducer(reducer, undefined, initFromStorage);
   const stateRef = useRef(state);
   const isFirstRender = useRef(true);
-  const apiLoaded = useRef(false);
+  const loadedForEmpresa = useRef<string | null>(null);
+  const empresaId = useAppStore(s => s.empresaActiva?.id ?? null);
 
   stateRef.current = state;
 
@@ -123,10 +125,11 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
-  // Load from API on mount; if API empty, push local data (migración)
+  // Load from API when empresa changes; if API empty, push local data (migración)
   useEffect(() => {
-    if (apiLoaded.current || !isAuthenticated()) return;
-    apiLoaded.current = true;
+    if (!isAuthenticated() || !empresaId) return;
+    if (loadedForEmpresa.current === empresaId) return;
+    loadedForEmpresa.current = empresaId;
 
     Promise.all([
       fetchCuentas(),
@@ -152,7 +155,7 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
         local.asientos.forEach(a => saveAsiento(a).catch(() => {}));
       }
     }).catch(() => { /* sin conexión — usar localStorage */ });
-  }, []);
+  }, [empresaId]);
 
   // Dispatch interceptor: sync writes to API
   const dispatch = useCallback((action: ContabilidadAction) => {
