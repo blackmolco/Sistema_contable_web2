@@ -35,7 +35,7 @@ export default function AsientosContables() {
   const plantillas: PlantillaAsiento[] = state.plantillas ?? [];
 
   // Filtrar asientos
-  const asientosFiltrados = state.asientos.filter((a) => {
+  const asientosFiltrados = (state.asientos ?? []).filter((a) => {
     return (
       searchTerm === '' ||
       a.glosa.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -44,7 +44,7 @@ export default function AsientosContables() {
   });
 
   // Cuentas disponibles como options para Select
-  const cuentasDisponibles = state.cuentas.filter((c) => c.permiteMovimiento);
+  const cuentasDisponibles = (state.cuentas ?? []).filter((c) => c.permiteMovimiento);
   const cuentasOptions = [
     { value: '', label: 'Seleccionar cuenta...' },
     ...cuentasDisponibles.map((c) => ({ value: c.id, label: `${c.codigo} - ${c.nombre}` })),
