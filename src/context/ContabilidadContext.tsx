@@ -35,7 +35,16 @@ const initialState: ContabilidadState = {
 function initFromStorage(): ContabilidadState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...initialState, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...initialState,
+        ...parsed,
+        asientos: Array.isArray(parsed.asientos) ? parsed.asientos : initialState.asientos,
+        cuentas: Array.isArray(parsed.cuentas) ? parsed.cuentas : initialState.cuentas,
+        plantillas: Array.isArray(parsed.plantillas) ? parsed.plantillas : initialState.plantillas,
+      };
+    }
   } catch { /* datos corruptos — usar defaults */ }
   return initialState;
 }
@@ -92,8 +101,16 @@ function reducer(state: ContabilidadState, action: ContabilidadAction): Contabil
       return { ...state, plantillas: (state.plantillas ?? []).filter(p => p.id !== action.payload) };
     case 'INCREMENT_USO_PLANTILLA':
       return { ...state, plantillas: (state.plantillas ?? []).map(p => p.id === action.payload ? { ...p, usosCount: p.usosCount + 1 } : p) };
-    case 'LOAD_CONTABILIDAD':
-      return { ...state, ...action.payload };
+    case 'LOAD_CONTABILIDAD': {
+      const p = action.payload;
+      return {
+        ...state,
+        ...p,
+        asientos: Array.isArray(p.asientos) ? p.asientos : state.asientos,
+        cuentas: Array.isArray(p.cuentas) ? p.cuentas : state.cuentas,
+        plantillas: Array.isArray(p.plantillas) ? p.plantillas : state.plantillas,
+      };
+    }
     default:
       return state;
   }
