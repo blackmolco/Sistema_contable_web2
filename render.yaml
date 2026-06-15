@@ -3,7 +3,9 @@ services:
     name: sistema-contable-chile-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm install && npx prisma generate && npx prisma db push
+    # NUNCA usar --force-reset aquí: borra toda la base de datos en cada deploy.
+    # ensure-admin garantiza que el usuario admin exista tras un reset (idempotente).
+    buildCommand: npm install && npx prisma generate && npx prisma db push && node prisma/ensure-admin.js
     startCommand: node index.js
     plan: free
     healthCheckPath: /api/health
