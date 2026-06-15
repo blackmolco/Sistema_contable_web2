@@ -195,7 +195,7 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
         deleteCuenta(action.payload).catch(() => {});
         break;
       case 'ADD_ASIENTO':
-        saveAsiento(action.payload).catch(() => {});
+        saveAsiento(action.payload).catch((e) => console.error('[sync] saveAsiento FAILED:', e));
         break;
       case 'UPDATE_ASIENTO':
         updateAsientoEstado(action.payload.id, action.payload.estado).catch(() => {});

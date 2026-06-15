@@ -59,7 +59,7 @@ const asientoSchema = z.object({
     estado: z.enum(['pendiente', 'contabilizado', 'anulado']).default('pendiente'),
     tipo: z.string().max(50).optional().nullable(),
     detalles: z.array(detalleAsientoSchema).min(1),
-    empresaId: z.string().uuid().optional().nullable(),
+    empresaId: z.string().min(1).optional().nullable(),
 });
 
 router.get('/', authenticateToken, async (req, res) => {
