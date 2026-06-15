@@ -1,37 +1,42 @@
 // backend/prisma/ensure-admin.js
-// Garantiza que exista el usuario administrador en la base de datos.
-// Es idempotente (upsert): seguro de correr en cada deploy. A diferencia de
-// seed.js, NO crea empresas ni trabajadores demo — solo el usuario admin, para
-// que el login siempre funcione aunque la base se haya reseteado.
+// Garantiza que existan los usuarios base en la base de datos.
+// Es idempotente (upsert por email): seguro de correr en cada deploy. A
+// diferencia de seed.js, NO crea empresas ni trabajadores demo — solo usuarios,
+// para que el login siempre funcione aunque la base se haya reseteado.
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
-async function main() {
-    const email = process.env.ADMIN_EMAIL || 'admin@contable.cl';
-    const password = process.env.ADMIN_PASSWORD || 'admin123';
-    const passwordHash = bcrypt.hashSync(password, 10);
+// Usuarios garantizados. Si ya existen, NO se toca su passwordHash (respeta
+// cambios de clave hechos desde la app).
+const USUARIOS = [
+    { email: 'admin@contable.cl',          nombre: 'Administrador',      rut: '76.192.600-5', rol: 'administrador', password: 'admin123' },
+    { email: 'carlos@gmail.com',           nombre: 'Carlos',             rut: '16.121.114-1', rol: 'administrador', password: 'carlos123' },
+    { email: 'robvalenzuela@gmail.com',    nombre: 'Roberto Valenzuela', rut: '18.672.888-2', rol: 'administrador', password: 'molco123' },
+];
 
-    await prisma.usuario.upsert({
-        where: { email },
-        // Si ya existe, NO tocamos su passwordHash (respeta cambios de clave).
-        update: { activo: true },
-        create: {
-            email,
-            nombre: 'Administrador',
-            rut: '76.192.600-5',
-            rol: 'administrador',
-            passwordHash,
-            activo: true,
-        },
-    });
-    console.log(`✓ Usuario admin asegurado: ${email}`);
+async function main() {
+    for (const u of USUARIOS) {
+        await prisma.usuario.upsert({
+            where: { email: u.email },
+            update: { activo: true },
+            create: {
+                email: u.email,
+                nombre: u.nombre,
+                rut: u.rut,
+                rol: u.rol,
+                passwordHash: bcrypt.hashSync(u.password, 10),
+                activo: true,
+            },
+        });
+        console.log(`✓ Usuario asegurado: ${u.email}`);
+    }
 }
 
 main()
     .catch((e) => {
-        console.error('Error asegurando admin:', e);
+        console.error('Error asegurando usuarios:', e);
         process.exit(1);
     })
     .finally(async () => {
