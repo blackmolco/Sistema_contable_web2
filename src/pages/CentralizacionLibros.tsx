@@ -162,7 +162,7 @@ export default function CentralizacionLibros() {
 
     const asiento = {
       id: generateId(),
-      fecha: new Date(anio, mes - 1, 28).toISOString(),
+      fecha: `${anio}-${String(mes).padStart(2, '0')}-28`,
       numero: state.numeroAsiento,
       glosa: `Centralización ${nombreTipo} — ${periodo}`,
       detalles,
@@ -220,7 +220,7 @@ export default function CentralizacionLibros() {
 
     const asiento = {
       id: generateId(),
-      fecha: new Date(anio, mes - 1, 28).toISOString(),
+      fecha: `${anio}-${String(mes).padStart(2, '0')}-28`,
       numero: state.numeroAsiento,
       glosa: `Centralización Libro de Compras — ${periodo}`,
       detalles,
