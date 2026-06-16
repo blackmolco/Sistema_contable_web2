@@ -97,11 +97,28 @@ router.post('/', authenticateToken, writeLimiter, validate(docTributarioSchema),
             fechaEmision: new Date(rest.fechaEmision),
             fechaVencimiento: rest.fechaVencimiento ? new Date(rest.fechaVencimiento) : null,
         };
-        const doc = await prisma.documentoTributario.upsert({
-            where: { id: docId },
-            create: { id: docId, ...data },
-            update: data,
-        });
+        let doc;
+        try {
+            doc = await prisma.documentoTributario.upsert({
+                where: { id: docId },
+                create: { id: docId, ...data },
+                update: data,
+            });
+        } catch (upsertErr) {
+            // P2002: unique constraint on (tipo, folio, empresaId) — document already exists with different id
+            if (upsertErr.code === 'P2002') {
+                const existing = await prisma.documentoTributario.findFirst({
+                    where: { tipo: data.tipo, folio: data.folio, empresaId: data.empresaId ?? null },
+                });
+                if (existing) {
+                    doc = await prisma.documentoTributario.update({ where: { id: existing.id }, data });
+                } else {
+                    throw upsertErr;
+                }
+            } else {
+                throw upsertErr;
+            }
+        }
         await auditLog(req.usuario.id, 'CREAR', 'DocumentoTributario', doc.id, { tipo: doc.tipo, folio: doc.folio }, req.ip, req.headers['user-agent']);
         res.status(201).json(doc);
     } catch (err) {
