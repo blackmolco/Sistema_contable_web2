@@ -135,6 +135,7 @@ app.use('/api/trabajadores',           trabajadoresRouter);
 // Alias de compatibilidad: el frontend usa /api/liquidaciones directamente
 app.use('/api/liquidaciones',          trabajadoresRouter);
 app.use('/api/documentos-tributarios', docsTribRouter);
+app.use('/api/documentosTributarios',  docsTribRouter); // alias camelCase usado por el frontend
 // Alias de compatibilidad: el frontend usa /api/libro-compras y /api/libro-ventas directamente
 app.use('/api/libro-compras',          docsTribRouter);
 app.use('/api/libro-ventas',           docsTribRouter);

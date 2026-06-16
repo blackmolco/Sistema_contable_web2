@@ -88,9 +88,6 @@ model Cuenta {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  padre         Cuenta?         @relation("CuentaJerarquia", fields: [padreId], references: [id])
-  hijos         Cuenta[]        @relation("CuentaJerarquia")
-
   @@unique([codigo, empresaId], name: "codigo_empresaId")
   @@index([empresaId])
   @@index([tipo])

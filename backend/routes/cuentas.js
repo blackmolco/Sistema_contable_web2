@@ -25,7 +25,7 @@ const cuentaSchema = z.object({
     descripcion: z.string().max(500).optional().nullable(),
     refSII: z.string().max(50).optional().nullable(),
     permiteMovimiento: z.boolean().default(true),
-    empresaId: z.string().uuid().optional().nullable(),
+    empresaId: z.string().min(1).optional().nullable(),
 });
 
 /**
