@@ -105,6 +105,7 @@ export async function fetchCuentas(): Promise<Cuenta[]> {
 }
 
 export async function saveCuenta(cuenta: Cuenta): Promise<void> {
+  if (!isAuthenticated()) return;
   await apiFetch('/api/cuentas', {
     method: 'POST',
     body: JSON.stringify({
@@ -188,6 +189,7 @@ export async function fetchAsientos(): Promise<AsientoContable[]> {
 }
 
 export async function saveAsiento(asiento: AsientoContable): Promise<void> {
+  if (!isAuthenticated()) return;
   await apiFetch('/api/asientos', {
     method: 'POST',
     body: JSON.stringify({
@@ -262,6 +264,7 @@ export async function fetchTrabajadores(): Promise<Trabajador[]> {
 }
 
 export async function saveTrabajador(t: Trabajador): Promise<void> {
+  if (!isAuthenticated()) return;
   await apiFetch('/api/trabajadores', {
     method: 'POST',
     body: JSON.stringify({
@@ -377,6 +380,7 @@ export async function fetchDocumentos(): Promise<DocumentoTributario[]> {
 }
 
 export async function saveDocumento(doc: DocumentoTributario, rutEmisor: string): Promise<void> {
+  if (!isAuthenticated()) return;
   const tipo = tipoDocToBackend[doc.tipo] ?? doc.tipo;
   await apiFetch('/api/documentosTributarios', {
     method: 'POST',
@@ -429,6 +433,7 @@ export async function fetchHonorarios(): Promise<Honorario[]> {
 }
 
 export async function saveHonorario(h: Honorario): Promise<void> {
+  if (!isAuthenticated()) return;
   await apiFetch('/api/honorarios', {
     method: 'POST',
     body: JSON.stringify({
