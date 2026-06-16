@@ -59,11 +59,14 @@ export function getHttpErrorMessage(status: number, serverMessage?: string): str
 export async function handleApiResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let serverMessage: string | undefined;
+    let detalles: string[] | undefined;
     try {
       const body = await res.json();
       serverMessage = body.error || body.message;
+      detalles = body.detalles;
     } catch {}
-    throw new Error(getHttpErrorMessage(res.status, serverMessage));
+    const msg = getHttpErrorMessage(res.status, serverMessage);
+    throw new Error(detalles?.length ? `${msg} | ${detalles.join(' | ')}` : msg);
   }
   return res.json() as Promise<T>;
 }

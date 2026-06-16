@@ -188,25 +188,32 @@ export async function fetchAsientos(): Promise<AsientoContable[]> {
   });
 }
 
+const BACKEND_ESTADO_ASIENTO = ['pendiente', 'contabilizado', 'anulado'] as const;
+
 export async function saveAsiento(asiento: AsientoContable): Promise<void> {
   if (!isAuthenticated()) return;
+  const estadoMapped = estadoToBackend[asiento.estado] ?? 'pendiente';
+  const estado = (BACKEND_ESTADO_ASIENTO as readonly string[]).includes(estadoMapped) ? estadoMapped : 'pendiente';
+  const fecha = toValidFecha(asiento.fecha);
+  const detalles = asiento.detalles.map(d => ({
+    cuentaId: d.cuentaId || null,
+    cuentaCodigo: d.cuentaCodigo || null,
+    cuentaNombre: d.cuentaNombre || null,
+    debe: isFinite(d.debe) ? d.debe : 0,
+    haber: isFinite(d.haber) ? d.haber : 0,
+  })).filter(d => d.debe >= 0 && d.haber >= 0);
+  if (detalles.length === 0) return;
   await apiFetch('/api/asientos', {
     method: 'POST',
     body: JSON.stringify({
       id: asiento.id,
-      numero: asiento.numero,
-      fecha: asiento.fecha,
-      glosa: asiento.glosa,
-      estado: estadoToBackend[asiento.estado] ?? 'pendiente',
+      numero: asiento.numero || 1,
+      fecha,
+      glosa: asiento.glosa?.length >= 2 ? asiento.glosa : `Asiento ${asiento.numero || 1}`,
+      estado,
       tipo: asiento.tipo || null,
       empresaId: getEmpresaActivaId(),
-      detalles: asiento.detalles.map(d => ({
-        cuentaId: d.cuentaId || null,
-        cuentaCodigo: d.cuentaCodigo || null,
-        cuentaNombre: d.cuentaNombre || null,
-        debe: d.debe,
-        haber: d.haber,
-      })),
+      detalles,
     }),
   });
 }
