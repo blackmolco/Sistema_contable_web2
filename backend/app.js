@@ -70,7 +70,9 @@ app.use(cors({
         return callback(new Error('Origen no permitido por CORS'));
     },
     credentials: true,
-    maxAge: 86400,
+    allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    maxAge: 3600,
 }));
 
 // ============ COMPRESSION (MEJORA 6) ============
