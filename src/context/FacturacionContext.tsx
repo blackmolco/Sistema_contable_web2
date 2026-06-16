@@ -47,11 +47,15 @@ function reducer(state: FacturacionState, action: FacturacionAction): Facturacio
     case 'ADD_DOCUMENTO':
       return { ...state, documentos: [...state.documentos, action.payload], numeroDocumento: state.numeroDocumento + 1 };
     case 'BATCH_ADD_DOCUMENTOS': {
-      // Clave de deduplicación: tipo + folio + rut emisor/receptor
-      const clave = (d: DocumentoTributario) => `${d.tipo}|${d.numero}|${d.rutCliente ?? d.receptor?.rut ?? ''}`;
+      const normRut = (r: string) => r.replace(/[.\-\s]/g, '').toLowerCase();
+      const clave = (d: DocumentoTributario) => {
+        const rut = normRut(d.rutCliente ?? d.receptor?.rut ?? '');
+        return `${d.tipo}|${d.numero}|${rut}`;
+      };
       const nuevasClaves = new Set(action.payload.map(clave));
       const sinDuplicados = state.documentos.filter(d => !nuevasClaves.has(clave(d)));
-      return { ...state, documentos: [...sinDuplicados, ...action.payload], numeroDocumento: state.numeroDocumento + action.payload.length };
+      const numNuevos = action.payload.length - (state.documentos.length - sinDuplicados.length);
+      return { ...state, documentos: [...sinDuplicados, ...action.payload], numeroDocumento: state.numeroDocumento + Math.max(0, numNuevos) };
     }
     case 'UPDATE_DOCUMENTO':
       return { ...state, documentos: state.documentos.map(d => d.id === action.payload.id ? action.payload : d) };
