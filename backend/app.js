@@ -31,6 +31,7 @@ if (!ADMIN_API_TOKEN || ADMIN_API_TOKEN.startsWith('REEMPLAZA')) {
 
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', 1); // Render/Vercel proxy — needed for real IP in rate limiting
 
 // ============ SECURITY HEADERS ============
 app.use((req, res, next) => {
@@ -87,15 +88,7 @@ try {
 app.use(express.json({ limit: '1mb' }));
 app.use(createRequestLogger());
 
-// ============ RATE LIMITING ============
-const limiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 2000,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Demasiadas solicitudes, intente mas tarde' },
-});
-app.use(limiter);
+// Global rate limiter removed — internal app with 3 users, per-route limiters on writes/auth are sufficient
 
 // ============ UPLOADS DIR ============
 const UPLOADS_DIR = path.join(__dirname, process.env.UPLOAD_DIR || 'uploads');
