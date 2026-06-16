@@ -38,7 +38,7 @@ const router = Router();
  */
 const writeLimiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-    max: parseInt(process.env.RATE_LIMIT_WRITE_MAX) || 60,
+    max: parseInt(process.env.RATE_LIMIT_WRITE_MAX) || 500,
     message: { error: 'Limite de operaciones alcanzado' },
 });
 
@@ -154,3 +154,4 @@ router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
 });
 
 module.exports = router;
+

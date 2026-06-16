@@ -90,7 +90,7 @@ app.use(createRequestLogger());
 // ============ RATE LIMITING ============
 const limiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 200,
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 2000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Demasiadas solicitudes, intente mas tarde' },

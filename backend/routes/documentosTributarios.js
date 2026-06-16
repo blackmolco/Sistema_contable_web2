@@ -9,7 +9,7 @@ const rateLimit = require('express-rate-limit');
 const router = Router();
 const writeLimiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-    max: parseInt(process.env.RATE_LIMIT_WRITE_MAX) || 60,
+    max: parseInt(process.env.RATE_LIMIT_WRITE_MAX) || 500,
     message: { error: 'Limite de operaciones alcanzado' },
 });
 
@@ -182,3 +182,4 @@ router.post('/libro-ventas', authenticateToken, writeLimiter, validate(libroVent
 });
 
 module.exports = router;
+
