@@ -14,7 +14,7 @@ const writeLimiter = rateLimit({
 });
 
 const docTributarioSchema = z.object({
-    id: z.string().uuid().optional(),
+    id: z.string().min(1).optional(),
     tipo: z.enum(['factura', 'factura_exenta', 'boleta', 'nota_credito', 'nota_debito', 'guia_despacho', 'compra']),
     folio: z.number().int().positive(),
     rutEmisor: z.string().min(9),
@@ -30,7 +30,7 @@ const docTributarioSchema = z.object({
     estado: z.enum(['emitido', 'recibido', 'pendiente', 'vencido', 'pagado', 'anulado']).default('emitido'),
     tipoTransaccion: z.enum(['venta', 'compra']),
     glosa: z.string().max(500).optional().nullable(),
-    empresaId: z.string().uuid().optional().nullable(),
+    empresaId: z.string().min(1).optional().nullable(),
 });
 
 const libroCompraSchema = z.object({
@@ -45,7 +45,7 @@ const libroCompraSchema = z.object({
     iva: z.number().min(0),
     ivaNoRecuperable: z.number().min(0).default(0),
     montoTotal: z.number().positive(),
-    empresaId: z.string().uuid().optional().nullable(),
+    empresaId: z.string().min(1).optional().nullable(),
 });
 
 const libroVentaSchema = z.object({
@@ -59,7 +59,7 @@ const libroVentaSchema = z.object({
     montoExento: z.number().min(0).default(0),
     iva: z.number().min(0),
     montoTotal: z.number().positive(),
-    empresaId: z.string().uuid().optional().nullable(),
+    empresaId: z.string().min(1).optional().nullable(),
 });
 
 // === DOCUMENTOS TRIBUTARIOS ===
