@@ -139,14 +139,14 @@ export default function CentralizacionLibros() {
     const detalles = [
       {
         cuentaId: esBoleta ? 'banco' : 'cxc',
-        cuentaCodigo: esBoleta ? '1-1-001' : '1-1-100',
-        cuentaNombre: esBoleta ? 'Banco (Cta. Cte.)' : 'Clientes / CxC',
+        cuentaCodigo: esBoleta ? '1-01-002-0001' : '1-02-001-0001',
+        cuentaNombre: esBoleta ? 'Banco Cuenta Corriente' : 'Clientes (Deudores por Ventas)',
         debe: totalFinal, haber: 0,
       },
       {
         cuentaId: 'venta',
-        cuentaCodigo: '4-1-001',
-        cuentaNombre: esBoleta ? 'Ventas (Boletas)' : 'Ventas (Facturas)',
+        cuentaCodigo: '4-01-001-0001',
+        cuentaNombre: 'Ventas',
         debe: 0, haber: totalNeto,
       },
     ];
@@ -154,7 +154,7 @@ export default function CentralizacionLibros() {
     if (totalIva > 0) {
       detalles.push({
         cuentaId: 'iva-debito',
-        cuentaCodigo: '2-1-301',
+        cuentaCodigo: '2-01-002-0001',
         cuentaNombre: 'IVA Débito Fiscal',
         debe: 0, haber: totalIva,
       });
@@ -204,7 +204,7 @@ export default function CentralizacionLibros() {
     if (totalIva > 0) {
       detalles.push({
         cuentaId: 'iva-credito',
-        cuentaCodigo: '1-1-302',
+        cuentaCodigo: '1-02-002-0001',
         cuentaNombre: 'IVA Crédito Fiscal',
         debe: totalIva, haber: 0,
       });
@@ -213,8 +213,8 @@ export default function CentralizacionLibros() {
     // Proveedores (CxP)
     detalles.push({
       cuentaId: 'cxp',
-      cuentaCodigo: '2-1-001',
-      cuentaNombre: 'Proveedores / CxP',
+      cuentaCodigo: '2-01-001-0001',
+      cuentaNombre: 'Proveedores (Acreedores por Compras)',
       debe: 0, haber: totalFinal,
     });
 
