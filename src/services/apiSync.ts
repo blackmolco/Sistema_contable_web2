@@ -384,7 +384,7 @@ export async function saveDocumento(doc: DocumentoTributario, rutEmisor: string)
       id: doc.id,
       tipo,
       empresaId: getEmpresaActivaId(),
-      folio: doc.numero,
+      folio: doc.numero || 1,
       rutEmisor: rutEmisor || '00.000.000-0',
       rutReceptor: doc.receptor?.rut || '00.000.000-0',
       razonSocialReceptor: doc.receptor?.razonSocial || 'Sin receptor',
