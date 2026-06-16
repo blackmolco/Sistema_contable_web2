@@ -47,11 +47,7 @@ function reducer(state: FacturacionState, action: FacturacionAction): Facturacio
     case 'ADD_DOCUMENTO':
       return { ...state, documentos: [...state.documentos, action.payload], numeroDocumento: state.numeroDocumento + 1 };
     case 'BATCH_ADD_DOCUMENTOS': {
-      const normRut = (r: string) => r.replace(/[.\-\s]/g, '').toLowerCase();
-      const clave = (d: DocumentoTributario) => {
-        const rut = normRut(d.rutCliente ?? d.receptor?.rut ?? '');
-        return `${d.tipo}|${d.numero}|${rut}`;
-      };
+      const clave = (d: DocumentoTributario) => `${d.tipo}|${d.numero}`;
       const nuevasClaves = new Set(action.payload.map(clave));
       const sinDuplicados = state.documentos.filter(d => !nuevasClaves.has(clave(d)));
       const numNuevos = action.payload.length - (state.documentos.length - sinDuplicados.length);
