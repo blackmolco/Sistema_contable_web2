@@ -118,8 +118,12 @@ export function FacturacionProvider({ children }: { children: ReactNode }) {
       } else {
         // Migración: subir datos locales
         const rut = getEmpresaRut();
-        stateRef.current.documentos.forEach(d => saveDocumento(d, rut).catch(() => {}));
-        stateRef.current.honorarios.forEach(h => saveHonorario(h).catch(() => {}));
+        stateRef.current.documentos.forEach(d => saveDocumento(d, rut).catch((err: unknown) => {
+          console.warn('[migración doc]', d.tipo, d.fecha, err instanceof Error ? err.message : err);
+        }));
+        stateRef.current.honorarios.forEach(h => saveHonorario(h).catch((err: unknown) => {
+          console.warn('[migración hon]', h.rut, err instanceof Error ? err.message : err);
+        }));
       }
     }).catch(() => {});
   }, []);

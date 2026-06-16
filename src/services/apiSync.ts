@@ -379,9 +379,25 @@ export async function fetchDocumentos(): Promise<DocumentoTributario[]> {
   }));
 }
 
+const BACKEND_TIPO_ENUM = ['factura', 'factura_exenta', 'boleta', 'nota_credito', 'nota_debito', 'guia_despacho', 'compra'] as const;
+const BACKEND_ESTADO_ENUM = ['emitido', 'recibido', 'pendiente', 'vencido', 'pagado', 'anulado'] as const;
+
+function toValidRut(rut: string | undefined | null, fallback = '00.000.000-0'): string {
+  return rut && rut.length >= 9 ? rut : fallback;
+}
+
+function toValidFecha(fecha: string | undefined | null): string {
+  const s = (fecha || '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : new Date().toISOString().slice(0, 10);
+}
+
 export async function saveDocumento(doc: DocumentoTributario, rutEmisor: string): Promise<void> {
   if (!isAuthenticated()) return;
-  const tipo = tipoDocToBackend[doc.tipo] ?? doc.tipo;
+  const tipoMapped = tipoDocToBackend[doc.tipo] ?? doc.tipo;
+  const tipo = (BACKEND_TIPO_ENUM as readonly string[]).includes(tipoMapped) ? tipoMapped : 'factura';
+  const estadoRaw = doc.estado === 'congelado' ? 'emitido' : (doc.estado || 'emitido');
+  const estado = (BACKEND_ESTADO_ENUM as readonly string[]).includes(estadoRaw) ? estadoRaw : 'emitido';
+  const razonSocial = doc.receptor?.razonSocial;
   await apiFetch('/api/documentosTributarios', {
     method: 'POST',
     body: JSON.stringify({
@@ -389,16 +405,16 @@ export async function saveDocumento(doc: DocumentoTributario, rutEmisor: string)
       tipo,
       empresaId: getEmpresaActivaId(),
       folio: doc.numero || 1,
-      rutEmisor: rutEmisor || '00.000.000-0',
-      rutReceptor: doc.receptor?.rut || '00.000.000-0',
-      razonSocialReceptor: doc.receptor?.razonSocial || 'Sin receptor',
+      rutEmisor: toValidRut(rutEmisor),
+      rutReceptor: toValidRut(doc.receptor?.rut),
+      razonSocialReceptor: razonSocial && razonSocial.length >= 2 ? razonSocial.slice(0, 200) : 'Sin receptor',
       giroReceptor: doc.receptor?.giro || null,
-      fechaEmision: (doc.fecha || '').slice(0, 10),
+      fechaEmision: toValidFecha(doc.fecha),
       montoNeto: doc.subtotal || doc.neto || 0,
       iva: doc.iva || 0,
       montoExento: doc.totalExento || 0,
       montoTotal: doc.total || 1,
-      estado: doc.estado === 'congelado' ? 'emitido' : (doc.estado || 'emitido'),
+      estado,
       tipoTransaccion: doc.libro === 'compras' ? 'compra' : 'venta',
       glosa: null,
     }),
