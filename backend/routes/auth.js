@@ -55,7 +55,7 @@ const authLimiter = rateLimit({
 // Solo admins pueden crear usuarios
 router.post('/register', authenticateToken, async (req, res) => {
     try {
-        if (req.usuario.rol !== 'admin') {
+        if (req.usuario.rol !== 'admin' && req.usuario.rol !== 'administrador') {
             return res.status(403).json({ error: 'Solo administradores pueden crear usuarios' });
         }
         const data = authRegisterSchema.parse(req.body);

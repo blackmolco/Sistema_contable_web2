@@ -7,7 +7,7 @@ const router = Router();
 // Solo admins pueden listar y gestionar usuarios
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        if (req.usuario.rol !== 'admin') {
+        if (req.usuario.rol !== 'admin' && req.usuario.rol !== 'administrador') {
             return res.status(403).json({ error: 'Solo administradores pueden ver los usuarios' });
         }
         const usuarios = await prisma.usuario.findMany({
@@ -33,7 +33,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // Activar / desactivar usuario
 router.patch('/:id/activo', authenticateToken, async (req, res) => {
     try {
-        if (req.usuario.rol !== 'admin') {
+        if (req.usuario.rol !== 'admin' && req.usuario.rol !== 'administrador') {
             return res.status(403).json({ error: 'Solo administradores pueden modificar usuarios' });
         }
         if (req.params.id === req.usuario.id) {
