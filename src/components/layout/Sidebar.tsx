@@ -46,6 +46,7 @@ import {
   CalendarClock,
   Star,
   ScrollText,
+  UserCog,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -137,6 +138,7 @@ const menuCategories = [
       { path: '/importar',            icon: Upload,        label: 'Importar' },
       { path: '/backup',              icon: Download,      label: 'Backup' },
       { path: '/auditoria',           icon: ScrollText,    label: 'Auditoría' },
+      { path: '/usuarios',             icon: UserCog,       label: 'Usuarios' },
     ]
   }
 ];

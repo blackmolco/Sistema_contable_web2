@@ -152,6 +152,7 @@ app.use('/api/busqueda',               require('./routes/busqueda'));
 app.use('/api/audit-logs',             require('./routes/auditoria'));
 app.use('/api/empresas',               require('./routes/empresas'));
 app.use('/api/tablas-sii',             require('./routes/tablasSii'));
+app.use('/api/usuarios',               require('./routes/usuarios'));
 
 // ============ HEALTH CHECK ENRIQUECIDO ============
 app.get('/api/health', async (req, res) => {

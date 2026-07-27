@@ -74,6 +74,7 @@ const NotasCreditoDebito = lazy(() => import('./pages/NotasCreditoDebito'));
 const F22 = lazy(() => import('./pages/F22'));
 const FlujoCaja = lazy(() => import('./pages/FlujoCaja'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
+const GestionUsuarios = lazy(() => import('./pages/GestionUsuarios'));
 
 // 🌀 Skeletons de carga específicos por tipo de página
 const SkeletonRow = () => (
@@ -295,6 +296,7 @@ function AppContent() {
               <Route path="/f22" element={<ErrorBoundary moduleName="Asistente F22"><F22 /></ErrorBoundary>} />
               <Route path="/flujo-caja" element={<ErrorBoundary moduleName="Flujo de Caja"><FlujoCaja /></ErrorBoundary>} />
               <Route path="/auditoria" element={<ErrorBoundary moduleName="Auditoría"><AuditLog /></ErrorBoundary>} />
+              <Route path="/usuarios" element={<ErrorBoundary moduleName="Gestión de Usuarios"><GestionUsuarios /></ErrorBoundary>} />
               </Routes>
               </PageTransition>
             </Suspense>
