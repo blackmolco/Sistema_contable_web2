@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { UserPlus, RefreshCw, Shield, User, ChevronDown } from 'lucide-react';
 import { Card } from '../components/ui/Cards';
 import { Button, Input } from '../components/ui/FormElements';
-import { apiFetch } from '../services/httpClient';
+import { apiFetch, apiFetchRaw } from '../services/httpClient';
 
 interface Usuario {
   id: string;
@@ -36,9 +36,8 @@ export default function GestionUsuarios() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch('/api/usuarios');
-      const data = await res.json();
-      setUsuarios(Array.isArray(data) ? data : data.data ?? []);
+      const data = await apiFetch<Usuario[] | { data: Usuario[] }>('/api/usuarios');
+      setUsuarios(Array.isArray(data) ? data : (data as { data: Usuario[] }).data ?? []);
     } catch {
       setError('No se pudo cargar la lista de usuarios. Verifica que tienes permisos de administrador.');
     } finally {
@@ -62,7 +61,7 @@ export default function GestionUsuarios() {
       };
       if (form.empresaId.trim()) body.empresaId = form.empresaId.trim();
 
-      const res = await apiFetch('/api/auth/register', {
+      const res = await apiFetchRaw('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify(body),
       });
