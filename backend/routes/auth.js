@@ -69,7 +69,7 @@ router.post('/register', authenticateToken, async (req, res) => {
                 nombre: data.nombre,
                 email: data.email,
                 passwordHash,
-                rut: data.rut ?? null,
+                rut: data.rut || '00.000.000-0',
                 rol: data.rol,
                 empresaId: data.empresaId ?? null,
                 activo: true,
