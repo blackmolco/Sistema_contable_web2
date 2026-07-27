@@ -14,6 +14,15 @@ const authLoginSchema = z.object({
     password: z.string().min(8, 'La contrasena debe tener al menos 8 caracteres'),
 });
 
+const authRegisterSchema = z.object({
+    nombre: z.string().min(2, 'Nombre debe tener al menos 2 caracteres'),
+    email: z.string().email('Email invalido'),
+    password: z.string().min(8, 'La contrasena debe tener al menos 8 caracteres'),
+    rut: z.string().optional().nullable(),
+    rol: z.enum(['admin', 'usuario', 'contador']).default('usuario'),
+    empresaId: z.string().optional().nullable(),
+});
+
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 50,
@@ -43,6 +52,47 @@ const authLimiter = rateLimit({
  *       401:
  *         description: Credenciales inválidas
  */
+// Solo admins pueden crear usuarios
+router.post('/register', authenticateToken, async (req, res) => {
+    try {
+        if (req.usuario.rol !== 'admin') {
+            return res.status(403).json({ error: 'Solo administradores pueden crear usuarios' });
+        }
+        const data = authRegisterSchema.parse(req.body);
+        const existe = await prisma.usuario.findUnique({ where: { email: data.email } });
+        if (existe) {
+            return res.status(409).json({ error: 'Ya existe un usuario con ese email' });
+        }
+        const passwordHash = await bcrypt.hash(data.password, 10);
+        const usuario = await prisma.usuario.create({
+            data: {
+                nombre: data.nombre,
+                email: data.email,
+                passwordHash,
+                rut: data.rut ?? null,
+                rol: data.rol,
+                empresaId: data.empresaId ?? null,
+                activo: true,
+            },
+        });
+        await auditLog(req.usuario.id, 'CREAR', 'Usuario', usuario.id, { email: usuario.email, rol: usuario.rol }, req.ip, req.headers['user-agent']);
+        logger.info({ createdBy: req.usuario.id, newUser: usuario.id }, 'Usuario creado');
+        res.status(201).json({
+            id: usuario.id,
+            nombre: usuario.nombre,
+            email: usuario.email,
+            rol: usuario.rol,
+            empresaId: usuario.empresaId,
+        });
+    } catch (err) {
+        if (err instanceof z.ZodError) {
+            return res.status(400).json({ error: 'Datos invalidos', detalles: err.errors.map(e => e.message) });
+        }
+        logger.error({ err }, 'Error creando usuario');
+        res.status(500).json({ error: 'Error al crear usuario' });
+    }
+});
+
 router.post('/login', authLimiter, async (req, res) => {
     try {
         const { email, password } = authLoginSchema.parse(req.body);
