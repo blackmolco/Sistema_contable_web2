@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Search, User, LogOut, Menu, ChevronDown, Moon, Sun } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { formatRUT } from '../../utils/calculos';
@@ -11,12 +12,41 @@ interface HeaderProps {
   isSearchOpen: boolean;
   darkMode: boolean;
   onToggleDarkMode: () => void;
+  onLogout: () => void;
 }
 
-export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, isSearchOpen, darkMode, onToggleDarkMode }: HeaderProps) {
+export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, isSearchOpen, darkMode, onToggleDarkMode, onLogout }: HeaderProps) {
   const { state } = useApp();
+  const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar los menús al hacer clic fuera de ellos (antes quedaban "pegados" abiertos)
+  useEffect(() => {
+    if (!showNotifications && !showUserMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showNotifications && notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+      if (showUserMenu && userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showNotifications, showUserMenu]);
+
+  const handleLogout = () => {
+    setShowUserMenu(false);
+    onLogout();
+  };
+
+  const goToPerfil = () => {
+    setShowUserMenu(false);
+    navigate('/configuracion');
+  };
 
   return (
     <>
@@ -53,7 +83,7 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
             {darkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
-          <div className="relative">
+          <div className="relative" ref={notifRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
               aria-label="Ver notificaciones"
@@ -83,7 +113,7 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
                   </div>
                 </div>
                 <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700">
-                  <button className="text-sm text-[#1E3A5F] dark:text-blue-400 hover:underline">
+                  <button className="text-sm text-primary hover:underline">
                     Ver todas las notificaciones
                   </button>
                 </div>
@@ -91,14 +121,14 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
             )}
           </div>
 
-          <div className="relative">
+          <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
               aria-label="Abrir menú de usuario"
               className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
             >
               <div className="hidden md:flex items-center gap-2">
-                <div className="w-8 h-8 bg-[#1E3A5F] rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                   <User size={16} className="text-white" />
                 </div>
                 <div className="text-left hidden lg:block">
@@ -107,7 +137,7 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
                 </div>
                 <ChevronDown size={16} className="text-gray-400" />
               </div>
-              <div className="md:hidden w-8 h-8 bg-[#1E3A5F] rounded-full flex items-center justify-center">
+              <div className="md:hidden w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                 <User size={16} className="text-white" />
               </div>
             </button>
@@ -119,17 +149,26 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
                   <p className="text-sm text-gray-500 dark:text-gray-400">{state.configuracion.email}</p>
                 </div>
                 <div className="py-1">
-                  <button className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2">
+                  <button
+                    onClick={goToPerfil}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
                     <User size={16} />
                     Mi Perfil
                   </button>
-                  <button className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2">
+                  <button
+                    onClick={goToPerfil}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
                     <Bell size={16} />
                     Preferencias
                   </button>
                 </div>
                 <div className="border-t border-gray-100 dark:border-gray-700 py-1">
-                  <button className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                  >
                     <LogOut size={16} />
                     Cerrar Sesion
                   </button>

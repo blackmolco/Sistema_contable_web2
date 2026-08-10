@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LogIn, Mail, Lock, AlertCircle, Shield } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
-import { ApiAuthService } from '../../services/apiAuth';
+import { ApiAuthService, AuthError } from '../../services/apiAuth';
 import { Button, Input } from '../ui/FormElements';
 
 interface LoginProps {
@@ -45,7 +45,14 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         });
         success = true;
       } catch (apiErr) {
-        // Backend no disponible o credenciales rechazadas → fallback a login local (legacy)
+        if (apiErr instanceof AuthError) {
+          // El backend respondió: la contraseña/cuenta está mal. No caer al modo local
+          // (eso dejaría al usuario "adentro" sin sesión real contra el servidor).
+          setError(apiErr.message || 'Credenciales inválidas. Verifique su email y contraseña.');
+          setLoading(false);
+          return;
+        }
+        // Backend inalcanzable (sin conexión) → fallback a login local (legacy, offline)
         success = loginLocal(email, password);
       }
 
@@ -64,22 +71,22 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1E3A5F] to-[#2D5A87] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary to-[var(--brand-dark)] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl mb-4 shadow-lg">
-            <span className="text-2xl font-bold text-[#1E3A5F]">CC</span>
+            <span className="text-2xl font-bold text-primary font-display">CC</span>
           </div>
-          <h1 className="text-3xl font-bold text-white">Contable Chile</h1>
+          <h1 className="text-3xl font-bold text-white font-display">Contable Chile</h1>
           <p className="text-white/70 mt-2">Sistema Contable Profesional</p>
         </div>
 
         {/* Form */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <div className="flex items-center gap-2 mb-6 text-center justify-center">
-            <Shield size={20} className="text-[#1E3A5F]" />
-            <h2 className="text-xl font-semibold text-gray-900">Iniciar Sesión</h2>
+            <Shield size={20} className="text-primary" />
+            <h2 className="text-xl font-semibold text-gray-900 font-display">Iniciar Sesión</h2>
           </div>
 
           {error && (
@@ -97,7 +104,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 required
               />
             </div>
@@ -109,7 +116,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 placeholder="Contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 required
               />
             </div>

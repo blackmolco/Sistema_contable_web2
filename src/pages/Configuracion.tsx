@@ -6,7 +6,7 @@ import { Button, Input, Textarea } from '../components/ui/FormElements';
 import { SaveButton } from '../components/ui/SaveButton';
 import { formatRUT } from '../utils/calculos';
 import { ACTIVIDADES_SII } from '../data/sii';
-import { useTheme, ThemeConfig } from '../context/ThemeContext';
+import { useTheme, ThemeConfig, ThemePreset, PRESETS } from '../context/ThemeContext';
 
 // ── Swatches de colores predefinidos ───────────────────────────────────────
 const COLOR_SWATCHES: Array<{ name: string; primary: string; accent: string }> = [
@@ -288,6 +288,52 @@ export default function Configuracion() {
       >
         <div className="space-y-6">
 
+          {/* Identidad visual (preset: color + tipografía + tratamiento de tablas) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              Identidad visual
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(Object.keys(PRESETS) as ThemePreset[]).map(key => {
+                const preset = PRESETS[key];
+                const isActive = theme.preset === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setTheme({
+                      preset: key,
+                      primaryColor: preset.primaryColor,
+                      accentColor: preset.accentColor,
+                      secondaryColor: preset.secondaryColor,
+                    })}
+                    className={`relative text-left p-3 rounded-xl border-2 transition-all
+                      ${isActive
+                        ? 'border-gray-900 dark:border-gray-200 shadow-md'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                  >
+                    <div className="flex gap-1 mb-2">
+                      <div className="flex-1 h-6 rounded-l-md" style={{ background: preset.primaryColor }} />
+                      <div className="flex-1 h-6" style={{ background: preset.secondaryColor }} />
+                      <div className="flex-1 h-6 rounded-r-md border border-gray-200 dark:border-gray-700" style={{ background: '#F5F7F8' }} />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{preset.label}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">{preset.description}</p>
+                    {isActive && (
+                      <div className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center">
+                        <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                          <path d="M1.5 4.5l2 2 4-4" stroke={preset.primaryColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Define color y tipografía de título a la vez. Puedes ajustar el color fino más abajo.
+            </p>
+          </div>
+
           {/* Color scheme swatches */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
@@ -401,7 +447,8 @@ export default function Configuracion() {
             style={{ borderRadius: 'var(--radius-card)' }}
           >
             <p className="text-xs text-gray-400 mb-2 uppercase tracking-wider font-semibold">Vista previa</p>
-            <div className="flex items-center gap-3">
+            <p className="font-display text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Balance General</p>
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 className="px-4 py-2 text-sm font-medium text-white rounded-lg"
                 style={{ background: theme.primaryColor, borderRadius: 'var(--radius-card)' }}
@@ -414,8 +461,8 @@ export default function Configuracion() {
               >
                 Acento
               </button>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                Texto de ejemplo Aa Bb
+              <span className="font-data text-sm text-gray-700 dark:text-gray-300">
+                $ 12.480.650
               </span>
             </div>
           </div>

@@ -18,6 +18,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { fetchIndicadores } from './services/mindicador';
 import { API_BASE } from './services/httpClient';
 import { fetchEmpresas } from './services/apiSync';
+import { ApiAuthService } from './services/apiAuth';
 
 // Mantiene el backend de Render despierto enviando un ping cada 14 minutos.
 // También dispara un ping inmediato al cargar para reducir el cold start.
@@ -207,6 +208,8 @@ function AppContent() {
   };
 
   const handleLogout = () => {
+    ApiAuthService.logout();
+    useAuthStore.getState().logout();
     setIsAuthenticated(false);
   };
 
@@ -235,6 +238,7 @@ function AppContent() {
         isSearchOpen={isSearchOpen}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
+        onLogout={handleLogout}
       />
 
       <main

@@ -19,9 +19,9 @@ router.get('/', authenticateToken, async (req, res) => {
                 empresaId: true,
                 activo: true,
                 ultimoAcceso: true,
-                createdAt: true,
+                fechaCreacion: true,
             },
-            orderBy: { createdAt: 'asc' },
+            orderBy: { fechaCreacion: 'asc' },
         });
         res.json(usuarios);
     } catch (err) {

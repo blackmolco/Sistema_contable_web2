@@ -1,11 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 /**
  * Convención de paleta:
- *   verde (primary #2B5D3A)  = marca / acción primaria (botones principales)
- *   azul (secondary / info)  = elementos informativos, badges info, links secundarios
- *   naranja (accent/warning) = solo advertencias
- *   rojo (danger)            = peligro / acciones destructivas
- *   success                  = confirmación / estados OK
+ *   primary / secondary / accent → NO son hex fijos: siguen el tema activo
+ *   (ver src/context/ThemeContext.tsx, PRESETS). Se fijan en runtime vía
+ *   --brand-color / --brand-secondary / --accent-color en <html>, elegidos
+ *   en Configuración → Personalización visual.
+ *   success / warning / danger → semánticos, fijos, no cambian con el tema.
  */
 module.exports = {
 	darkMode: ['class'],
@@ -24,6 +24,10 @@ module.exports = {
 			},
 		},
 		extend: {
+			fontFamily: {
+				display: ['var(--font-display)'],
+				data: ['var(--font-mono-data)'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -31,15 +35,15 @@ module.exports = {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: '#2B5D3A',
+					DEFAULT: 'rgb(var(--brand-rgb) / <alpha-value>)',
 					foreground: 'hsl(var(--primary-foreground))',
 				},
 				secondary: {
-					DEFAULT: '#4A90E2',
+					DEFAULT: 'rgb(var(--brand-secondary-rgb) / <alpha-value>)',
 					foreground: 'hsl(var(--secondary-foreground))',
 				},
 				accent: {
-					DEFAULT: '#F5A623',
+					DEFAULT: 'rgb(var(--accent-rgb) / <alpha-value>)',
 					foreground: 'hsl(var(--accent-foreground))',
 				},
 				success: {

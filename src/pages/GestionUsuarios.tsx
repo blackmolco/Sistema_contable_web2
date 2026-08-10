@@ -3,6 +3,7 @@ import { UserPlus, RefreshCw, Shield, User, ChevronDown } from 'lucide-react';
 import { Card } from '../components/ui/Cards';
 import { Button, Input } from '../components/ui/FormElements';
 import { apiFetch, apiFetchRaw } from '../services/httpClient';
+import { getErrorMessage } from '../services/errorHandler';
 
 interface Usuario {
   id: string;
@@ -38,8 +39,8 @@ export default function GestionUsuarios() {
     try {
       const data = await apiFetch<Usuario[] | { data: Usuario[] }>('/api/usuarios');
       setUsuarios(Array.isArray(data) ? data : (data as { data: Usuario[] }).data ?? []);
-    } catch {
-      setError('No se pudo cargar la lista de usuarios. Verifica que tienes permisos de administrador.');
+    } catch (err) {
+      setError(`No se pudo cargar la lista de usuarios: ${getErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }

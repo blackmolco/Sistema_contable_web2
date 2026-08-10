@@ -1,15 +1,51 @@
 ﻿import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
+export type ThemePreset = "tinta" | "doble_partida";
+
 export interface ThemeConfig {
+  preset: ThemePreset;
   primaryColor: string;   // hex
   accentColor: string;
+  secondaryColor: string; // "haber" / segundo acento — solo lo usa doble_partida
   borderRadius: "sm" | "md" | "lg";
   fontScale: "sm" | "md" | "lg";
 }
 
+// Identidades visuales completas: color + tipografía, no solo un color suelto.
+export const PRESETS: Record<ThemePreset, {
+  label: string;
+  description: string;
+  primaryColor: string;
+  accentColor: string;
+  secondaryColor: string;
+  fontDisplay: string;
+  fontMono: string;
+}> = {
+  tinta: {
+    label: "Tinta y sello",
+    description: "Azul institucional, un solo acento verde para “verificado”, serif en títulos.",
+    primaryColor: "#13283D",
+    accentColor: "#2F6F4E",
+    secondaryColor: "#2F6F4E",
+    fontDisplay: "'Source Serif 4','Iowan Old Style','Palatino Linotype',Georgia,serif",
+    fontMono: "'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace",
+  },
+  doble_partida: {
+    label: "Doble partida",
+    description: "Índigo para el Debe, ámbar para el Haber — el color sigue la lógica contable.",
+    primaryColor: "#2E3F6E",
+    accentColor: "#B8863B",
+    secondaryColor: "#B8863B",
+    fontDisplay: "'Manrope','Century Gothic',sans-serif",
+    fontMono: "'Roboto Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace",
+  },
+};
+
 const DEFAULT_THEME: ThemeConfig = {
-  primaryColor: "#1E3A5F",
-  accentColor:  "#10B981",
+  preset: "tinta",
+  primaryColor: PRESETS.tinta.primaryColor,
+  accentColor:  PRESETS.tinta.accentColor,
+  secondaryColor: PRESETS.tinta.secondaryColor,
   borderRadius: "lg",
   fontScale:    "md",
 };
@@ -37,6 +73,13 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } {
   return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
 }
 
+// "R G B" (sin comas) — formato que espera rgb(var(--x) / <alpha-value>) en Tailwind
+function hexToRgbChannels(hex: string): string {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return "19 40 61";
+  return [1, 2, 3].map(i => parseInt(result[i], 16)).join(" ");
+}
+
 function applyTheme(theme: ThemeConfig) {
   const root = document.documentElement;
   const { h, s, l } = hexToHsl(theme.primaryColor);
@@ -44,11 +87,22 @@ function applyTheme(theme: ThemeConfig) {
   root.style.setProperty("--brand-s", `${s}%`);
   root.style.setProperty("--brand-l", `${l}%`);
   root.style.setProperty("--brand-color", theme.primaryColor);
+  root.style.setProperty("--brand-rgb", hexToRgbChannels(theme.primaryColor));
+  root.style.setProperty("--brand-dark", `hsl(${h} ${s}% ${Math.max(0, l - 12)}%)`);
   root.style.setProperty("--accent-color", theme.accentColor);
+  root.style.setProperty("--accent-rgb", hexToRgbChannels(theme.accentColor));
+  const secondary = theme.secondaryColor || theme.accentColor;
+  root.style.setProperty("--brand-secondary", secondary);
+  root.style.setProperty("--brand-secondary-rgb", hexToRgbChannels(secondary));
   const radiusMap = { sm: "0.375rem", md: "0.625rem", lg: "0.875rem" };
   root.style.setProperty("--radius-card", radiusMap[theme.borderRadius]);
   const fontMap = { sm: "0.9", md: "1", lg: "1.1" };
   root.style.setProperty("--font-scale", fontMap[theme.fontScale]);
+
+  const presetTokens = PRESETS[theme.preset] ?? PRESETS.tinta;
+  root.style.setProperty("--font-display", presetTokens.fontDisplay);
+  root.style.setProperty("--font-mono-data", presetTokens.fontMono);
+  root.setAttribute("data-theme-preset", theme.preset);
 }
 
 interface ThemeContextType {

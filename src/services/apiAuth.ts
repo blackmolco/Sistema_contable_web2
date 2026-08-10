@@ -21,6 +21,16 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+/** El backend respondió (no es una falla de red) pero rechazó las credenciales u otra cosa salió mal. */
+export class AuthError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'AuthError';
+    this.status = status;
+  }
+}
+
 function saveSession(data: LoginResponse) {
   sessionStorage.setItem(SESSION_KEY, data.token);
   sessionStorage.setItem(REFRESH_KEY, data.refreshToken);
@@ -55,7 +65,7 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Error al iniciar sesion');
+    throw new AuthError(err.error || 'Error al iniciar sesion', res.status);
   }
   const data: LoginResponse = await res.json();
   saveSession(data);

@@ -23,7 +23,6 @@ import {
   Package,
   Table,
   FileSpreadsheet,
-  Percent,
   Bell,
   Folder,
   CreditCard,
@@ -33,17 +32,12 @@ import {
   BookMarked,
   BookUp,
   BookDown,
-  BookUser,
   Landmark,
   HandCoins,
   Banknote,
   Waves,
   GitCompareArrows,
   Combine,
-  Merge,
-  ShieldCheck,
-  FileSignature,
-  CalendarClock,
   Star,
   ScrollText,
   UserCog,
@@ -107,18 +101,8 @@ const menuCategories = [
       { path: '/pago-proveedores', icon: Banknote, label: 'Pago a Proveedores' },
     ]
   },
-  {
-    title: 'Remuneraciones',
-    items: [
-      { path: '/remuneraciones', icon: Users, label: 'Liquidaciones' },
-      { path: '/libro-remuneraciones', icon: BookUser, label: 'Libro Remun.' },
-      { path: '/anticipos', icon: CalendarClock, label: 'Anticipos' },
-      { path: '/documentos-rrhh', icon: FileSignature, label: 'Contratos y Finiq.' },
-      { path: '/centralizacion-remuneraciones', icon: Merge, label: 'Centralización' },
-      { path: '/previred', icon: ShieldCheck, label: 'Previred' },
-      { path: '/config-sueldos', icon: Percent, label: 'Config. Sueldos' },
-    ]
-  },
+  // Remuneraciones: oculto del menú — se está migrando a un sistema dedicado aparte.
+  // Las rutas y páginas siguen existiendo, solo no aparecen en esta navegación.
   {
     title: 'Inventario',
     items: [
@@ -241,7 +225,7 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
             active:scale-[0.97] relative
             focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none
             ${active
-              ? 'bg-[#10B981] text-white shadow-sm'
+              ? 'bg-accent text-white shadow-sm'
               : 'text-white/70 hover:bg-white/10 hover:text-white'
             }
             ${collapsed ? 'justify-center' : ''}
@@ -292,7 +276,7 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
 
   return (
     <aside
-      className={`cc-sidebar fixed left-0 top-0 h-full bg-gradient-to-b from-[#1a3352] to-[#152d4a] text-white z-40 flex flex-col
+      className={`cc-sidebar fixed left-0 top-0 h-full bg-gradient-to-b from-primary to-[var(--brand-dark)] text-white z-40 flex flex-col
         transition-[width,transform] duration-300
         ${collapsed ? 'w-[70px] md:translate-x-0 -translate-x-full' : 'w-[220px] translate-x-0'}`}
     >
@@ -300,15 +284,15 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#10B981] rounded-lg flex items-center justify-center">
-              <span className="font-bold text-white">CC</span>
+            <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
+              <span className="font-bold text-white font-display">CC</span>
             </div>
-            <span className="font-semibold text-sm">Contable Chile</span>
+            <span className="font-semibold text-sm font-display">Contable Chile</span>
           </div>
         )}
         {collapsed && (
-          <div className="w-8 h-8 bg-[#10B981] rounded-lg flex items-center justify-center mx-auto">
-            <span className="font-bold text-white">CC</span>
+          <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center mx-auto">
+            <span className="font-bold text-white font-display">CC</span>
           </div>
         )}
       </div>
@@ -420,7 +404,7 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
       <div className="p-4 border-t border-white/10">
         {!collapsed ? (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#10B981] rounded-full flex items-center justify-center">
+            <div className="w-9 h-9 bg-accent rounded-full flex items-center justify-center">
               <span className="text-sm font-semibold">AD</span>
             </div>
             <div className="flex-1 min-w-0">
@@ -438,7 +422,7 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <div className="w-9 h-9 bg-[#10B981] rounded-full flex items-center justify-center">
+            <div className="w-9 h-9 bg-accent rounded-full flex items-center justify-center">
               <span className="text-sm font-semibold">AD</span>
             </div>
             <button
