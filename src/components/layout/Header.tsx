@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Search, User, LogOut, Menu, ChevronDown, Moon, Sun } from 'lucide-react';
+import { Search, User, LogOut, Menu, ChevronDown, Moon, Sun, Settings } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { formatRUT } from '../../utils/calculos';
 import GlobalSearch from '../ui/GlobalSearch';
@@ -18,25 +18,20 @@ interface HeaderProps {
 export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, isSearchOpen, darkMode, onToggleDarkMode, onLogout }: HeaderProps) {
   const { state } = useApp();
   const navigate = useNavigate();
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar los menús al hacer clic fuera de ellos (antes quedaban "pegados" abiertos)
+  // Cerrar el menú al hacer clic fuera (antes quedaba "pegado" abierto)
   useEffect(() => {
-    if (!showNotifications && !showUserMenu) return;
+    if (!showUserMenu) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (showNotifications && notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setShowNotifications(false);
-      }
-      if (showUserMenu && userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setShowUserMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showNotifications, showUserMenu]);
+  }, [showUserMenu]);
 
   const handleLogout = () => {
     setShowUserMenu(false);
@@ -83,44 +78,6 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
             {darkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
-          <div className="relative" ref={notifRef}>
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              aria-label="Ver notificaciones"
-              className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
-            >
-              <Bell size={20} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
-
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2">
-                <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">Notificaciones</h3>
-                </div>
-                <div className="max-h-80 overflow-y-auto">
-                  <div className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-50 dark:border-gray-700">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Documentos pendientes</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">3 facturas awaiting approval</p>
-                  </div>
-                  <div className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-50 dark:border-gray-700">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Pago de imposiciones</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Vence en 5 dias</p>
-                  </div>
-                  <div className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Nomina de sueldo</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">1 trabajador proximo a liquidar</p>
-                  </div>
-                </div>
-                <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700">
-                  <button className="text-sm text-primary hover:underline">
-                    Ver todas las notificaciones
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
@@ -160,7 +117,7 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
                     onClick={goToPerfil}
                     className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
                   >
-                    <Bell size={16} />
+                    <Settings size={16} />
                     Preferencias
                   </button>
                 </div>
