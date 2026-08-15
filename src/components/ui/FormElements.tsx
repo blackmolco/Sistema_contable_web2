@@ -1,4 +1,5 @@
 import React, { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, forwardRef, LabelHTMLAttributes } from 'react';
+import { createPortal } from 'react-dom';
 import { Loader2, ChevronDown, Search } from 'lucide-react';
 
 // ============ BUTTON ============
@@ -251,23 +252,54 @@ interface SearchSelectProps {
 export function SearchSelect({ value, onChange, options, placeholder = 'Seleccionar...', label, error, className = '' }: SearchSelectProps) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
+  const [dropdownStyle, setDropdownStyle] = React.useState<React.CSSProperties>({});
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const opciones = options.filter(o => o.value !== '');
   const selected = opciones.find(o => o.value === value);
 
+  const posicionar = React.useCallback(() => {
+    const btn = buttonRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const maxAltura = 288; // max-h-72
+    const espacioAbajo = window.innerHeight - rect.bottom;
+    const abreArriba = espacioAbajo < maxAltura && rect.top > espacioAbajo;
+    setDropdownStyle({
+      position: 'fixed',
+      left: rect.left,
+      width: rect.width,
+      ...(abreArriba
+        ? { bottom: window.innerHeight - rect.top + 4, maxHeight: Math.min(maxAltura, rect.top - 8) }
+        : { top: rect.bottom + 4, maxHeight: Math.min(maxAltura, espacioAbajo - 8) }),
+    });
+  }, []);
+
   React.useEffect(() => {
     if (!open) return;
+    posicionar();
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current && !containerRef.current.contains(e.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
         setQuery('');
       }
     };
+    const handleReposicionar = () => posicionar();
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open]);
+    window.addEventListener('scroll', handleReposicionar, true);
+    window.addEventListener('resize', handleReposicionar);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleReposicionar, true);
+      window.removeEventListener('resize', handleReposicionar);
+    };
+  }, [open, posicionar]);
 
   const filtradas = query.trim()
     ? opciones.filter(o => o.label.toLowerCase().includes(query.trim().toLowerCase()))
@@ -289,6 +321,7 @@ export function SearchSelect({ value, onChange, options, placeholder = 'Seleccio
     <div className="w-full relative" ref={containerRef}>
       {label && <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>}
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => (open ? setOpen(false) : abrir())}
         className={`
@@ -303,8 +336,12 @@ export function SearchSelect({ value, onChange, options, placeholder = 'Seleccio
         <ChevronDown size={16} className={`text-gray-400 flex-shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {open && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 flex flex-col overflow-hidden">
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="z-50 bg-white border border-gray-200 rounded-lg shadow-lg flex flex-col overflow-hidden"
+        >
           <div className="p-2 border-b border-gray-100 relative flex-shrink-0">
             <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -336,7 +373,8 @@ export function SearchSelect({ value, onChange, options, placeholder = 'Seleccio
               ))
             )}
           </ul>
-        </div>
+        </div>,
+        document.body
       )}
       {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
     </div>
