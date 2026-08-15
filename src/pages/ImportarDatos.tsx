@@ -297,7 +297,7 @@ export default function ImportarDatos() {
               <select
                 value={tipoSeleccionado}
                 onChange={e => setTipoSeleccionado(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               >
                 <option value="">Seleccionar tipo...</option>
                 {plantillas.map(p => (

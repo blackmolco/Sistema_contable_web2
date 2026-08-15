@@ -26,6 +26,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -48,6 +49,21 @@ import { WidgetCalendario, type VencimientoTributario } from '../components/dash
 import { WidgetNotas, type NotaRapida, NOTA_COLORES } from '../components/dashboard/WidgetNotas';
 import { WidgetAlertas } from '../components/dashboard/WidgetAlertas';
 import { WidgetActividad } from '../components/dashboard/WidgetActividad';
+
+// Paleta categórica de los gráficos — un color fijo por concepto, igual en todos
+// los gráficos del dashboard (Línea, Área, Barras, Torta), en vez de hex sueltos
+// por widget. Slots 1-3 del set validado (CVD-safe, all-pairs) de la skill dataviz;
+// el 4to concepto de cada grupo se pliega a gris neutro ("Otros") en vez de un 4to
+// tono que ya no valida en conjunto.
+const CHART_PALETTE = {
+  ventas:     '#1baf7a', // aqua  — slot 3
+  ingresos:   '#1baf7a', // mismo concepto que "ventas"
+  compras:    '#2a78d6', // blue  — slot 1
+  gastos:     '#eb6834', // orange— slot 2
+  proyectado: '#2a78d6', // blue  — base/confirmado
+  prediccion: '#4a3aa7', // violet— slot 7, distingue "predicción IA"
+  neutro:     '#898781', // gris muted — categoría "Otros"
+};
 
 // Tipos para widgets configurables
 interface WidgetConfig {
@@ -94,7 +110,7 @@ const DraggableWidget = React.memo(function DraggableWidget({
   return (
     <div
       className={`card-modern overflow-hidden transition-all duration-300 ${
-        isExpanded ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''
+        isExpanded ? 'ring-2 ring-primary' : ''
       }`}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
@@ -359,8 +375,8 @@ export default function Dashboard() {
     });
 
     const colores: Record<string, string> = {
-      Sueldos: '#1E3A5F', Arriendos: '#2D5A87', Servicios: '#10B981',
-      Marketing: '#F59E0B', 'Otros': '#6B7280'
+      Sueldos: CHART_PALETTE.compras, Arriendos: CHART_PALETTE.gastos, Servicios: CHART_PALETTE.ventas,
+      Otros: CHART_PALETTE.neutro,
     };
 
     const total = Object.values(gastosPorTipo).reduce((s, v) => s + v, 0);
@@ -372,7 +388,7 @@ export default function Dashboard() {
     return Object.entries(gastosPorTipo).map(([nombre, valor]) => ({
       nombre,
       valor: Math.round((valor / total) * 100),
-      color: colores[nombre] || '#6B7280',
+      color: colores[nombre] || CHART_PALETTE.neutro,
     }));
   }, [state.asientos]);
 
@@ -552,9 +568,10 @@ export default function Dashboard() {
                       boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
                     }}
                   />
-                  <Line type="monotone" dataKey="ventas" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981' }} name="Ventas" />
-                  <Line type="monotone" dataKey="compras" stroke="#1E3A5F" strokeWidth={2} dot={{ fill: '#1E3A5F' }} name="Compras" />
-                  <Line type="monotone" dataKey="gastos" stroke="#F59E0B" strokeWidth={2} dot={{ fill: '#F59E0B' }} name="Gastos" />
+                  <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" iconSize={8} />
+                  <Line type="monotone" dataKey="ventas" stroke={CHART_PALETTE.ventas} strokeWidth={2} dot={{ fill: CHART_PALETTE.ventas }} name="Ventas" />
+                  <Line type="monotone" dataKey="compras" stroke={CHART_PALETTE.compras} strokeWidth={2} dot={{ fill: CHART_PALETTE.compras }} name="Compras" />
+                  <Line type="monotone" dataKey="gastos" stroke={CHART_PALETTE.gastos} strokeWidth={2} dot={{ fill: CHART_PALETTE.gastos }} name="Gastos" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -630,19 +647,20 @@ export default function Dashboard() {
                       borderRadius: '8px',
                     }}
                   />
+                  <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={8} />
                   <Area
                     type="monotone"
                     dataKey="proyectado"
-                    stroke="#10B981"
-                    fill="#10B98120"
+                    stroke={CHART_PALETTE.proyectado}
+                    fill={`${CHART_PALETTE.proyectado}20`}
                     strokeWidth={2}
                     name="Proyectado"
                   />
                   <Area
                     type="monotone"
                     dataKey="prediccion"
-                    stroke="#8B5CF6"
-                    fill="#8B5CF620"
+                    stroke={CHART_PALETTE.prediccion}
+                    fill={`${CHART_PALETTE.prediccion}20`}
                     strokeWidth={2}
                     strokeDasharray="5 5"
                     name="Predicción IA"
@@ -684,8 +702,9 @@ export default function Dashboard() {
                       borderRadius: '8px',
                     }}
                   />
-                  <Bar dataKey="ingreso" fill="#10B981" name="Ingresos" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="gasto" fill="#F59E0B" name="Gastos" radius={[4, 4, 0, 0]} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" iconSize={8} />
+                  <Bar dataKey="ingreso" fill={CHART_PALETTE.ingresos} name="Ingresos" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="gasto" fill={CHART_PALETTE.gastos} name="Gastos" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

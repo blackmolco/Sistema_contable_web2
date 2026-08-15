@@ -633,7 +633,7 @@ export default function Documentos() {
                     <select 
                       value={formLibro}
                       onChange={e => setFormLibro(e.target.value as 'compras' | 'ventas')}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                     >
                       <option value="compras">Libro de Compras (Crédito Fiscal)</option>
                       <option value="ventas">Libro de Ventas (Débito Fiscal)</option>
@@ -644,7 +644,7 @@ export default function Documentos() {
                     <select 
                       value={formTipo}
                       onChange={e => setFormTipo(e.target.value as TipoDocumento)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                     >
                       <option value="factura">Factura de Compra/Venta Electrónica</option>
                       <option value="factura_compra">Factura de Compra (Terceros)</option>
@@ -667,7 +667,7 @@ export default function Documentos() {
                       value={formFolio} 
                       onChange={e => setFormFolio(e.target.value)}
                       placeholder="Ej: 1024"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono font-semibold"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary font-mono font-semibold"
                     />
                   </div>
                   <div className="md:col-span-2">
@@ -676,7 +676,7 @@ export default function Documentos() {
                       type="date" 
                       value={formFecha} 
                       onChange={e => setFormFecha(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                     />
                   </div>
                 </div>
@@ -691,7 +691,7 @@ export default function Documentos() {
                         value={formRutEmisor} 
                         onChange={e => setFormRutEmisor(e.target.value)}
                         placeholder="Ej: 76.123.456-7"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary font-mono"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -701,7 +701,7 @@ export default function Documentos() {
                         value={formRznSocEmisor} 
                         onChange={e => setFormRznSocEmisor(e.target.value)}
                         placeholder="Ej: Distribuidora S.A."
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                       />
                     </div>
                   </div>
@@ -717,7 +717,7 @@ export default function Documentos() {
                       value={formDetalleDescripcion} 
                       onChange={e => setFormDetalleDescripcion(e.target.value)}
                       placeholder="Ej: Compra de papelería e insumos de oficina"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                     />
                   </div>
 
@@ -733,7 +733,7 @@ export default function Documentos() {
                           setFormIva(String(Math.round(n * 0.19)));
                           setFormTotal(String(n + Math.round(n * 0.19) + (parseFloat(formExento) || 0)));
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-right"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary font-mono text-right"
                       />
                     </div>
                     <div>
@@ -745,7 +745,7 @@ export default function Documentos() {
                           setFormIva(e.target.value);
                           setFormTotal(String((parseFloat(formNeto) || 0) + (parseFloat(e.target.value) || 0) + (parseFloat(formExento) || 0)));
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-right"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary font-mono text-right"
                       />
                     </div>
                     <div>
@@ -757,7 +757,7 @@ export default function Documentos() {
                           setFormExento(e.target.value);
                           setFormTotal(String((parseFloat(formNeto) || 0) + (parseFloat(formIva) || 0) + (parseFloat(e.target.value) || 0)));
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-right"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary font-mono text-right"
                       />
                     </div>
                     <div>
@@ -766,7 +766,7 @@ export default function Documentos() {
                         type="number" 
                         value={formTotal} 
                         onChange={e => setFormTotal(e.target.value)}
-                        className="w-full px-3 py-2 border border-blue-400 dark:border-blue-500 bg-blue-50/10 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono font-bold text-right"
+                        className="w-full px-3 py-2 border border-primary/60 bg-primary/5 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary font-mono font-bold text-right"
                       />
                     </div>
                   </div>

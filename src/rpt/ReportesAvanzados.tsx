@@ -82,12 +82,12 @@ export const ReportesAvanzados: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Período Desde</label>
               <input type="month" value={periodoDesde} onChange={e => setPeriodoDesde(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Período Hasta</label>
               <input type="month" value={periodoHasta} onChange={e => setPeriodoHasta(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary" />
             </div>
           </div>
 
@@ -102,7 +102,7 @@ export const ReportesAvanzados: React.FC = () => {
             <div className="flex items-center gap-2 pt-6">
               <input type="checkbox" id="graficos" checked={incluirGraficos}
                 onChange={e => setIncluirGraficos(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                className="rounded border-gray-300 text-blue-600 focus:ring-primary" />
               <label htmlFor="graficos" className="text-sm text-gray-700">Incluir gráficos</label>
             </div>
           </div>

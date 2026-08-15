@@ -37,7 +37,7 @@ export default function RutInput({
     ? 'border-red-500 focus:ring-red-200 focus:border-red-500'
     : mostrarOk
       ? 'border-green-500 focus:ring-green-200 focus:border-green-500'
-      : 'border-gray-300 focus:ring-blue-200 focus:border-blue-500';
+      : 'border-gray-300 focus:ring-primary/20 focus:border-primary';
 
   return (
     <div className={className}>
