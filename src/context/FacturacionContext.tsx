@@ -3,7 +3,7 @@ import { DocumentoTributario, Honorario } from '../types';
 import { storageKey } from '../utils/empresaStorage';
 import {
   isAuthenticated,
-  fetchDocumentos, saveDocumento, updateDocumento,
+  fetchDocumentos, saveDocumento, updateDocumento, deleteDocumento,
   fetchHonorarios, saveHonorario, updateHonorario, deleteHonorario,
 } from '../services/apiSync';
 
@@ -142,6 +142,9 @@ export function FacturacionProvider({ children }: { children: ReactNode }) {
         break;
       case 'UPDATE_DOCUMENTO':
         updateDocumento(action.payload.id, action.payload.estado).catch(() => {});
+        break;
+      case 'DELETE_DOCUMENTO':
+        deleteDocumento(action.payload).catch(() => {});
         break;
       case 'ADD_HONORARIO':
         saveHonorario(action.payload).catch(() => {});

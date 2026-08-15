@@ -138,6 +138,17 @@ router.put('/:id', authenticateToken, writeLimiter, async (req, res) => {
     }
 });
 
+router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
+    try {
+        await prisma.documentoTributario.delete({ where: { id: req.params.id } });
+        await auditLog(req.usuario.id, 'ELIMINAR', 'DocumentoTributario', req.params.id, {}, req.ip, req.headers['user-agent']);
+        res.json({ message: 'Documento eliminado' });
+    } catch (err) {
+        logger.error({ err }, 'Error eliminando documento tributario');
+        res.status(500).json({ error: 'Error al eliminar documento tributario' });
+    }
+});
+
 // === LIBRO COMPRAS ===
 router.get('/libro-compras', authenticateToken, async (req, res) => {
     try {

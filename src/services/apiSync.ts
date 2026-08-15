@@ -435,6 +435,10 @@ export async function updateDocumento(id: string, estado: string): Promise<void>
   });
 }
 
+export async function deleteDocumento(id: string): Promise<void> {
+  await apiFetch(`/api/documentosTributarios/${id}`, { method: 'DELETE' });
+}
+
 // ============ HONORARIOS ============
 
 export async function fetchHonorarios(): Promise<Honorario[]> {
