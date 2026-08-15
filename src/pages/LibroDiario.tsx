@@ -91,8 +91,8 @@ export default function LibroDiario() {
       {/* Header */}
       <div className="flex items-center justify-between no-print">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-            <Book className="text-[#1E3A5F]" size={24} />
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <Book className="text-primary" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Libro Diario</h1>
@@ -184,7 +184,7 @@ export default function LibroDiario() {
                       <td className="p-3 text-xs font-medium text-gray-900 whitespace-nowrap">
                         {formatDate(asiento.fecha)}
                       </td>
-                      <td className="p-3 text-xs font-bold text-[#1E3A5F]">
+                      <td className="p-3 text-xs font-bold text-primary">
                         {asiento.numero.toString().padStart(4, '0')}
                       </td>
                       <td colSpan={4} className="p-3">

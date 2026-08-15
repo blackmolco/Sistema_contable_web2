@@ -423,7 +423,7 @@ export default function BackupSettings() {
                   </div>
                   <button
                     onClick={() => switchEmpresa(emp.rut)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1E3A5F] text-white text-xs font-medium rounded-lg hover:bg-[#2D5A87] active:scale-[0.97] transition-[background-color,transform]"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 active:scale-[0.97] transition-[background-color,transform]"
                   >
                     <LogIn size={13} />
                     Cambiar

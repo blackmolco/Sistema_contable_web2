@@ -170,7 +170,7 @@ export default function CuentasPagar() {
         <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
           {(['todos', 'pendiente', 'parcial', 'vencido', 'pagado'] as const).map(e => (
             <button key={e} onClick={() => setFilterEstado(e)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterEstado === e ? 'bg-[#1E3A5F] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterEstado === e ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {e === 'todos' ? 'Todos' : ESTADO_LABEL[e as EstadoCxP]}
             </button>
           ))}

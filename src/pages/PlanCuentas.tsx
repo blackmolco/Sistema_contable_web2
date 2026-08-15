@@ -313,7 +313,7 @@ export default function PlanCuentas() {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => abrirModalEditar(cuenta)}
-                                className="p-1.5 text-gray-400 hover:text-[#1E3A5F] hover:bg-gray-200 rounded-lg transition-colors"
+                                className="p-1.5 text-gray-400 hover:text-primary hover:bg-gray-200 rounded-lg transition-colors"
                               >
                                 <Edit2 size={14} />
                               </button>

@@ -607,7 +607,7 @@ export default function ImportarDatos() {
                   setXmlCargando(false);
                 }}
                 disabled={xmlCargando}
-                className="flex items-center gap-2 px-4 py-2 bg-[#1E3A5F] text-white text-sm font-medium rounded-lg hover:bg-[#2D5A87] active:scale-[0.97] transition-[background-color,transform] disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-50"
               >
                 {xmlCargando ? 'Procesando...' : 'Procesar XML'}
               </button>

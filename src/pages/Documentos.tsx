@@ -391,7 +391,7 @@ export default function Documentos() {
   const getDocIcon = (doc: Documento | DocumentoFallback) => {
     const iconName = obtenerIconoPorMime(doc.mimeType);
     const IconComp = ICON_MAP[iconName] || FileText;
-    return <IconComp size={24} className="text-[#1E3A5F]" />;
+    return <IconComp size={24} className="text-primary" />;
   };
 
   const getCatColor = (catNombre: string) => {
@@ -453,7 +453,7 @@ export default function Documentos() {
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Soporta DTEs XML de SII y PDFs de compras</p>
                     </div>
                     <label className="cursor-pointer">
-                      <span className="btn-modern bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white px-4 py-2 rounded-lg text-sm inline-block font-semibold">
+                      <span className="btn-modern bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg text-sm inline-block font-semibold">
                         Seleccionar Archivo
                       </span>
                       <input 
@@ -795,7 +795,7 @@ export default function Documentos() {
                 <Button 
                   onClick={handleRegistrar} 
                   disabled={!formFolio || !formRutEmisor || !formTotal || formTotal === '0'}
-                  className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white font-semibold"
+                  className="bg-primary hover:bg-primary/90 text-white font-semibold"
                 >
                   <FileCheck size={16} className="inline mr-1" />
                   Registrar en Libro de {formLibro === 'compras' ? 'Compras' : 'Ventas'}
@@ -821,7 +821,7 @@ export default function Documentos() {
           <Button 
             variant="secondary" 
             onClick={() => setOcrActive(true)} 
-            className="flex items-center gap-1.5 bg-[#1E3A5F]/10 text-[#1E3A5F] hover:bg-[#1E3A5F]/20 dark:bg-blue-900/30 dark:text-blue-300"
+            className="flex items-center gap-1.5 bg-primary/10 text-primary hover:bg-primary/20 dark:bg-blue-900/30 dark:text-blue-300"
           >
             <Sparkles size={16} className="text-blue-600 dark:text-blue-400" />
             Procesar Factura / DTE (OCR)
@@ -841,7 +841,7 @@ export default function Documentos() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por nombre, etiquetas..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1E3A5F]"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary"
           />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -865,13 +865,13 @@ export default function Documentos() {
         <div className="flex border border-gray-300 rounded-lg overflow-hidden">
           <button
             onClick={() => setViewMode('grid')}
-            className={`p-2 ${viewMode === 'grid' ? 'bg-[#1E3A5F] text-white' : 'bg-white text-gray-600'}`}
+            className={`p-2 ${viewMode === 'grid' ? 'bg-primary text-white' : 'bg-white text-gray-600'}`}
           >
             <Grid size={16} />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-2 ${viewMode === 'list' ? 'bg-[#1E3A5F] text-white' : 'bg-white text-gray-600'}`}
+            className={`p-2 ${viewMode === 'list' ? 'bg-primary text-white' : 'bg-white text-gray-600'}`}
           >
             <List size={16} />
           </button>
@@ -908,7 +908,7 @@ export default function Documentos() {
                 className="p-4 cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3">
-                  <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
+                  <div className="p-3 bg-primary/10 rounded-lg">
                     {getDocIcon(doc)}
                   </div>
                   <div
@@ -966,7 +966,7 @@ export default function Documentos() {
                 header: 'Nombre',
                 render: doc => (
                   <div className="flex items-center gap-3">
-                    <div className="p-1.5 bg-[#1E3A5F]/10 rounded">{getDocIcon(doc)}</div>
+                    <div className="p-1.5 bg-primary/10 rounded">{getDocIcon(doc)}</div>
                     <div>
                       <p className="font-medium text-gray-900 text-sm">{doc.nombre}</p>
                       <p className="text-xs text-gray-500">{formatearTamano(doc.tamano)}</p>

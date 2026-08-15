@@ -119,8 +119,8 @@ export default function CentralizacionRemuneraciones() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3">
-        <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-          <RefreshCw className="text-[#1E3A5F]" size={24} />
+        <div className="p-3 bg-primary/10 rounded-lg">
+          <RefreshCw className="text-primary" size={24} />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Centralización Contable de Remuneraciones</h1>
@@ -131,7 +131,7 @@ export default function CentralizacionRemuneraciones() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <Card className="border-[#1E3A5F]/20 dark:bg-gray-800 dark:border-gray-700">
+        <Card className="border-primary/20 dark:bg-gray-800 dark:border-gray-700">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div>
@@ -173,7 +173,7 @@ export default function CentralizacionRemuneraciones() {
             ) : hasData ? (
               <button 
                 onClick={generarCentralizacion} 
-                className="px-6 py-3 bg-[#1E3A5F] text-white rounded-lg hover:bg-[#2D5A87] transition-colors flex items-center gap-2 font-medium shadow-sm"
+                className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 font-medium shadow-sm"
               >
                 <Save size={18} /> Centralizar Remuneraciones en Libro Diario
               </button>
@@ -202,7 +202,7 @@ export default function CentralizacionRemuneraciones() {
             </div>
             <div className="bg-white p-4 rounded-xl border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
               <span className="text-xs text-gray-500 block">Sueldo Líquido Total</span>
-              <span className="text-xl font-bold text-[#1E3A5F] dark:text-blue-400">{formatCurrency(sueldoLiquidoPagar)}</span>
+              <span className="text-xl font-bold text-primary dark:text-blue-400">{formatCurrency(sueldoLiquidoPagar)}</span>
             </div>
           </div>
         )}

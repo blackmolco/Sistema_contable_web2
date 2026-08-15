@@ -30,7 +30,7 @@ export function CalculadoraHonorarios() {
   const resultado = calcular();
 
   return (
-    <Card className="bg-gradient-to-br from-[#1E3A5F] to-[#2D5A87] text-white border-none shadow-lg">
+    <Card className="bg-gradient-to-br from-primary to-[var(--brand-dark)] text-white border-none shadow-lg">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-white/10 rounded-lg">
           <Calculator className="text-emerald-400" size={24} />
@@ -45,13 +45,13 @@ export function CalculadoraHonorarios() {
         <div className="flex bg-white/10 p-1 rounded-lg">
           <button
             onClick={() => setTipo('liquido_a_bruto')}
-            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${tipo === 'liquido_a_bruto' ? 'bg-white text-[#1E3A5F]' : 'text-white hover:bg-white/5'}`}
+            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${tipo === 'liquido_a_bruto' ? 'bg-white text-primary' : 'text-white hover:bg-white/5'}`}
           >
             Quiero $ Líquido
           </button>
           <button
             onClick={() => setTipo('bruto_a_liquido')}
-            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${tipo === 'bruto_a_liquido' ? 'bg-white text-[#1E3A5F]' : 'text-white hover:bg-white/5'}`}
+            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${tipo === 'bruto_a_liquido' ? 'bg-white text-primary' : 'text-white hover:bg-white/5'}`}
           >
             Tengo $ Bruto
           </button>

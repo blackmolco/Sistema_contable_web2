@@ -6,6 +6,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { Select } from '../components/ui/FormElements';
+import { CHART_PALETTE } from '../utils/chartPalette';
 
 const HORIZONTE_OPCIONES = [
   { value: '30',  label: 'Próximos 30 días' },
@@ -111,8 +112,8 @@ export default function FlujoCaja() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-            <Wallet className="text-[#1E3A5F]" size={24} />
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <Wallet className="text-primary" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Flujo de Caja Proyectado</h1>
@@ -143,7 +144,7 @@ export default function FlujoCaja() {
           <p className="text-xs font-semibold uppercase text-gray-500">Saldo inicial</p>
           <input
             type="number"
-            className="mt-1 w-full text-2xl font-bold text-gray-900 bg-transparent border-b border-dashed border-gray-300 focus:outline-none focus:border-[#1E3A5F]"
+            className="mt-1 w-full text-2xl font-bold text-gray-900 bg-transparent border-b border-dashed border-gray-300 focus:outline-none focus:border-primary"
             value={saldoInicial}
             onChange={e => setSaldoInicial(Number(e.target.value) || 0)}
             title="Editar saldo inicial"
@@ -174,8 +175,8 @@ export default function FlujoCaja() {
           <AreaChart data={timeline} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
             <defs>
               <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#1E3A5F" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#1E3A5F" stopOpacity={0} />
+                <stop offset="5%" stopColor={CHART_PALETTE.saldo} stopOpacity={0.15} />
+                <stop offset="95%" stopColor={CHART_PALETTE.saldo} stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -183,7 +184,7 @@ export default function FlujoCaja() {
             <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
             <Tooltip formatter={(v: number) => [fmt(v), 'Saldo']} labelFormatter={l => `Fecha: ${l}`} />
             <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 4" />
-            <Area type="monotone" dataKey="saldo" stroke="#1E3A5F" strokeWidth={2} fill="url(#colorSaldo)" />
+            <Area type="monotone" dataKey="saldo" stroke={CHART_PALETTE.saldo} strokeWidth={2} fill="url(#colorSaldo)" />
           </AreaChart>
         </ResponsiveContainer>
       </Card>

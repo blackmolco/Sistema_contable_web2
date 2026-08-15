@@ -120,7 +120,7 @@ export function UploadModal({
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all
-              ${dragOver ? 'border-[#1E3A5F] bg-[#1E3A5F]/5' : 'border-gray-300 hover:border-[#1E3A5F] hover:bg-gray-50'}`}
+              ${dragOver ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary hover:bg-gray-50'}`}
           >
             <input
               ref={fileInputRef}
@@ -136,8 +136,8 @@ export function UploadModal({
           </div>
         ) : (
           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="p-2 bg-[#1E3A5F]/10 rounded-lg">
-              <FileText size={24} className="text-[#1E3A5F]" />
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <FileText size={24} className="text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-gray-900 truncate">{file.name}</p>
@@ -162,7 +162,7 @@ export function UploadModal({
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-[#10B981] h-2 rounded-full transition-all duration-300"
+                className="bg-accent h-2 rounded-full transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -182,7 +182,7 @@ export function UploadModal({
             value={categoria}
             onChange={e => setCategoria(e.target.value)}
             disabled={uploading}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
           >
             <option value="">Seleccionar categoria...</option>
             {state.categorias.map(cat => (
@@ -208,7 +208,7 @@ export function UploadModal({
             onChange={e => setEtiquetas(e.target.value)}
             disabled={uploading}
             placeholder="ej: 2026, enero, original"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
 
@@ -220,7 +220,7 @@ export function UploadModal({
             disabled={uploading}
             rows={2}
             placeholder="Breve descripcion del documento..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent resize-none"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
           />
         </div>
 

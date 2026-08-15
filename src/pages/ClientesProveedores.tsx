@@ -113,8 +113,8 @@ export default function ClientesProveedores() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-            <Users className="text-[#1E3A5F]" size={24} />
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <Users className="text-primary" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Clientes y Proveedores</h1>
@@ -148,7 +148,7 @@ export default function ClientesProveedores() {
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
             {(['todos', 'cliente', 'proveedor'] as const).map(t => (
               <button key={t} onClick={() => setTab(t)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${tab === t ? 'bg-white text-[#1E3A5F] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${tab === t ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                 {t === 'todos' ? 'Todos' : t === 'cliente' ? 'Clientes' : 'Proveedores'}
               </button>
             ))}
@@ -203,7 +203,7 @@ export default function ClientesProveedores() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-center gap-1">
-                    <button onClick={() => abrirEditar(c)} className="p-2 text-gray-400 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-lg transition-colors active:scale-[0.95]"><Edit2 size={15} /></button>
+                    <button onClick={() => abrirEditar(c)} className="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 rounded-lg transition-colors active:scale-[0.95]"><Edit2 size={15} /></button>
                     <button onClick={() => setConfirmId(c.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors active:scale-[0.95]"><Trash2 size={15} /></button>
                   </div>
                 </td>

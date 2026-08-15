@@ -18,7 +18,7 @@ export function WidgetActividad({ ultimosDocumentos, ultimosAsientos, navigate }
           <h4 className="text-xs font-medium text-gray-500 uppercase">Documentos</h4>
           <button
             onClick={() => navigate('/facturacion')}
-            className="text-xs text-[#1E3A5F] hover:underline flex items-center gap-1"
+            className="text-xs text-primary hover:underline flex items-center gap-1"
           >
             Ver todos <ArrowRight size={10} />
           </button>
@@ -30,7 +30,7 @@ export function WidgetActividad({ ultimosDocumentos, ultimosAsientos, navigate }
             {ultimosDocumentos.slice(0, 3).map((doc) => (
               <div key={doc.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <DollarSign size={14} className="text-[#1E3A5F]" />
+                  <DollarSign size={14} className="text-primary" />
                   <span className="text-xs font-medium">{doc.tipo.toUpperCase()} #{doc.numero}</span>
                 </div>
                 <span className="text-xs text-gray-600">{formatCurrency(doc.total)}</span>
@@ -45,7 +45,7 @@ export function WidgetActividad({ ultimosDocumentos, ultimosAsientos, navigate }
           <h4 className="text-xs font-medium text-gray-500 uppercase">Asientos</h4>
           <button
             onClick={() => navigate('/asientos')}
-            className="text-xs text-[#1E3A5F] hover:underline flex items-center gap-1"
+            className="text-xs text-primary hover:underline flex items-center gap-1"
           >
             Ver todos <ArrowRight size={10} />
           </button>

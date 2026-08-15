@@ -336,8 +336,8 @@ export default function ActivoFijo() {
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-            <Package className="text-[#1E3A5F]" size={24} />
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <Package className="text-primary" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Control de Activo Fijo</h1>
@@ -358,10 +358,10 @@ export default function ActivoFijo() {
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto">
               <div className="space-y-4 md:border-r border-gray-100 md:pr-4">
-                <h4 className="font-semibold text-sm text-[#1E3A5F] border-b pb-1">Datos de Adquisicion</h4>
+                <h4 className="font-semibold text-sm text-primary border-b pb-1">Datos de Adquisicion</h4>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Nombre / Descripcion del Bien</label>
-                  <input type="text" placeholder="Ej: Computador HP EliteBook" value={nuevoActivo.nombre || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, nombre: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#1E3A5F]/20" />
+                  <input type="text" placeholder="Ej: Computador HP EliteBook" value={nuevoActivo.nombre || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, nombre: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Tipo de Activo</label>
@@ -369,7 +369,7 @@ export default function ActivoFijo() {
                     const t = e.target.value as Activo['tipo'];
                     const vu = VIDA_UTIL_DEFAULT[t];
                     setNuevoActivo({ ...nuevoActivo, tipo: t, vidaUtilNormal: vu.normal, vidaUtilAcelerada: vu.acelerada });
-                  }} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#1E3A5F]/20">
+                  }} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20">
                     <option value="computacional">Equipo Computacional (3 anos)</option>
                     <option value="vehiculo">Vehiculo (7 anos)</option>
                     <option value="mueble">Mueble u Oficina (7 anos)</option>
@@ -379,11 +379,11 @@ export default function ActivoFijo() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Fecha de Ingreso / Compra</label>
-                  <input type="date" value={nuevoActivo.fechaCompra} onChange={(e) => setNuevoActivo({ ...nuevoActivo, fechaCompra: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#1E3A5F]/20" />
+                  <input type="date" value={nuevoActivo.fechaCompra} onChange={(e) => setNuevoActivo({ ...nuevoActivo, fechaCompra: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Valor de Adquisicion ($)</label>
-                  <input type="number" value={nuevoActivo.valorAdquisicion || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, valorAdquisicion: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#1E3A5F]/20" />
+                  <input type="number" value={nuevoActivo.valorAdquisicion || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, valorAdquisicion: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20" />
                 </div>
               </div>
               <div className="space-y-4">
@@ -391,28 +391,28 @@ export default function ActivoFijo() {
                 <p className="text-[10px] text-gray-500 leading-tight mb-2">Complete estos datos solo si esta registrando un activo que ya estaba en uso en otro software contable.</p>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Depreciacion Acumulada Anterior ($)</label>
-                  <input type="number" placeholder="Monto ya depreciado" value={nuevoActivo.depreciacionAcumuladaPrevia || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, depreciacionAcumuladaPrevia: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg text-sm bg-amber-50 focus:ring-2 focus:ring-[#1E3A5F]/20" />
+                  <input type="number" placeholder="Monto ya depreciado" value={nuevoActivo.depreciacionAcumuladaPrevia || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, depreciacionAcumuladaPrevia: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg text-sm bg-amber-50 focus:ring-2 focus:ring-primary/20" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Meses de Vida Util ya Consumidos</label>
-                  <input type="number" placeholder="Ej: 12 meses" value={nuevoActivo.mesesUsoPrevio || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, mesesUsoPrevio: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg text-sm bg-amber-50 focus:ring-2 focus:ring-[#1E3A5F]/20" />
+                  <input type="number" placeholder="Ej: 12 meses" value={nuevoActivo.mesesUsoPrevio || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, mesesUsoPrevio: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg text-sm bg-amber-50 focus:ring-2 focus:ring-primary/20" />
                 </div>
               </div>
             </div>
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
               <button onClick={() => setMostrarFormulario(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
-              <button onClick={handleGuardarActivo} className="px-4 py-2 bg-[#1E3A5F] text-white rounded-lg text-sm font-medium hover:bg-[#2D5A87] transition-colors flex items-center gap-2"><Save size={16} /> Guardar Activo</button>
+              <button onClick={handleGuardarActivo} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"><Save size={16} /> Guardar Activo</button>
             </div>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="col-span-1 md:col-span-3 border-[#1E3A5F]/20">
+        <Card className="col-span-1 md:col-span-3 border-primary/20">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Método Tributario de Cálculo</label>
-              <select value={metodo} onChange={(e) => setMetodo(e.target.value as 'normal' | 'acelerada')} className="w-full px-4 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-[#1E3A5F]/20">
+              <select value={metodo} onChange={(e) => setMetodo(e.target.value as 'normal' | 'acelerada')} className="w-full px-4 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-primary/20">
                 <option value="normal">Depreciación Lineal Normal</option>
                 <option value="acelerada">Depreciación Acelerada (1/3 Vida Útil)</option>
               </select>
@@ -424,7 +424,7 @@ export default function ActivoFijo() {
                 step="0.1" 
                 value={ipcPorcentaje} 
                 onChange={(e) => setIpcPorcentaje(Number(e.target.value))} 
-                className="w-full px-4 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-[#1E3A5F]/20" 
+                className="w-full px-4 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-primary/20" 
               />
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -436,7 +436,7 @@ export default function ActivoFijo() {
               </button>
               <button 
                 onClick={contabilizarDepreciacion} 
-                className="flex-1 px-4 py-2.5 bg-[#1E3A5F] hover:bg-[#2D5A87] text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-xs font-semibold"
+                className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-xs font-semibold"
               >
                 <Calculator size={14} /> Depreciar Ejercicio
               </button>
@@ -484,7 +484,7 @@ export default function ActivoFijo() {
                       -{formatCurrency(acumulada)}
                       {activo.depreciacionAcumuladaPrevia ? <p className="text-[9px] text-amber-600">Incluye arrastre</p> : null}
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-[#1E3A5F]">{formatCurrency(valorLibro)}</td>
+                    <td className="py-3 px-4 text-right font-bold text-primary">{formatCurrency(valorLibro)}</td>
                   </tr>
                 );
               })}
@@ -495,7 +495,7 @@ export default function ActivoFijo() {
                   <td colSpan={3} className="py-3 px-4 text-right uppercase">Suma Total de Activos:</td>
                   <td className="py-3 px-4 text-right">{formatCurrency(activos.reduce((acc, a) => acc + a.valorAdquisicion, 0))}</td>
                   <td className="py-3 px-4 text-right text-red-600">-{formatCurrency(activos.reduce((acc, a) => acc + calcularDepreciacionAcumulada(a), 0))}</td>
-                  <td className="py-3 px-4 text-right text-[#1E3A5F]">{formatCurrency(activos.reduce((acc, a) => acc + (a.valorAdquisicion - calcularDepreciacionAcumulada(a)), 0))}</td>
+                  <td className="py-3 px-4 text-right text-primary">{formatCurrency(activos.reduce((acc, a) => acc + (a.valorAdquisicion - calcularDepreciacionAcumulada(a)), 0))}</td>
                 </tr>
               </tfoot>
             )}

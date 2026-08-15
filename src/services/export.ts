@@ -1,5 +1,6 @@
 // Servicio de Exportación - Excel y PDF
 import { formatCurrency, formatDate } from '../utils/calculos';
+import { getBrandHex } from '../utils/brandColor';
 import type { DocumentoTributario, Trabajador } from '../types';
 
 export type ExportFormat = 'excel' | 'pdf' | 'csv';
@@ -67,6 +68,8 @@ export function generatePDFHTML(data: ExportData): string {
     </tr>
   `).join('') || '';
 
+  const brand = getBrandHex();
+
   return `
 <!DOCTYPE html>
 <html>
@@ -75,10 +78,10 @@ export function generatePDFHTML(data: ExportData): string {
   <title>${data.title}</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-    h1 { color: #1E3A5F; font-size: 24px; margin-bottom: 5px; }
+    h1 { color: ${brand}; font-size: 24px; margin-bottom: 5px; }
     h2 { color: #666; font-size: 14px; font-weight: normal; margin-top: 0; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th { background: #1E3A5F; color: white; padding: 12px; text-align: left; font-size: 12px; }
+    th { background: ${brand}; color: white; padding: 12px; text-align: left; font-size: 12px; }
     td { padding: 10px; border-bottom: 1px solid #ddd; font-size: 12px; }
     tr:hover { background: #f5f5f5; }
     .summary { font-weight: bold; background: #f0f0f0; }

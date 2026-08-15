@@ -89,7 +89,7 @@ interface KPICardProps {
     value: number;
     label: string;
   };
-  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple';
+  variant?: 'default' | 'success' | 'warning' | 'danger';
   /** Datos para mini sparkline (últimos 6-12 períodos) */
   sparklineData?: number[];
   /** Anima el número al montar con useCountUp */
@@ -106,22 +106,27 @@ export function KPICard({
   sparklineData,
   animateValue = false,
 }: KPICardProps) {
-  const gradientMap: Record<string, string> = {
-    default: 'kpi-gradient-blue',
-    success: 'kpi-gradient-green',
-    warning: 'kpi-gradient-amber',
-    danger: 'kpi-gradient-red',
-    info: 'kpi-gradient-blue',
-    purple: 'kpi-gradient-purple',
+  // "default" sigue el color de marca del tema activo; success/warning/danger son
+  // semánticos y fijos (no cambian con el tema) — evita el degradé arcoíris de antes.
+  const borderMap: Record<string, string> = {
+    default: 'border-l-primary',
+    success: 'border-l-emerald-500',
+    warning: 'border-l-amber-500',
+    danger: 'border-l-red-500',
   };
 
   const iconColorMap: Record<string, string> = {
-    default: 'text-blue-600 dark:text-blue-400',
+    default: 'text-primary',
     success: 'text-emerald-600 dark:text-emerald-400',
     warning: 'text-amber-600 dark:text-amber-400',
     danger: 'text-red-600 dark:text-red-400',
-    info: 'text-blue-600 dark:text-blue-400',
-    purple: 'text-purple-600 dark:text-purple-400',
+  };
+
+  const iconBgMap: Record<string, string> = {
+    default: 'bg-primary/10',
+    success: 'bg-emerald-50 dark:bg-emerald-950/40',
+    warning: 'bg-amber-50 dark:bg-amber-950/40',
+    danger: 'bg-red-50 dark:bg-red-950/40',
   };
 
   const numericEnd = parseNumericValue(value);
@@ -142,7 +147,7 @@ export function KPICard({
     : (value || '$0');
 
   return (
-    <div className={`card-modern p-5 ${gradientMap[variant]}`}>
+    <div className={`card-modern p-5 border-l-4 ${borderMap[variant]}`}>
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1 truncate">{title}</p>
@@ -165,7 +170,7 @@ export function KPICard({
             </div>
           )}
         </div>
-        <div className={`icon-circle flex-shrink-0 ${iconColorMap[variant]}`}>
+        <div className={`icon-circle flex-shrink-0 ${iconColorMap[variant]} ${iconBgMap[variant]}`}>
           <Icon size={20} />
         </div>
       </div>

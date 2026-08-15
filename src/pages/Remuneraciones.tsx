@@ -450,7 +450,7 @@ export default function Remuneraciones() {
               </div>
               <button
                 onClick={() => liq.lineas.forEach(l => generarPDFLiquidacionDesdeLinea(l, periodoLabel, state.configuracion, liq.periodo, liq.uf, liq.utm))}
-                className="flex items-center gap-2 px-4 py-2 bg-[#1E3A5F] text-white rounded-lg text-sm font-medium hover:bg-[#2D5A87] transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
               >
                 <Download size={16} /> Descargar Todos los PDFs
               </button>
@@ -460,7 +460,7 @@ export default function Remuneraciones() {
               {liq.lineas.map((linea, idx) => (
                 <div key={idx} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                   {/* Header tarjeta */}
-                  <div className="bg-[#1E3A5F] px-4 py-3 flex items-center justify-between">
+                  <div className="bg-primary px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">
                         {linea.nombre[0]}{linea.apellidos[0]}
@@ -656,7 +656,7 @@ export default function Remuneraciones() {
                 <tr key={trabajador.id} className="hover:bg-gray-50">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-[#1E3A5F] rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                         <span className="text-white text-sm font-medium">
                           {trabajador.nombre[0]}
                           {trabajador.apellidos[0]}
@@ -698,7 +698,7 @@ export default function Remuneraciones() {
                       </button>
                       <button
                         onClick={() => abrirModalEditar(trabajador)}
-                        className="p-2 text-gray-400 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 rounded-lg transition-colors"
                       >
                         <Edit2 size={18} />
                       </button>
@@ -803,7 +803,7 @@ export default function Remuneraciones() {
                     ...prev,
                     estado: e.target.value as EstadoTrabajador,
                   }))}
-                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] cursor-pointer"
+                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
                 >
                   <option value="activo">Activo</option>
                   <option value="licencia">Licencia médica</option>
@@ -842,7 +842,7 @@ export default function Remuneraciones() {
                       inputMode="numeric"
                       value={fmtPesos(formData[field] as number)}
                       onChange={(e) => setFormData(prev => ({ ...prev, [field]: parsePesos(e.target.value) }))}
-                      className="w-full pl-6 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] text-right"
+                      className="w-full pl-6 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-right"
                     />
                   </div>
                 </div>
@@ -1038,7 +1038,7 @@ export default function Remuneraciones() {
                     <tr key={t.id} className="hover:bg-gray-50">
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-[#1E3A5F] flex items-center justify-center text-white text-xs font-bold">
+                          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
                             {t.nombre[0]}{t.apellidos[0]}
                           </div>
                           <div>

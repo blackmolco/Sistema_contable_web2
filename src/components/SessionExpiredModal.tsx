@@ -38,7 +38,7 @@ export default function SessionExpiredModal() {
         </p>
         <button
           onClick={irAlLogin}
-          className="w-full py-2.5 bg-[#1E3A5F] text-white rounded-xl font-semibold hover:bg-[#2D5A87] transition-colors"
+          className="w-full py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90 transition-colors"
         >
           Ir al login
         </button>

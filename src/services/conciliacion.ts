@@ -1,5 +1,6 @@
 // Servicio de Conciliación Bancaria
 import { generateId } from '../utils/calculos';
+import { getBrandHex } from '../utils/brandColor';
 
 export interface TransaccionBancaria {
   id: string;
@@ -165,6 +166,7 @@ export class ConciliacionService {
     saldoContable: number,
     periodo: string
   ): string {
+    const brand = getBrandHex();
     const html = `
 <!DOCTYPE html>
 <html>
@@ -173,12 +175,12 @@ export class ConciliacionService {
   <title>Conciliación Bancaria</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
-    h1 { color: #1E3A5F; }
+    h1 { color: ${brand}; }
     .header { margin-bottom: 20px; }
     .section { margin: 20px 0; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
-    th { background: #1E3A5F; color: white; }
+    th { background: ${brand}; color: white; }
     .pendiente { background: #fff3cd; }
     .conciliado { background: #d4edda; }
     .totals { font-weight: bold; margin-top: 20px; }

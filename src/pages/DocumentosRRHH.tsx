@@ -111,8 +111,8 @@ export default function DocumentosRRHH() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-            <FileSignature className="text-[#1E3A5F]" size={24} />
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <FileSignature className="text-primary" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Documentos RRHH</h1>
@@ -125,7 +125,7 @@ export default function DocumentosRRHH() {
         <button
           onClick={() => setTab('contratos')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-            tab === 'contratos' ? 'bg-[#1E3A5F] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            tab === 'contratos' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
           <FileText size={18} /> Contratos y Anexos

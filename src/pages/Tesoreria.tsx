@@ -20,6 +20,7 @@ import { Modal } from '../components/ui/Modal';
 import { useTesoreriaStore } from '../stores';
 import type { FlujoCaja, ProyeccionFlujo, AlertaTesoreria } from '../stores';
 import { formatCurrency, formatDate } from '../utils/calculos';
+import { CHART_PALETTE } from '../utils/chartPalette';
 
 export default function Tesoreria() {
   const store = useTesoreriaStore();
@@ -115,7 +116,7 @@ export default function Tesoreria() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card padding="sm">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-[#1E3A5F] rounded-lg">
+            <div className="p-3 bg-primary rounded-lg">
               <Wallet size={20} className="text-white" />
             </div>
             <div>
@@ -233,8 +234,8 @@ export default function Tesoreria() {
               <Area
                 type="monotone"
                 dataKey="saldo"
-                stroke="#10B981"
-                fill="#10B981"
+                stroke={CHART_PALETTE.saldo}
+                fill={CHART_PALETTE.saldo}
                 fillOpacity={0.2}
               />
             </AreaChart>

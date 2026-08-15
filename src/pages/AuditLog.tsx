@@ -318,8 +318,8 @@ export default function AuditLog() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#1E3A5F]/10 dark:bg-[#1e3a5f]/30 rounded-xl">
-            <History className="text-[#1E3A5F] dark:text-indigo-400" size={24} />
+          <div className="p-3 bg-primary/10 dark:bg-[#1e3a5f]/30 rounded-xl">
+            <History className="text-primary dark:text-indigo-400" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Historial de Auditoría</h1>
@@ -427,7 +427,7 @@ export default function AuditLog() {
                     {e.detalle && (
                       <button
                         onClick={() => { setSelectedEvent(e); setShowDetailModal(true); }}
-                        className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 text-[#1E3A5F] dark:text-indigo-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700"
+                        className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 text-primary dark:text-indigo-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700"
                         title="Ver payload completo"
                       >
                         <Eye size={14} />
@@ -596,7 +596,7 @@ export default function AuditLog() {
                       <span className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Últimos hashes de verificación:</span>
                       <div className="grid grid-cols-1 gap-1">
                         {integrityReport.hashChain.hashes.map((hash, idx) => (
-                          <div key={idx} className="font-mono text-[9px] text-[#2D5A87] dark:text-indigo-400 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 rounded border border-gray-100 dark:border-gray-700/60 truncate">
+                          <div key={idx} className="font-mono text-[9px] text-primary dark:text-indigo-400 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 rounded border border-gray-100 dark:border-gray-700/60 truncate">
                             Bloque #{integrityReport.eventosAnalizados - idx} → HASH: <span className="font-bold">{hash}</span>
                           </div>
                         ))}

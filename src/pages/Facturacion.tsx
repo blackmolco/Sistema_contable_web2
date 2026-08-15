@@ -224,7 +224,7 @@ export default function Facturacion() {
   const tabCls = (v: typeof filtroLibro) =>
     `px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
       filtroLibro === v
-        ? 'bg-[#1E3A5F] text-white shadow-sm'
+        ? 'bg-primary text-white shadow-sm'
         : 'text-gray-600 hover:bg-gray-100'
     }`;
 
@@ -279,7 +279,7 @@ export default function Facturacion() {
         ].map(({ label, value, currency, highlight, suffix }) => (
           <Card key={label} padding="sm">
             <p className="text-xs text-gray-500 mb-1">{label}</p>
-            <p className={`text-xl font-bold ${highlight ? 'text-[#1E3A5F]' : 'text-gray-900'}`}>
+            <p className={`text-xl font-bold ${highlight ? 'text-primary' : 'text-gray-900'}`}>
               {currency ? formatCurrency(value as number) : (value as number).toLocaleString('es-CL')}
               {suffix && <span className="text-xs font-normal text-orange-600 ml-1">{suffix as string}</span>}
             </p>
@@ -380,7 +380,7 @@ export default function Facturacion() {
                       <td className={`px-4 py-3 text-right ${isNC ? 'text-orange-600' : 'text-gray-600'}`}>
                         {isNC ? '-' : ''}{formatCurrency(doc.iva)}
                       </td>
-                      <td className={`px-4 py-3 text-right font-semibold ${isNC ? 'text-orange-600' : 'text-[#1E3A5F]'}`}>
+                      <td className={`px-4 py-3 text-right font-semibold ${isNC ? 'text-orange-600' : 'text-primary'}`}>
                         {isNC ? '-' : ''}{formatCurrency(doc.total)}
                       </td>
                       <td className="px-4 py-3">
@@ -390,7 +390,7 @@ export default function Facturacion() {
                             <Eye size={15} />
                           </button>
                           <button onClick={() => abrirEditar(doc)}
-                            className="p-1.5 text-gray-400 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-lg transition-colors" title="Editar">
+                            className="p-1.5 text-gray-400 hover:text-primary hover:bg-gray-100 rounded-lg transition-colors" title="Editar">
                             <Edit2 size={15} />
                           </button>
                           <button onClick={() => handleEliminar(doc)}
@@ -412,7 +412,7 @@ export default function Facturacion() {
                   </td>
                   <td className="px-4 py-2 text-right font-bold text-gray-900">{formatCurrency(totales.neto)}</td>
                   <td className="px-4 py-2 text-right font-bold text-gray-900">{formatCurrency(totales.iva)}</td>
-                  <td className="px-4 py-2 text-right font-bold text-[#1E3A5F]">{formatCurrency(totales.total)}</td>
+                  <td className="px-4 py-2 text-right font-bold text-primary">{formatCurrency(totales.total)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -530,7 +530,7 @@ export default function Facturacion() {
               <div className="flex justify-between"><span className="text-gray-600">IVA (19%)</span><span>{formatCurrency(calcularTotalesForm().iva)}</span></div>
               <div className="flex justify-between text-base font-bold border-t pt-2">
                 <span>Total</span>
-                <span className={esNotaCredito(formData.tipo) ? 'text-orange-600' : 'text-[#1E3A5F]'}>
+                <span className={esNotaCredito(formData.tipo) ? 'text-orange-600' : 'text-primary'}>
                   {esNotaCredito(formData.tipo) ? '-' : ''}{formatCurrency(calcularTotalesForm().total)}
                 </span>
               </div>
@@ -560,7 +560,7 @@ export default function Facturacion() {
                 <p className="text-sm text-gray-500">RUT: {formatRUT(state.configuracion.rut)}</p>
               </div>
               <div className="text-right">
-                <p className="text-xl font-bold text-[#1E3A5F]">{getTipoLabel(docVer.tipo)}</p>
+                <p className="text-xl font-bold text-primary">{getTipoLabel(docVer.tipo)}</p>
                 <p className="font-semibold">N° {docVer.numero}</p>
                 <p className="text-sm text-gray-500">{formatDate(docVer.fecha)}</p>
                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${esCompra(docVer) ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -603,7 +603,7 @@ export default function Facturacion() {
                 <div className="flex justify-between"><span className="text-gray-600">IVA</span><span>{formatCurrency(docVer.iva)}</span></div>
                 <div className="flex justify-between text-base font-bold border-t pt-1.5">
                   <span>Total</span>
-                  <span className={esNotaCredito(docVer.tipo) ? 'text-orange-600' : 'text-[#1E3A5F]'}>
+                  <span className={esNotaCredito(docVer.tipo) ? 'text-orange-600' : 'text-primary'}>
                     {esNotaCredito(docVer.tipo) ? '-' : ''}{formatCurrency(docVer.total)}
                   </span>
                 </div>

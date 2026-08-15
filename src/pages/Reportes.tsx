@@ -17,6 +17,7 @@ import { Button } from '../components/ui/FormElements';
 import { formatCurrency, formatDate, getNombreMes } from '../utils/calculos';
 import { SIIService } from '../services/sii';
 import { useApp } from '../context/AppContext';
+import { CHART_PALETTE } from '../utils/chartPalette';
 
 export default function Reportes() {
   const { state } = useApp();
@@ -217,8 +218,8 @@ export default function Reportes() {
                   <YAxis stroke="#6B7280" fontSize={12} tickFormatter={(val) => `$${(val / 1000000).toFixed(0)}M`} />
                   <Tooltip formatter={(value: number) => [formatCurrency(value), '']} />
                   <Legend />
-                  <Bar dataKey="neto" name="Neto" fill="#10B981" />
-                  <Bar dataKey="iva" name="IVA" fill="#1E3A5F" />
+                  <Bar dataKey="neto" name="Neto" fill={CHART_PALETTE.neto} />
+                  <Bar dataKey="iva" name="IVA" fill={CHART_PALETTE.iva} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -234,7 +235,7 @@ export default function Reportes() {
                 <div key={gasto.categoria} className="flex items-center gap-4">
                   <div className="w-32 text-sm text-gray-600 truncate">{gasto.categoria}</div>
                   <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
-                    <div className="h-full bg-[#1E3A5F] rounded-full transition-all" style={{ width: `${gasto.porcentaje}%` }} />
+                    <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${gasto.porcentaje}%` }} />
                   </div>
                   <div className="w-40 text-right">
                     <span className="font-medium text-gray-900">{formatCurrency(gasto.monto)}</span>

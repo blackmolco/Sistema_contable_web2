@@ -149,7 +149,7 @@ export default function F22() {
 
   /* ─── Sección helper ─────────────────────────────────── */
   const Row = ({ label, value, highlight, negative }: { label: string; value: number; highlight?: boolean; negative?: boolean }) => (
-    <div className={`flex items-center justify-between py-2 px-3 rounded-lg ${highlight ? 'bg-[#1E3A5F] text-white' : 'hover:bg-gray-50'}`}>
+    <div className={`flex items-center justify-between py-2 px-3 rounded-lg ${highlight ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}>
       <span className={`text-sm ${highlight ? 'font-semibold text-white' : 'text-gray-700'}`}>{label}</span>
       <span className={`font-mono text-sm font-semibold ${highlight ? 'text-white' : negative ? 'text-red-600' : 'text-gray-900'}`}>
         {negative && value !== 0 ? `-${formatCLP(value)}` : formatCLP(value)}
@@ -293,8 +293,8 @@ export default function F22() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-            <FileSpreadsheet className="text-[#1E3A5F]" size={24} />
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <FileSpreadsheet className="text-primary" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Operación Renta F22 y DDJJ</h1>
@@ -319,7 +319,7 @@ export default function F22() {
           onClick={() => setTabActiva('f22')}
           className={`py-3 px-6 font-semibold text-sm transition-colors border-b-2 ${
             tabActiva === 'f22'
-              ? 'border-[#1E3A5F] text-[#1E3A5F] dark:border-blue-400 dark:text-blue-400'
+              ? 'border-primary text-primary dark:border-blue-400 dark:text-blue-400'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -329,7 +329,7 @@ export default function F22() {
           onClick={() => setTabActiva('ddjj')}
           className={`py-3 px-6 font-semibold text-sm transition-colors border-b-2 ${
             tabActiva === 'ddjj'
-              ? 'border-[#1E3A5F] text-[#1E3A5F] dark:border-blue-400 dark:text-blue-400'
+              ? 'border-primary text-primary dark:border-blue-400 dark:text-blue-400'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -531,7 +531,7 @@ export default function F22() {
                 <select
                   value={djSeleccionada}
                   onChange={e => setDjSeleccionada(e.target.value as '1887' | '1879')}
-                  className="px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                  className="px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
                   <option value="1887">DJ 1887 (Sueldos y Remuneraciones)</option>
                   <option value="1879">DJ 1879 (Retenciones de Honorarios)</option>
@@ -554,7 +554,7 @@ export default function F22() {
                   </div>
                   <div className="text-right">
                     <span className="text-xs text-gray-400 block uppercase font-semibold">Total Empleados</span>
-                    <span className="text-2xl font-black text-[#1E3A5F] dark:text-blue-400">{datosDJ1887.length}</span>
+                    <span className="text-2xl font-black text-primary dark:text-blue-400">{datosDJ1887.length}</span>
                   </div>
                 </div>
 
@@ -602,7 +602,7 @@ export default function F22() {
                   </div>
                   <div className="text-right">
                     <span className="text-xs text-gray-400 block uppercase font-semibold">Total Prestadores</span>
-                    <span className="text-2xl font-black text-[#1E3A5F] dark:text-blue-400">{datosDJ1879.length}</span>
+                    <span className="text-2xl font-black text-primary dark:text-blue-400">{datosDJ1879.length}</span>
                   </div>
                 </div>
 

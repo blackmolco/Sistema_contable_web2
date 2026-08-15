@@ -514,7 +514,7 @@ export default function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
                                 onMouseEnter={() => setSelectedIndex(idx)}
                                 className={`w-full flex items-center gap-3.5 px-4 py-2.5 text-left transition-all ${
                                   isSelected
-                                    ? 'bg-[#1E3A5F]/10 dark:bg-blue-900/30 border-l-2 border-blue-600 dark:border-blue-400'
+                                    ? 'bg-primary/10 dark:bg-blue-900/30 border-l-2 border-blue-600 dark:border-blue-400'
                                     : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/30'
                                 }`}
                               >

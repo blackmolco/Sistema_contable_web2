@@ -173,8 +173,8 @@ export default function NotasCreditoDebito() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-            <FileX className="text-[#1E3A5F]" size={24} />
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <FileX className="text-primary" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Notas de Crédito / Débito</h1>
@@ -216,7 +216,7 @@ export default function NotasCreditoDebito() {
                 key={t}
                 onClick={() => setFiltroTipo(t)}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  filtroTipo === t ? 'bg-white text-[#1E3A5F] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  filtroTipo === t ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 {t === 'todos' ? 'Todos' : t === 'credito' ? 'Crédito' : 'Débito'}
@@ -286,7 +286,7 @@ export default function NotasCreditoDebito() {
                       <>
                         <button
                           onClick={() => abrirEditar(n)}
-                          className="p-2 text-gray-400 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-lg transition-colors active:scale-[0.95]"
+                          className="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 rounded-lg transition-colors active:scale-[0.95]"
                           title="Editar"
                         >
                           <Edit2 size={15} />

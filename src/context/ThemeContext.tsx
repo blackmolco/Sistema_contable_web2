@@ -130,6 +130,10 @@ function applyTheme(theme: ThemeConfig) {
   root.setAttribute("data-theme-preset", theme.preset);
   root.setAttribute("data-chrome", presetTokens.chrome);
 
+  // Barra del navegador / splash de la PWA — que sigan el color de marca activo.
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme.primaryColor);
+  document.querySelector('link[rel="mask-icon"]')?.setAttribute("color", theme.primaryColor);
+
   if (presetTokens.chrome === "light") {
     root.style.setProperty("--sidebar-bg", "#FFFFFF");
     root.style.setProperty("--sidebar-fg", "#152232");

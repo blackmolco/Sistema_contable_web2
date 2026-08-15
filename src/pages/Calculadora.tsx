@@ -49,16 +49,16 @@ export default function Calculadora() {
             onClick={() => setCalculadoraActiva(calc.id as CalculadoraActiva)}
             className={`p-4 rounded-xl border-2 transition-all text-left
               ${calculadoraActiva === calc.id
-                ? 'border-[#1E3A5F] bg-[#1E3A5F]/5'
+                ? 'border-primary bg-primary/5'
                 : 'border-gray-200 hover:border-gray-300 bg-white'
               }
             `}
           >
             <calc.icon
               size={24}
-              className={`mb-2 ${calculadoraActiva === calc.id ? 'text-[#1E3A5F]' : 'text-gray-400'}`}
+              className={`mb-2 ${calculadoraActiva === calc.id ? 'text-primary' : 'text-gray-400'}`}
             />
-            <p className={`font-medium ${calculadoraActiva === calc.id ? 'text-[#1E3A5F]' : 'text-gray-700'}`}>
+            <p className={`font-medium ${calculadoraActiva === calc.id ? 'text-primary' : 'text-gray-700'}`}>
               {calc.label}
             </p>
           </button>
@@ -255,7 +255,7 @@ function CalculadoraHonorarios() {
             <button
               onClick={() => { setModo('bruto'); setResultado(null); }}
               className={`flex-1 py-2 px-3 rounded-lg font-medium ${
-                modo === 'bruto' ? 'bg-[#1E3A5F] text-white' : 'bg-gray-100 text-gray-600'
+                modo === 'bruto' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
               Calcular desde Bruto
@@ -263,7 +263,7 @@ function CalculadoraHonorarios() {
             <button
               onClick={() => { setModo('liquido'); setResultado(null); }}
               className={`flex-1 py-2 px-3 rounded-lg font-medium ${
-                modo === 'liquido' ? 'bg-[#1E3A5F] text-white' : 'bg-gray-100 text-gray-600'
+                modo === 'liquido' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
               Calcular desde Líquido
@@ -361,7 +361,7 @@ function CalculadoraAFP() {
             </div>
             <div className="flex justify-between items-center pt-3 border-t font-semibold">
               <span>Total Cotización</span>
-              <span className="text-[#1E3A5F]">{formatCurrency(total)}</span>
+              <span className="text-primary">{formatCurrency(total)}</span>
             </div>
           </div>
           <div className="text-xs text-gray-500 pt-2">
@@ -404,7 +404,7 @@ function CalculadoraImpuesto() {
             <button
               onClick={() => setMostrarAnual(false)}
               className={`flex-1 py-2 px-3 rounded-lg font-medium ${
-                !mostrarAnual ? 'bg-[#1E3A5F] text-white' : 'bg-gray-100 text-gray-600'
+                !mostrarAnual ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
               Ver Mensual
@@ -412,7 +412,7 @@ function CalculadoraImpuesto() {
             <button
               onClick={() => setMostrarAnual(true)}
               className={`flex-1 py-2 px-3 rounded-lg font-medium ${
-                mostrarAnual ? 'bg-[#1E3A5F] text-white' : 'bg-gray-100 text-gray-600'
+                mostrarAnual ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
               Ver Anual
@@ -425,7 +425,7 @@ function CalculadoraImpuesto() {
             <p className="text-sm text-gray-500 mb-1">
               Impuesto {mostrarAnual ? 'Anual' : 'Mensual'}
             </p>
-            <p className="text-3xl font-bold text-[#1E3A5F]">
+            <p className="text-3xl font-bold text-primary">
               {formatCurrency(mostrarAnual ? impuestoTotal : impuestoMensual)}
             </p>
           </div>

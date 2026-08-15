@@ -8,6 +8,7 @@ import { Empresa } from '../stores/appStore';
 import { formatCurrency, formatRUT, numeroALetras, formatDate } from '../utils/calculos';
 import { UF_2026_MAYO_REFERENCIAL, UTM_2026_MAYO, TOPES_LEGALES, getHorasSemanalesPorPeriodo } from '../data/normativa';
 import { PreviRedService } from './PreviRedService';
+import { getBrandRgb } from '../utils/brandColor';
 
 function obtenerEmpresaConfig(config?: ConfiguracionEmpresa) {
   // 1. Preferir config explícito (viene de AppContext — es la fuente de verdad)
@@ -201,8 +202,6 @@ export function generarPDFLiquidacionDesdeLinea(
 
 type LiquidoReal = LiquidoCalculado & ResultadoSueldoLiquido;
 
-const ACCENT = '#1E3A5F';
-
 function agregarHeader(doc: jsPDF, titulo: string, subtitulo?: string, config?: ConfiguracionEmpresa | Empresa) {
   let empresa: ConfiguracionEmpresa | Empresa | null | undefined = useAppStore.getState().empresaActiva;
   
@@ -231,7 +230,8 @@ function agregarHeader(doc: jsPDF, titulo: string, subtitulo?: string, config?: 
     return;
   }
 
-  doc.setFillColor(30, 58, 95);
+  const brandRgb = getBrandRgb();
+  doc.setFillColor(...brandRgb);
   doc.rect(0, 0, 210, 28, 'F');
 
   doc.setTextColor(255, 255, 255);
@@ -252,7 +252,7 @@ function agregarHeader(doc: jsPDF, titulo: string, subtitulo?: string, config?: 
     }
   }
 
-  doc.setTextColor(30, 58, 95);
+  doc.setTextColor(...brandRgb);
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
   doc.text(titulo, 14, 38);
@@ -351,7 +351,7 @@ export function generarPDFEstadoFinanciero(
     head: [['Cuenta', 'Monto (CLP)']],
     body: data.map(row => [row.label, formatCurrency(row.valor)]),
     theme: 'striped',
-    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold' },
+    headStyles: { fillColor: getBrandRgb(), textColor: 255, fontStyle: 'bold' },
     bodyStyles: { fontSize: 9 },
     columnStyles: { 0: { cellWidth: 140 }, 1: { cellWidth: 46, halign: 'right' } },
     margin: { left: 14, right: 14 },
@@ -392,7 +392,7 @@ export function generarPDFAsientos(
       ]),
     ]),
     theme: 'striped',
-    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+    headStyles: { fillColor: getBrandRgb(), textColor: 255, fontStyle: 'bold', fontSize: 9 },
     bodyStyles: { fontSize: 8 },
     columnStyles: {
       0: { cellWidth: 10, halign: 'center' },
@@ -453,7 +453,7 @@ export function generarPDFMayorContable(
       ],
     ],
     theme: 'striped',
-    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+    headStyles: { fillColor: getBrandRgb(), textColor: 255, fontStyle: 'bold', fontSize: 9 },
     bodyStyles: { fontSize: 8 },
     columnStyles: {
       0: { cellWidth: 25 },
@@ -496,7 +496,7 @@ export function generarPDFResumen(
       formatCurrency(r.total),
     ]),
     theme: 'striped',
-    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+    headStyles: { fillColor: getBrandRgb(), textColor: 255, fontStyle: 'bold', fontSize: 9 },
     bodyStyles: { fontSize: 8 },
     columnStyles: {
       0: { cellWidth: 25 }, 1: { cellWidth: 30 }, 2: { cellWidth: 60 },

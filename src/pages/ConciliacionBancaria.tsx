@@ -388,7 +388,7 @@ export default function ConciliacionBancaria() {
             <button onClick={() => { setBancariaSeleccionada(null); setContableSeleccionada(null); }} className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-300 transition-colors">
               Cancelar
             </button>
-            <button onClick={conciliarManual} className="px-3 py-1.5 bg-[#1E3A5F] text-white text-xs font-semibold rounded-lg hover:bg-[#2D5A87] transition-colors">
+            <button onClick={conciliarManual} className="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors">
               Conciliar Manual
             </button>
           </div>
@@ -415,7 +415,7 @@ export default function ConciliacionBancaria() {
                 placeholder="Buscar en Cartola (fecha, monto, descripción)..." 
                 value={filtroBancaria}
                 onChange={(e) => setFiltroBancaria(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>
@@ -439,7 +439,7 @@ export default function ConciliacionBancaria() {
                           ? 'bg-emerald-100 border-emerald-400 shadow-sm animate-pulse' 
                           : 'bg-emerald-50 border-emerald-200' 
                         : isSelected
-                          ? 'border-[#1E3A5F] ring-2 ring-[#1E3A5F]/25 bg-blue-50/30'
+                          ? 'border-primary ring-2 ring-primary/25 bg-blue-50/30'
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                   >
@@ -503,7 +503,7 @@ export default function ConciliacionBancaria() {
                 placeholder="Buscar en Libro (fecha, monto, glosa)..." 
                 value={filtroContable}
                 onChange={(e) => setFiltroContable(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>
@@ -527,7 +527,7 @@ export default function ConciliacionBancaria() {
                           ? 'bg-emerald-100 border-emerald-400 shadow-sm animate-pulse' 
                           : 'bg-emerald-50 border-emerald-200' 
                         : isSelected
-                          ? 'border-[#1E3A5F] ring-2 ring-[#1E3A5F]/25 bg-blue-50/30'
+                          ? 'border-primary ring-2 ring-primary/25 bg-blue-50/30'
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                   >

@@ -40,9 +40,9 @@ export function WidgetNotas({ notas, notaColor, setNotaColor, newNota, setNewNot
           onChange={e => setNewNota(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && addNota()}
           placeholder="Nueva nota..."
-          className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1E3A5F]"
+          className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
         />
-        <button onClick={addNota} className="px-3 py-1.5 bg-[#1E3A5F] text-white rounded-lg text-sm hover:bg-[#2D5A87]">
+        <button onClick={addNota} className="px-3 py-1.5 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
           <Plus size={14} />
         </button>
       </div>

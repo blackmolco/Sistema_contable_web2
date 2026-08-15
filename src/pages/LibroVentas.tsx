@@ -132,7 +132,7 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             {documentos.length} documento{documentos.length !== 1 ? 's' : ''} en total ·
-            <span className="font-semibold text-[#1E3A5F] ml-1">{registros.length} en {nombreMes} {selectedAnio}</span>
+            <span className="font-semibold text-primary ml-1">{registros.length} en {nombreMes} {selectedAnio}</span>
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -157,7 +157,7 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
           <select
             value={selectedMes}
             onChange={(e) => setSelectedMes(Number(e.target.value))}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {MESES.map((mes) => (
               <option key={mes.numero} value={mes.numero}>
@@ -169,7 +169,7 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
           <select
             value={selectedAnio}
             onChange={(e) => setSelectedAnio(Number(e.target.value))}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {[2023, 2024, 2025, 2026, 2027].map(y => (
               <option key={y} value={y}>{y}</option>
@@ -199,7 +199,7 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
         </Card>
         <Card padding="sm">
           <p className="text-sm text-gray-500 mb-1">Total</p>
-          <p className="text-xl font-bold text-[#1E3A5F]">{formatCurrency(totales.total)}</p>
+          <p className="text-xl font-bold text-primary">{formatCurrency(totales.total)}</p>
         </Card>
         <Card padding="sm">
           <p className="text-sm text-gray-500 mb-1">Documentos</p>
@@ -279,7 +279,7 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
               <td className="px-4 py-3 text-right tnum font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(totales.exento)}</td>
               <td className="px-4 py-3 text-right tnum font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(totales.neto)}</td>
               <td className="px-4 py-3 text-right tnum font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(totales.iva)}</td>
-              <td className="px-4 py-3 text-right tnum font-semibold text-[#1E3A5F] dark:text-blue-300">{formatCurrency(totales.total)}</td>
+              <td className="px-4 py-3 text-right tnum font-semibold text-primary dark:text-blue-300">{formatCurrency(totales.total)}</td>
             </tr>
           </tfoot>
         </table>

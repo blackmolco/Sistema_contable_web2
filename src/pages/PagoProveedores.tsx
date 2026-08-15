@@ -102,7 +102,7 @@ export default function PagoProveedores() {
             
             <button 
               onClick={seleccionarTodas}
-              className="text-sm text-[#1E3A5F] hover:underline font-medium"
+              className="text-sm text-primary hover:underline font-medium"
             >
               {seleccionadas.length === facturasPendientes.length ? 'Deseleccionar Todas' : 'Seleccionar Todas'}
             </button>

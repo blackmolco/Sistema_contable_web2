@@ -49,21 +49,7 @@ import { WidgetCalendario, type VencimientoTributario } from '../components/dash
 import { WidgetNotas, type NotaRapida, NOTA_COLORES } from '../components/dashboard/WidgetNotas';
 import { WidgetAlertas } from '../components/dashboard/WidgetAlertas';
 import { WidgetActividad } from '../components/dashboard/WidgetActividad';
-
-// Paleta categórica de los gráficos — un color fijo por concepto, igual en todos
-// los gráficos del dashboard (Línea, Área, Barras, Torta), en vez de hex sueltos
-// por widget. Slots 1-3 del set validado (CVD-safe, all-pairs) de la skill dataviz;
-// el 4to concepto de cada grupo se pliega a gris neutro ("Otros") en vez de un 4to
-// tono que ya no valida en conjunto.
-const CHART_PALETTE = {
-  ventas:     '#1baf7a', // aqua  — slot 3
-  ingresos:   '#1baf7a', // mismo concepto que "ventas"
-  compras:    '#2a78d6', // blue  — slot 1
-  gastos:     '#eb6834', // orange— slot 2
-  proyectado: '#2a78d6', // blue  — base/confirmado
-  prediccion: '#4a3aa7', // violet— slot 7, distingue "predicción IA"
-  neutro:     '#898781', // gris muted — categoría "Otros"
-};
+import { CHART_PALETTE } from '../utils/chartPalette';
 
 // Tipos para widgets configurables
 interface WidgetConfig {
@@ -562,11 +548,13 @@ export default function Dashboard() {
                   <Tooltip
                     formatter={(value: number) => [formatCurrency(value), '']}
                     contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #E5E7EB',
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                       boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
                     }}
+                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                    labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" iconSize={8} />
                   <Line type="monotone" dataKey="ventas" stroke={CHART_PALETTE.ventas} strokeWidth={2} dot={{ fill: CHART_PALETTE.ventas }} name="Ventas" />
@@ -642,10 +630,12 @@ export default function Dashboard() {
                   <Tooltip
                     formatter={(value: number) => [formatCurrency(value), '']}
                     contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #E5E7EB',
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                     }}
+                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                    labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={8} />
                   <Area
@@ -697,10 +687,12 @@ export default function Dashboard() {
                   <Tooltip
                     formatter={(value: number) => [formatCurrency(value), '']}
                     contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #E5E7EB',
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                     }}
+                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                    labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" iconSize={8} />
                   <Bar dataKey="ingreso" fill={CHART_PALETTE.ingresos} name="Ingresos" radius={[4, 4, 0, 0]} />
@@ -749,7 +741,7 @@ export default function Dashboard() {
             onClick={() => setShowSettings(!showSettings)}
             className={`btn-modern flex items-center gap-2 ${
               showSettings
-                ? 'bg-[#1E3A5F] text-white border-[#1E3A5F]'
+                ? 'bg-primary text-white border-primary'
                 : 'border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`}
           >
@@ -776,7 +768,7 @@ export default function Dashboard() {
                     type="checkbox"
                     checked={widget.visible}
                     onChange={() => toggleWidget(widget.id)}
-                    className="w-4 h-4 rounded border-gray-300 text-[#1E3A5F] focus:ring-[#1E3A5F]"
+                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
                   />
                   <span className="text-sm text-gray-700">{widget.title}</span>
                   {widget.id === 'chart-area' && (
@@ -904,7 +896,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
             <div className="flex items-center gap-2 mb-3">
-              <Calendar size={18} className="text-[#1E3A5F] dark:text-blue-400" />
+              <Calendar size={18} className="text-primary dark:text-blue-400" />
               <span className="font-medium text-gray-900 dark:text-gray-100">Tablas Tributarias</span>
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">Descarga las últimas tablas del SII directamente</p>
@@ -913,7 +905,7 @@ export default function Dashboard() {
                 const tablas = SIIService.descargarTablas();
                 showToast('success', 'Tablas descargadas', `UF ${tablas.uf.valor}, UTM ${tablas.utm}, UTA ${tablas.uta}`);
               }}
-              className="w-full px-3 py-2 bg-[#1E3A5F] text-white rounded-lg text-sm hover:bg-[#2D5A87] transition-colors"
+              className="w-full px-3 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-colors"
             >
               Descargar Tablas
             </button>
@@ -921,7 +913,7 @@ export default function Dashboard() {
 
           <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
             <div className="flex items-center gap-2 mb-3">
-              <Activity size={18} className="text-[#1E3A5F] dark:text-blue-400" />
+              <Activity size={18} className="text-primary dark:text-blue-400" />
               <span className="font-medium text-gray-900 dark:text-gray-100">Validar RUT</span>
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">Verifica si un RUT es válido según algoritmo SII</p>
@@ -930,7 +922,7 @@ export default function Dashboard() {
                 const result = SIIService.validarRUT('76.543.210-1');
                 showToast('info', 'Validación RUT', `RUT 76.543.210-1 — Válido: ${result.valido ? 'Sí' : 'No'}, DV: ${result.digitoVerificador}`);
               }}
-              className="w-full px-3 py-2 bg-[#1E3A5F] text-white rounded-lg text-sm hover:bg-[#2D5A87] transition-colors"
+              className="w-full px-3 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-colors"
             >
               Probar Validación
             </button>
@@ -938,7 +930,7 @@ export default function Dashboard() {
 
           <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
             <div className="flex items-center gap-2 mb-3">
-              <DollarSign size={18} className="text-[#1E3A5F] dark:text-blue-400" />
+              <DollarSign size={18} className="text-primary dark:text-blue-400" />
               <span className="font-medium text-gray-900 dark:text-gray-100">Calcular PPM</span>
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">Pro rata PPM afecto según renta imponible</p>
@@ -947,7 +939,7 @@ export default function Dashboard() {
                 const ppm = SIIService.calcularPPM(1500000);
                 showToast('info', 'Cálculo PPM', `Renta $1.500.000 — PPM ${ppm.porcentaje}%: $${ppm.monto.toLocaleString('es-CL')}`);
               }}
-              className="w-full px-3 py-2 bg-[#1E3A5F] text-white rounded-lg text-sm hover:bg-[#2D5A87] transition-colors"
+              className="w-full px-3 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-colors"
             >
               Calcular PPM
             </button>

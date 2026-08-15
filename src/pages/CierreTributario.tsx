@@ -290,7 +290,7 @@ export default function CierreTributario() {
                         onClick={() => setTasaD3(rate as 10 | 12.5 | 27)}
                         className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
                           tasaD3 === rate
-                            ? 'bg-white dark:bg-gray-700 text-[#1E3A5F] dark:text-white shadow-sm'
+                            ? 'bg-white dark:bg-gray-700 text-primary dark:text-white shadow-sm'
                             : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         }`}
                       >
@@ -300,7 +300,7 @@ export default function CierreTributario() {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center px-4 py-3 bg-[#1E3A5F] dark:bg-[#112237] text-white rounded-xl shadow-inner">
+                <div className="flex justify-between items-center px-4 py-3 bg-primary dark:bg-[#112237] text-white rounded-xl shadow-inner">
                   <div className="flex items-center gap-2">
                     <Shield size={16} className="text-indigo-300" />
                     <span className="text-xs font-semibold uppercase tracking-wider text-indigo-200">IDPC Calculado ({tasaD3}%)</span>
@@ -480,7 +480,7 @@ export default function CierreTributario() {
           </Card>
 
           {/* Exportación */}
-          <Card className="bg-gradient-to-br from-[#1E3A5F] to-[#2D5A87] text-white border-none shadow-lg">
+          <Card className="bg-gradient-to-br from-primary to-[var(--brand-dark)] text-white border-none shadow-lg">
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-white/10 rounded-lg mt-0.5">
@@ -494,7 +494,7 @@ export default function CierreTributario() {
               <button
                 onClick={exportPapelesTrabajo}
                 disabled={!tieneDatos}
-                className="w-full py-2.5 bg-white text-[#1E3A5F] font-bold text-xs rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-white active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow"
+                className="w-full py-2.5 bg-white text-primary font-bold text-xs rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-white active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow"
               >
                 <Download size={14} /> Exportar Papeles de Trabajo (CSV)
               </button>

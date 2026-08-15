@@ -361,8 +361,8 @@ export default function Previred() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-            <FileText className="text-[#1E3A5F] dark:text-blue-400" size={24} />
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <FileText className="text-primary dark:text-blue-400" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Previsiones y Nóminas Bancarias</h1>
@@ -377,7 +377,7 @@ export default function Previred() {
           <select 
             value={mes} 
             onChange={(e) => setMes(Number(e.target.value))}
-            className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-800 dark:text-gray-200 text-sm focus:ring-2 focus:ring-[#1E3A5F]/20"
+            className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-800 dark:text-gray-200 text-sm focus:ring-2 focus:ring-primary/20"
           >
             <option value={1}>Enero</option>
             <option value={2}>Febrero</option>
@@ -396,7 +396,7 @@ export default function Previred() {
             type="number" 
             value={anio}
             onChange={(e) => setAnio(Number(e.target.value))}
-            className="w-20 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-800 dark:text-gray-200 text-sm focus:ring-2 focus:ring-[#1E3A5F]/20"
+            className="w-20 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-800 dark:text-gray-200 text-sm focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </div>
@@ -407,7 +407,7 @@ export default function Previred() {
           onClick={() => setTabActiva('previred')}
           className={`py-3 px-6 font-medium text-sm border-b-2 transition-colors ${
             tabActiva === 'previred'
-              ? 'border-[#1E3A5F] text-[#1E3A5F] dark:border-blue-400 dark:text-blue-400'
+              ? 'border-primary text-primary dark:border-blue-400 dark:text-blue-400'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
@@ -417,7 +417,7 @@ export default function Previred() {
           onClick={() => setTabActiva('nominas')}
           className={`py-3 px-6 font-medium text-sm border-b-2 transition-colors ${
             tabActiva === 'nominas'
-              ? 'border-[#1E3A5F] text-[#1E3A5F] dark:border-blue-400 dark:text-blue-400'
+              ? 'border-primary text-primary dark:border-blue-400 dark:text-blue-400'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
@@ -468,7 +468,7 @@ export default function Previred() {
 
             <button 
               onClick={generarArchivoPrevired}
-              className="w-full py-3 bg-[#1E3A5F] hover:bg-[#2D5A87] dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 font-medium shadow-md"
+              className="w-full py-3 bg-primary hover:bg-primary/90 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 font-medium shadow-md"
             >
               <Download size={20} />
               Descargar Archivo Previred (.csv)
@@ -488,7 +488,7 @@ export default function Previred() {
               </div>
               <div className="flex justify-between items-center py-2 text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Trabajadores a Declarar</span>
-                <span className="font-bold text-[#1E3A5F] dark:text-blue-400">{listaPagos.length}</span>
+                <span className="font-bold text-primary dark:text-blue-400">{listaPagos.length}</span>
               </div>
               <div className="flex justify-between items-center py-2 text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Imponible Total Est.</span>
@@ -512,7 +512,7 @@ export default function Previred() {
                       onClick={() => setBancoSeleccionado('chile')}
                       className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition-all ${
                         bancoSeleccionado === 'chile'
-                          ? 'border-[#1E3A5F] bg-[#1E3A5F]/5 dark:border-blue-500 dark:bg-blue-500/10 text-[#1E3A5F] dark:text-blue-400'
+                          ? 'border-primary bg-primary/5 dark:border-blue-500 dark:bg-blue-500/10 text-primary dark:text-blue-400'
                           : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
                       }`}
                     >
@@ -547,7 +547,7 @@ export default function Previred() {
 
                 <button
                   onClick={generarNominaBancaria}
-                  className="w-full py-3 bg-[#1E3A5F] hover:bg-[#2D5A87] dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 font-medium shadow-md"
+                  className="w-full py-3 bg-primary hover:bg-primary/90 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 font-medium shadow-md"
                 >
                   <Download size={18} />
                   Exportar Nómina TXT
@@ -562,7 +562,7 @@ export default function Previred() {
                   Trabajadores e Información Bancaria
                 </h3>
                 <span className="text-xs bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full text-gray-500">
-                  Total Líquido a Transferir: <span className="font-bold font-mono text-[#1E3A5F] dark:text-blue-400">{formatCurrency(listaPagos.reduce((s, p) => s + p.montoLiquido, 0))}</span>
+                  Total Líquido a Transferir: <span className="font-bold font-mono text-primary dark:text-blue-400">{formatCurrency(listaPagos.reduce((s, p) => s + p.montoLiquido, 0))}</span>
                 </span>
               </div>
 

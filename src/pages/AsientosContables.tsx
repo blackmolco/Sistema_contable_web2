@@ -224,7 +224,7 @@ export default function AsientosContables() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" icon={<Bookmark size={15} />} onClick={() => setShowPlantillasModal(true)}>
-            Plantillas {plantillas.length > 0 && <span className="ml-1 bg-[#1E3A5F] text-white text-xs rounded-full px-1.5 py-0.5">{plantillas.length}</span>}
+            Plantillas {plantillas.length > 0 && <span className="ml-1 bg-primary text-white text-xs rounded-full px-1.5 py-0.5">{plantillas.length}</span>}
           </Button>
           <Button icon={<Plus size={16} />} onClick={abrirModalNuevo}>
             Nuevo Asiento
@@ -305,7 +305,7 @@ export default function AsientosContables() {
                     <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={() => abrirModalEditar(asiento)}
-                        className="p-2 text-gray-400 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-lg
+                        className="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 rounded-lg
                           transition-[background-color,color] duration-150 active:scale-[0.95]"
                         title="Editar"
                         aria-label={`Editar asiento #${asiento.numero}`}
@@ -531,7 +531,7 @@ export default function AsientosContables() {
               <button
                 type="button"
                 onClick={() => setShowGuardarPlantillaModal(true)}
-                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#1E3A5F] transition-colors"
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary transition-colors"
               >
                 <BookmarkPlus size={13} />
                 Guardar como plantilla reutilizable

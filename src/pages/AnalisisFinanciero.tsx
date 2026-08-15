@@ -190,7 +190,7 @@ export default function AnalisisFinancieroPage() {
         tieneAsientos ? (
           <button
             onClick={cargarDesdeAsientos}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#1E3A5F] border border-[#1E3A5F]/30 rounded-lg hover:bg-[#1E3A5F]/5 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-colors"
           >
             <RefreshCw size={13} />
             Cargar desde asientos

@@ -118,8 +118,8 @@ export default function MayorContable() {
       {/* Header */}
       <div className="flex items-center justify-between no-print">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-            <BookOpen className="text-[#1E3A5F]" size={24} />
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <BookOpen className="text-primary" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Libro Mayor</h1>
@@ -184,7 +184,7 @@ export default function MayorContable() {
                         transition-[background-color,color,transform] duration-150
                         active:scale-[0.97]
                         ${isActive
-                          ? 'bg-[#1E3A5F] text-white shadow-sm'
+                          ? 'bg-primary text-white shadow-sm'
                           : 'hover:bg-gray-100 text-gray-700'
                         }`}
                     >
@@ -239,7 +239,7 @@ export default function MayorContable() {
               {/* Cabecera del documento */}
               <div className="p-5 border-b border-gray-200 text-center">
                 <h2 className="text-xl font-bold uppercase text-gray-900">LIBRO MAYOR</h2>
-                <p className="text-base font-bold text-[#1E3A5F] mt-1">
+                <p className="text-base font-bold text-primary mt-1">
                   {infoCuenta?.codigo} — {infoCuenta?.nombre}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
@@ -295,7 +295,7 @@ export default function MayorContable() {
                         movimientosMayor.map((mov, idx) => (
                           <tr key={idx} className="odd:bg-gray-50/50 dark:odd:bg-gray-800/30 hover:bg-blue-50 dark:hover:bg-gray-700/50">
                             <td className="py-2 px-4 text-xs">{formatDate(mov.fecha)}</td>
-                            <td className="py-2 px-4 font-mono text-xs text-[#1E3A5F] font-bold">
+                            <td className="py-2 px-4 font-mono text-xs text-primary font-bold">
                               #{mov.numeroAsiento}
                             </td>
                             <td className="py-2 px-4 text-xs text-gray-700">{mov.glosa}</td>
@@ -359,7 +359,7 @@ export default function MayorContable() {
                           movimientosMayor.filter(m => m.debe > 0).map((mov, idx) => (
                             <div key={idx} className="py-2 text-xs hover:bg-gray-50 px-2 rounded transition-colors">
                               <div className="flex justify-between items-start gap-2">
-                                <span className="font-mono text-[#1E3A5F] font-semibold">#{mov.numeroAsiento}</span>
+                                <span className="font-mono text-primary font-semibold">#{mov.numeroAsiento}</span>
                                 <span className="font-bold text-gray-900">{formatCurrency(mov.debe)}</span>
                               </div>
                               <div className="flex justify-between items-center text-[10px] text-gray-500 mt-0.5">
@@ -384,7 +384,7 @@ export default function MayorContable() {
                           movimientosMayor.filter(m => m.haber > 0).map((mov, idx) => (
                             <div key={idx} className="py-2 text-xs hover:bg-gray-50 px-2 rounded transition-colors">
                               <div className="flex justify-between items-start gap-2">
-                                <span className="font-mono text-[#1E3A5F] font-semibold">#{mov.numeroAsiento}</span>
+                                <span className="font-mono text-primary font-semibold">#{mov.numeroAsiento}</span>
                                 <span className="font-bold text-gray-900">{formatCurrency(mov.haber)}</span>
                               </div>
                               <div className="flex justify-between items-center text-[10px] text-gray-500 mt-0.5">

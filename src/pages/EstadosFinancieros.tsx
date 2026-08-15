@@ -15,6 +15,7 @@ import { Card } from '../components/ui/Cards';
 import { Button } from '../components/ui/FormElements';
 import { formatCurrency } from '../utils/calculos';
 import { generarPDFEstadoFinanciero } from '../services/reportesPdf';
+import { CHART_PALETTE } from '../utils/chartPalette';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -238,7 +239,7 @@ export default function EstadosFinancieros() {
             <tbody>
 
               {/* ACTIVOS */}
-              <tr className="bg-[#1E3A5F] text-white">
+              <tr className="bg-primary text-white">
                 <td colSpan={2} className="px-4 py-3 font-bold text-lg">ACTIVOS</td>
               </tr>
 
@@ -286,7 +287,7 @@ export default function EstadosFinancieros() {
                 </tr>
               )}
 
-              <tr className="bg-[#1E3A5F] text-white font-bold">
+              <tr className="bg-primary text-white font-bold">
                 <td className="px-4 py-3">TOTAL ACTIVOS</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(totalActivos)}</td>
               </tr>
@@ -386,7 +387,7 @@ export default function EstadosFinancieros() {
                 <td className="px-4 py-3 text-gray-900">TOTAL PASIVOS + PATRIMONIO</td>
                 <td
                   className={`px-4 py-3 text-right ${
-                    equilibrado ? 'text-[#1E3A5F]' : 'text-red-600'
+                    equilibrado ? 'text-primary' : 'text-red-600'
                   }`}
                 >
                   {formatCurrency(totalPasivosPatrimonio)}
@@ -404,7 +405,7 @@ export default function EstadosFinancieros() {
           <table className="w-full">
             <tbody>
 
-              <tr className="bg-[#1E3A5F] text-white">
+              <tr className="bg-primary text-white">
                 <td colSpan={2} className="px-4 py-3 font-bold text-lg">INGRESOS</td>
               </tr>
               {cuentasIngresos.map(f => (
@@ -456,7 +457,7 @@ export default function EstadosFinancieros() {
 
               <tr
                 className={`font-bold text-white ${
-                  resultadoEjercicio >= 0 ? 'bg-[#10B981]' : 'bg-red-500'
+                  resultadoEjercicio >= 0 ? 'bg-accent' : 'bg-red-500'
                 }`}
               >
                 <td className="px-4 py-3">RESULTADO DEL EJERCICIO</td>
@@ -482,10 +483,10 @@ export default function EstadosFinancieros() {
                 <Line
                   type="monotone"
                   dataKey="ingresos"
-                  stroke="#10B981"
+                  stroke={CHART_PALETTE.ingresos}
                   strokeWidth={2}
                   name="Ingresos"
-                  dot={{ fill: '#10B981' }}
+                  dot={{ fill: CHART_PALETTE.ingresos }}
                 />
                 <Line
                   type="monotone"
@@ -498,11 +499,11 @@ export default function EstadosFinancieros() {
                 <Line
                   type="monotone"
                   dataKey="resultado"
-                  stroke="#1E3A5F"
+                  stroke={CHART_PALETTE.compras}
                   strokeWidth={2}
                   strokeDasharray="5 5"
                   name="Resultado"
-                  dot={{ fill: '#1E3A5F' }}
+                  dot={{ fill: CHART_PALETTE.compras }}
                 />
               </LineChart>
             </ResponsiveContainer>

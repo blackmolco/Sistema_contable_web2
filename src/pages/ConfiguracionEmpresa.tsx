@@ -173,7 +173,7 @@ export default function ConfiguracionEmpresa() {
                 type="text"
                 value={nuevaEmpresa.razonSocial}
                 onChange={(e) => setNuevaEmpresa({ ...nuevaEmpresa, razonSocial: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="Ej: Mi Empresa Ltda."
               />
             </div>
@@ -185,7 +185,7 @@ export default function ConfiguracionEmpresa() {
                 type="text"
                 value={nuevaEmpresa.nombreFantasia}
                 onChange={(e) => setNuevaEmpresa({ ...nuevaEmpresa, nombreFantasia: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="Ej: Mi Empresa"
               />
             </div>
@@ -197,7 +197,7 @@ export default function ConfiguracionEmpresa() {
                 type="text"
                 value={nuevaEmpresa.rut}
                 onChange={(e) => setNuevaEmpresa({ ...nuevaEmpresa, rut: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="12.345.678-9"
               />
             </div>
@@ -215,7 +215,7 @@ export default function ConfiguracionEmpresa() {
                     setNuevaEmpresa({ ...nuevaEmpresa, giro: actividad.giro });
                   }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="">Seleccione una actividad</option>
                 {ACTIVIDADES_SII.map(act => (
@@ -233,7 +233,7 @@ export default function ConfiguracionEmpresa() {
                 type="text"
                 value={nuevaEmpresa.giro}
                 onChange={(e) => setNuevaEmpresa({ ...nuevaEmpresa, giro: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="Ej: Venta de productos"
               />
             </div>
@@ -245,7 +245,7 @@ export default function ConfiguracionEmpresa() {
                 type="text"
                 value={nuevaEmpresa.direccion}
                 onChange={(e) => setNuevaEmpresa({ ...nuevaEmpresa, direccion: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="Ej: Av. Principal 123"
               />
             </div>
@@ -260,7 +260,7 @@ export default function ConfiguracionEmpresa() {
                   const comunas = REGIONES_COMUNAS[val] || [];
                   setNuevaEmpresa({ ...nuevaEmpresa, ciudad: val, comuna: comunas.length > 0 ? comunas[0] : '' });
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="">Seleccione región...</option>
                 {Object.keys(REGIONES_COMUNAS).map(region => (
@@ -275,7 +275,7 @@ export default function ConfiguracionEmpresa() {
               <select
                 value={nuevaEmpresa.comuna}
                 onChange={(e) => setNuevaEmpresa({ ...nuevaEmpresa, comuna: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                 disabled={!nuevaEmpresa.ciudad}
               >
                 <option value="">Seleccione comuna...</option>
@@ -292,7 +292,7 @@ export default function ConfiguracionEmpresa() {
                 type="text"
                 value={nuevaEmpresa.telefono}
                 onChange={(e) => setNuevaEmpresa({ ...nuevaEmpresa, telefono: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="+56 2 2345 6789"
               />
             </div>
@@ -304,13 +304,13 @@ export default function ConfiguracionEmpresa() {
                 type="email"
                 value={nuevaEmpresa.email}
                 onChange={(e) => setNuevaEmpresa({ ...nuevaEmpresa, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="contacto@empresa.cl"
               />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Logo de empresa</label>
-              <label className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-[#1E3A5F] hover:bg-gray-50 transition-colors">
+              <label className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary hover:bg-gray-50 transition-colors">
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/jpg,image/svg+xml"
@@ -437,7 +437,7 @@ export default function ConfiguracionEmpresa() {
             <div className="flex-1">
               <p className="text-sm font-medium text-gray-700 mb-1">Cambiar logo</p>
               <p className="text-xs text-gray-500 mb-3">PNG, JPG o SVG. Maximo 500KB. Se muestra en reportes PDF.</p>
-              <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#1E3A5F] text-white rounded-lg cursor-pointer hover:bg-[#2D5A87] transition-colors text-sm">
+              <label className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg cursor-pointer hover:bg-primary/90 transition-colors text-sm">
                 <Upload size={16} />
                 Seleccionar imagen
                 <input

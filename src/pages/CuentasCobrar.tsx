@@ -239,7 +239,7 @@ export default function CuentasCobrar() {
                       <p className="text-xs text-gray-400 font-mono">{c.clienteRut}</p>
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-xs text-gray-500">{c.tipoDocumento} #{c.numeroDocumento}</span>
-                        <span className="text-sm font-bold text-[#1E3A5F] dark:text-blue-300">{formatCLP(c.monto - c.montoPagado)}</span>
+                        <span className="text-sm font-bold text-primary dark:text-blue-300">{formatCLP(c.monto - c.montoPagado)}</span>
                       </div>
                       <p className="text-xs text-gray-400 mt-1">Vence: {formatDate(c.fechaVencimiento)}</p>
                       {c.estado !== 'pagado' && (
@@ -265,7 +265,7 @@ export default function CuentasCobrar() {
         <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
           {(['todos', 'pendiente', 'parcial', 'vencido', 'pagado'] as const).map(e => (
             <button key={e} onClick={() => setFilterEstado(e)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors capitalize ${filterEstado === e ? 'bg-[#1E3A5F] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors capitalize ${filterEstado === e ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {e === 'todos' ? 'Todos' : ESTADO_LABEL[e as EstadoCxC]}
             </button>
           ))}
@@ -285,7 +285,7 @@ export default function CuentasCobrar() {
                   {c.estado === 'vencido' && <p className="text-xs text-red-500">{diasVencimiento(c.fechaVencimiento)} días vencido</p>}
                 </td>
                 <td className="px-4 py-3 text-sm text-right font-medium">{formatCLP(c.monto)}</td>
-                <td className="px-4 py-3 text-sm text-right font-bold text-[#1E3A5F]">{formatCLP(c.monto - c.montoPagado)}</td>
+                <td className="px-4 py-3 text-sm text-right font-bold text-primary">{formatCLP(c.monto - c.montoPagado)}</td>
                 <td className="px-4 py-3 text-center"><Badge variant={ESTADO_VARIANT[c.estado]} dot>{ESTADO_LABEL[c.estado]}</Badge></td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-center gap-1">

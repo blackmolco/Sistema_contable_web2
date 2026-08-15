@@ -313,7 +313,7 @@ export default function Honorarios() {
                       )}
                       <button
                         onClick={() => abrirModalEditar(honorario)}
-                        className="p-2 text-gray-400 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 rounded-lg transition-colors"
                       >
                         <Edit2 size={18} />
                       </button>
@@ -438,7 +438,7 @@ export default function Honorarios() {
               }}
               className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
                 modoCalculadora === 'bruto'
-                  ? 'bg-[#1E3A5F] text-white'
+                  ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -451,7 +451,7 @@ export default function Honorarios() {
               }}
               className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
                 modoCalculadora === 'liquido'
-                  ? 'bg-[#1E3A5F] text-white'
+                  ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >

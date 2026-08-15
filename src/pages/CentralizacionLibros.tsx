@@ -240,8 +240,8 @@ export default function CentralizacionLibros() {
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-          <RefreshCw className="text-[#1E3A5F]" size={24} />
+        <div className="p-3 bg-primary/10 rounded-lg">
+          <RefreshCw className="text-primary" size={24} />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Centralización de Libros</h1>
@@ -299,7 +299,7 @@ export default function CentralizacionLibros() {
               </div>
               <div className="col-span-2">
                 <p className="text-xs text-gray-500 mb-1">Documentos encontrados</p>
-                <p className="text-2xl font-black text-[#1E3A5F]">
+                <p className="text-2xl font-black text-primary">
                   {docsPeriodo.length}
                   <span className="text-sm font-normal text-gray-500 ml-2">{MESES_NOMBRE[mes - 1]} {anio}</span>
                 </p>
@@ -318,7 +318,7 @@ export default function CentralizacionLibros() {
                 <p className="text-xs text-gray-500 mb-1">IVA</p>
                 <p className="text-xl font-black text-gray-900">{formatCurrency(totalIva)}</p>
               </Card>
-              <Card className="bg-[#1E3A5F] text-center">
+              <Card className="bg-primary text-center">
                 <p className="text-xs text-white/70 mb-1">TOTAL</p>
                 <p className="text-xl font-black text-white">{formatCurrency(totalFinal)}</p>
               </Card>
@@ -328,7 +328,7 @@ export default function CentralizacionLibros() {
           <button
             onClick={prepararAsignaciones}
             disabled={docsPeriodo.length === 0}
-            className="w-full py-4 bg-[#1E3A5F] text-white rounded-xl font-bold text-lg hover:bg-[#2D5A87] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+            className="w-full py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3"
           >
             <RefreshCw size={22} />
             {tipo === 'compras' ? 'Siguiente: Asignar Cuentas por Proveedor →' : `Centralizar ${MESES_NOMBRE[mes - 1]} ${anio}`}
@@ -435,7 +435,7 @@ export default function CentralizacionLibros() {
 
           <button
             onClick={generarAsientoCompras}
-            className="w-full py-4 bg-[#1E3A5F] text-white rounded-xl font-bold text-lg hover:bg-[#2D5A87] transition-colors flex items-center justify-center gap-3"
+            className="w-full py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-3"
           >
             <Save size={22} /> Generar Asiento Contable de Compras
           </button>

@@ -306,7 +306,7 @@ export default function F29() {
         </div>
         <button
           onClick={handlePrint}
-          className="px-4 py-2 bg-[#1E3A5F] text-white rounded-lg hover:bg-[#2D5A87] transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
         >
           <Printer size={18} />
           Generar PDF Oficial
@@ -494,7 +494,7 @@ export default function F29() {
             ) : (
               <button
                 onClick={generarAsientoCierreIva}
-                className="px-4 py-2 bg-[#1E3A5F] text-white hover:bg-[#2D5A87] transition-all rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm"
+                className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-all rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm"
               >
                 <RefreshCw size={16} /> Generar Asiento de Cierre de IVA
               </button>

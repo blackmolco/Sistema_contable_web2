@@ -133,7 +133,7 @@ export default function Configuracion() {
                   handleChange('actividadEconomica', val);
                 }
               }}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all duration-200"
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
             >
               <option value="">Seleccione una actividad</option>
               {ACTIVIDADES_SII.map(act => (
@@ -161,7 +161,7 @@ export default function Configuracion() {
                 setFormData({ ...formData, ciudad: val, comuna: comunas.length > 0 ? comunas[0] : '' });
                 setHasChanges(true);
               }}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all duration-200"
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
             >
               <option value="">Seleccione región...</option>
               {Object.keys(REGIONES_COMUNAS).map(region => (
@@ -176,7 +176,7 @@ export default function Configuracion() {
             <select
               value={formData.comuna}
               onChange={(e) => handleChange('comuna', e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all duration-200 disabled:bg-gray-50"
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 disabled:bg-gray-50"
               disabled={!formData.ciudad}
             >
               <option value="">Seleccione comuna...</option>
@@ -336,9 +336,12 @@ export default function Configuracion() {
 
           {/* Color scheme swatches */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Esquema de color
             </label>
+            <p className="text-xs text-gray-400 mb-3">
+              Ajusta solo el color, sin cambiar la tipografía ni el modo del menú lateral de la identidad elegida arriba.
+            </p>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {COLOR_SWATCHES.map(s => {
                 const isActive = theme.primaryColor === s.primary;

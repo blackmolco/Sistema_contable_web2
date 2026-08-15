@@ -115,8 +115,8 @@ export default function LibroRemuneraciones() {
 
       <div className="flex items-center justify-between no-print">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#1E3A5F]/10 rounded-lg">
-            <Book className="text-[#1E3A5F]" size={24} />
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <Book className="text-primary" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Libro de Remuneraciones</h1>
@@ -129,7 +129,7 @@ export default function LibroRemuneraciones() {
               <Download size={18} /> Exportar CSV LRE (DT)
             </button>
           )}
-          <button onClick={handlePrint} className="px-4 py-2 bg-[#1E3A5F] text-white rounded-lg hover:bg-[#2D5A87] transition-colors flex items-center gap-2 font-medium">
+          <button onClick={handlePrint} className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 font-medium">
             <Printer size={18} /> Imprimir Libro
           </button>
         </div>
