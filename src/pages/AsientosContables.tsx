@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, Edit2, Trash2, CheckCircle, AlertCircle, Bookmark, BookmarkPlus, Copy } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Card, Badge } from '../components/ui/Cards';
-import { Button, Input, Select, Textarea } from '../components/ui/FormElements';
+import { Button, Input, Select, SearchSelect, MontoInput, Textarea } from '../components/ui/FormElements';
 import { Modal, ConfirmDialog } from '../components/ui/Modal';
 import { AsientoContable, DetalleAsiento, PlantillaAsiento } from '../types';
 import { formatCurrency, formatDate, generateId } from '../utils/calculos';
@@ -345,7 +345,7 @@ export default function AsientosContables() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={editingAsiento ? `Editar Asiento #${editingAsiento.numero}` : 'Nuevo Asiento'}
-        size="xl"
+        size="full"
         closeOnBackdrop={false}
         footer={
           <>
@@ -456,29 +456,23 @@ export default function AsientosContables() {
             <div className="p-3 bg-gray-50/50 border-t border-gray-200">
               <div className="grid grid-cols-4 gap-2 items-end">
                 <div className="col-span-2">
-                  <Select
+                  <SearchSelect
                     value={nuevaLinea.cuentaId}
-                    onChange={(e) => setNuevaLinea({ ...nuevaLinea, cuentaId: e.target.value })}
+                    onChange={(v) => setNuevaLinea({ ...nuevaLinea, cuentaId: v })}
                     options={cuentasOptions}
                     placeholder="Seleccionar cuenta..."
                   />
                 </div>
-                <Input
-                  type="number"
+                <MontoInput
                   placeholder="Debe"
-                  value={nuevaLinea.debe || ''}
-                  onChange={(e) =>
-                    setNuevaLinea({ ...nuevaLinea, debe: Number(e.target.value), haber: 0 })
-                  }
+                  value={nuevaLinea.debe}
+                  onChange={(v) => setNuevaLinea({ ...nuevaLinea, debe: v, haber: 0 })}
                   className="text-right"
                 />
-                <Input
-                  type="number"
+                <MontoInput
                   placeholder="Haber"
-                  value={nuevaLinea.haber || ''}
-                  onChange={(e) =>
-                    setNuevaLinea({ ...nuevaLinea, haber: Number(e.target.value), debe: 0 })
-                  }
+                  value={nuevaLinea.haber}
+                  onChange={(v) => setNuevaLinea({ ...nuevaLinea, haber: v, debe: 0 })}
                   className="text-right"
                 />
               </div>
