@@ -43,6 +43,7 @@ import {
   UserCog,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useTheme, PRESETS, CATEGORY_COLORS } from '../../context/ThemeContext';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -146,6 +147,8 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
   const navigate = useNavigate();
   const location = useLocation();
   const { state } = useApp();
+  const { theme } = useTheme();
+  const isLight = (PRESETS[theme.preset] ?? PRESETS.tinta).chrome === 'light';
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
@@ -210,10 +213,12 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
   };
 
   // ── Render de un ítem del menú ─────────────────────────────────────────
-  const renderItem = (item: (typeof ALL_ITEMS)[number]) => {
+  // categoryColor: solo se usa en modo claro (preset "blanco"), un color por categoría.
+  const renderItem = (item: (typeof ALL_ITEMS)[number], categoryColor?: string) => {
     const Icon = item.icon;
     const active = isActive(item.path);
     const esFavorito = favoritos.includes(item.path);
+    const dotColor = categoryColor ?? 'var(--accent-color)';
 
     return (
       <li key={item.path} className="group/item relative">
@@ -224,12 +229,17 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
             transition-[background-color,color] duration-150
             active:scale-[0.97] relative
             focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none
-            ${active
-              ? 'bg-accent text-white shadow-sm'
-              : 'text-white/70 hover:bg-white/10 hover:text-white'
-            }
             ${collapsed ? 'justify-center' : ''}
           `}
+          style={
+            active
+              ? isLight
+                ? { background: `color-mix(in srgb, ${dotColor} 12%, white)`, color: dotColor, fontWeight: 600 }
+                : { background: 'var(--accent-color)', color: '#fff' }
+              : { color: 'var(--sidebar-fg-muted)' }
+          }
+          onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--sidebar-fg)'; } }}
+          onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--sidebar-fg-muted)'; } }}
           title={collapsed ? item.label : undefined}
         >
           <span className="relative flex-shrink-0">
@@ -265,7 +275,8 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
             aria-label={esFavorito ? `Quitar ${item.label} de favoritos` : `Agregar ${item.label} a favoritos`}
             className={`absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded
               transition-opacity focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none
-              ${esFavorito ? 'opacity-100 text-amber-400' : 'opacity-0 group-hover/item:opacity-100 text-white/40 hover:text-amber-300'}`}
+              ${esFavorito ? 'opacity-100 text-amber-400' : 'opacity-0 group-hover/item:opacity-100 hover:text-amber-300'}`}
+            style={!esFavorito ? { color: 'var(--sidebar-fg-faint)' } : undefined}
           >
             <Star size={12} fill={esFavorito ? 'currentColor' : 'none'} />
           </button>
@@ -276,18 +287,19 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
 
   return (
     <aside
-      className={`cc-sidebar fixed left-0 top-0 h-full bg-gradient-to-b from-primary to-[var(--brand-dark)] text-white z-40 flex flex-col
+      className={`cc-sidebar fixed left-0 top-0 h-full z-40 flex flex-col
         transition-[width,transform] duration-300
         ${collapsed ? 'w-[70px] md:translate-x-0 -translate-x-full' : 'w-[220px] translate-x-0'}`}
+      style={{ background: 'var(--sidebar-bg)', color: 'var(--sidebar-fg)', boxShadow: isLight ? '1px 0 0 var(--sidebar-border)' : 'none' }}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
+      <div className="h-16 flex items-center justify-between px-4" style={{ borderBottom: '1px solid var(--sidebar-border)' }}>
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
               <span className="font-bold text-white font-display">CC</span>
             </div>
-            <span className="font-semibold text-sm font-display">Contable Chile</span>
+            <span className="font-semibold text-sm font-display" style={{ color: 'var(--sidebar-fg)' }}>Contable Chile</span>
           </div>
         )}
         {collapsed && (
@@ -304,19 +316,20 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
           {favoritosItems.length > 0 && (
             <div>
               {!collapsed && (
-                <h4 className="px-3 mb-2 text-[10px] font-bold text-amber-300/70 uppercase tracking-widest flex items-center gap-1">
+                <h4 className="px-3 mb-2 text-[10px] font-bold text-amber-500 uppercase tracking-widest flex items-center gap-1">
                   <Star size={10} fill="currentColor" /> Favoritos
                 </h4>
               )}
               {collapsed && <div className="h-4"></div>}
               <ul className="space-y-0.5">
-                {favoritosItems.map(renderItem)}
+                {favoritosItems.map(item => renderItem(item))}
               </ul>
             </div>
           )}
 
           {menuCategories.map((category) => {
             const isOpen = collapsed ? true : (openCategories[category.title] ?? true);
+            const categoryColor = isLight ? (CATEGORY_COLORS[category.title] ?? 'var(--accent-color)') : undefined;
             return (
               <div key={category.title}>
                 {!collapsed && (
@@ -324,9 +337,10 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
                     onClick={() => toggleCategory(category.title)}
                     aria-expanded={isOpen}
                     aria-label={`${isOpen ? 'Colapsar' : 'Expandir'} categoría ${category.title}`}
-                    className="w-full px-3 mb-1 flex items-center justify-between text-[10px] font-bold text-white/40 uppercase tracking-widest
-                      hover:text-white/70 transition-colors rounded
+                    className="w-full px-3 mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest
+                      transition-colors rounded
                       focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                    style={{ color: 'var(--sidebar-fg-faint)' }}
                   >
                     <span>{category.title}</span>
                     <ChevronDown
@@ -342,7 +356,7 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
                 >
                   <div className="overflow-hidden">
                     <ul className="space-y-0.5">
-                      {category.items.map(renderItem)}
+                      {category.items.map(item => renderItem(item, categoryColor))}
                     </ul>
                   </div>
                 </div>
@@ -353,16 +367,18 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
       </nav>
 
       {/* Footer */}
-      <div className="p-2 border-t border-white/10">
+      <div className="p-2" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
         <button
           onClick={() => navigate('/configuracion')}
           aria-label="Configuración"
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70
-            hover:bg-white/10 hover:text-white active:scale-[0.97]
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg active:scale-[0.97]
             transition-[background-color,color] duration-150
             focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none
             ${collapsed ? 'justify-center' : ''}
           `}
+          style={{ color: 'var(--sidebar-fg-muted)' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--sidebar-fg)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--sidebar-fg-muted)'; }}
           title={collapsed ? 'Configuración' : undefined}
         >
           <Settings size={20} className="flex-shrink-0" />
@@ -381,10 +397,12 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
         <button
           onClick={onToggle}
           aria-label={collapsed ? 'Expandir sidebar' : 'Contraer sidebar'}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 mt-1 rounded-lg
-            text-white/50 hover:bg-white/10 hover:text-white active:scale-[0.97]
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 mt-1 rounded-lg active:scale-[0.97]
             transition-[background-color,color] duration-150
             focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+          style={{ color: 'var(--sidebar-fg-faint)' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--sidebar-fg)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--sidebar-fg-faint)'; }}
         >
           {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           <span
@@ -401,37 +419,43 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
       </div>
 
       {/* User Info */}
-      <div className="p-4 border-t border-white/10">
+      <div className="p-4" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
         {!collapsed ? (
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-accent rounded-full flex items-center justify-center">
-              <span className="text-sm font-semibold">AD</span>
+              <span className="text-sm font-semibold text-white">AD</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{state.configuracion.nombreFantasia}</p>
-              <p className="text-xs text-white/50 truncate">{state.configuracion.rut}</p>
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--sidebar-fg)' }}>{state.configuracion.nombreFantasia}</p>
+              <p className="text-xs truncate" style={{ color: 'var(--sidebar-fg-faint)' }}>{state.configuracion.rut}</p>
             </div>
             <button
               onClick={onLogout}
               aria-label="Cerrar sesión"
-              className="p-1.5 hover:bg-white/10 rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+              className="p-1.5 rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+              style={{ color: 'var(--sidebar-fg-faint)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--sidebar-hover)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               title="Cerrar sesión"
             >
-              <LogOut size={16} className="text-white/50" />
+              <LogOut size={16} />
             </button>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
             <div className="w-9 h-9 bg-accent rounded-full flex items-center justify-center">
-              <span className="text-sm font-semibold">AD</span>
+              <span className="text-sm font-semibold text-white">AD</span>
             </div>
             <button
               onClick={onLogout}
               aria-label="Cerrar sesión"
-              className="p-1.5 hover:bg-white/10 rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+              className="p-1.5 rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+              style={{ color: 'var(--sidebar-fg-faint)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--sidebar-hover)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               title="Cerrar sesión"
             >
-              <LogOut size={16} className="text-white/50" />
+              <LogOut size={16} />
             </button>
           </div>
         )}

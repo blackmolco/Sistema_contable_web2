@@ -41,6 +41,14 @@
     --accent-rgb: 47 111 78;
     --brand-secondary: #2F6F4E;
     --brand-secondary-rgb: 47 111 78;
+
+    /* Chrome de la barra lateral — depende del preset (dark|light); ThemeContext los sobrescribe */
+    --sidebar-bg: linear-gradient(180deg, hsl(210 53% 16%), hsl(210 53% 6%));
+    --sidebar-fg: #FFFFFF;
+    --sidebar-fg-muted: rgba(255,255,255,0.7);
+    --sidebar-fg-faint: rgba(255,255,255,0.5);
+    --sidebar-border: rgba(255,255,255,0.1);
+    --sidebar-hover: rgba(255,255,255,0.1);
   }
 
   .dark {

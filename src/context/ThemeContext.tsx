@@ -1,6 +1,6 @@
 ﻿import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-export type ThemePreset = "tinta" | "doble_partida";
+export type ThemePreset = "tinta" | "doble_partida" | "blanco";
 
 export interface ThemeConfig {
   preset: ThemePreset;
@@ -20,6 +20,7 @@ export const PRESETS: Record<ThemePreset, {
   secondaryColor: string;
   fontDisplay: string;
   fontMono: string;
+  chrome: "dark" | "light";
 }> = {
   tinta: {
     label: "Tinta y sello",
@@ -29,6 +30,7 @@ export const PRESETS: Record<ThemePreset, {
     secondaryColor: "#2F6F4E",
     fontDisplay: "'Source Serif 4','Iowan Old Style','Palatino Linotype',Georgia,serif",
     fontMono: "'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace",
+    chrome: "dark",
   },
   doble_partida: {
     label: "Doble partida",
@@ -38,7 +40,30 @@ export const PRESETS: Record<ThemePreset, {
     secondaryColor: "#B8863B",
     fontDisplay: "'Manrope','Century Gothic',sans-serif",
     fontMono: "'Roboto Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace",
+    chrome: "dark",
   },
+  blanco: {
+    label: "Blanco y color",
+    description: "Lienzo blanco, un color de acento distinto por módulo — inspirado en QuickBooks.",
+    primaryColor: "#2E5FDA",
+    accentColor: "#0E8073",
+    secondaryColor: "#0E8073",
+    fontDisplay: "Inter,-apple-system,'Segoe UI',sans-serif",
+    fontMono: "'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace",
+    chrome: "light",
+  },
+};
+
+// Un color distinto por categoría del menú — solo se usa con chrome:"light" (preset "blanco").
+export const CATEGORY_COLORS: Record<string, string> = {
+  Principal: "#2E5FDA",
+  Contabilidad: "#0E8073",
+  "Compra y Venta": "#2E5FDA",
+  "Clientes y Cobros": "#7B4FE0",
+  "Proveedores y Pagos": "#D6427A",
+  Remuneraciones: "#E08A2E",
+  Inventario: "#E08A2E",
+  "Herramientas y Cierres": "#1791C8",
 };
 
 const DEFAULT_THEME: ThemeConfig = {
@@ -103,6 +128,23 @@ function applyTheme(theme: ThemeConfig) {
   root.style.setProperty("--font-display", presetTokens.fontDisplay);
   root.style.setProperty("--font-mono-data", presetTokens.fontMono);
   root.setAttribute("data-theme-preset", theme.preset);
+  root.setAttribute("data-chrome", presetTokens.chrome);
+
+  if (presetTokens.chrome === "light") {
+    root.style.setProperty("--sidebar-bg", "#FFFFFF");
+    root.style.setProperty("--sidebar-fg", "#152232");
+    root.style.setProperty("--sidebar-fg-muted", "#5F6368");
+    root.style.setProperty("--sidebar-fg-faint", "#8A8F98");
+    root.style.setProperty("--sidebar-border", "#E3E5E8");
+    root.style.setProperty("--sidebar-hover", "#F5F7F9");
+  } else {
+    root.style.setProperty("--sidebar-bg", `linear-gradient(180deg, hsl(${h} ${s}% ${l}%), hsl(${h} ${s}% ${Math.max(0, l - 10)}%))`);
+    root.style.setProperty("--sidebar-fg", "#FFFFFF");
+    root.style.setProperty("--sidebar-fg-muted", "rgba(255,255,255,0.7)");
+    root.style.setProperty("--sidebar-fg-faint", "rgba(255,255,255,0.5)");
+    root.style.setProperty("--sidebar-border", "rgba(255,255,255,0.1)");
+    root.style.setProperty("--sidebar-hover", "rgba(255,255,255,0.1)");
+  }
 }
 
 interface ThemeContextType {

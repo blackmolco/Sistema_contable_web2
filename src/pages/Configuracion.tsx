@@ -293,7 +293,7 @@ export default function Configuracion() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               Identidad visual
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {(Object.keys(PRESETS) as ThemePreset[]).map(key => {
                 const preset = PRESETS[key];
                 const isActive = theme.preset === key;
