@@ -379,7 +379,7 @@ export default function AsientosContables() {
             />
             <Input
               label="Número"
-              value={String(editingAsiento?.numero ?? state.numeroAsiento)}
+              value={String(editingAsiento?.numero ?? state.numeroAsiento ?? '')}
               disabled
               hint="Se asigna automáticamente"
             />
@@ -399,7 +399,8 @@ export default function AsientosContables() {
           </div>
 
           {/* Líneas del asiento */}
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="border border-gray-200 rounded-lg">
+            <div className="overflow-hidden rounded-t-lg">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -451,9 +452,10 @@ export default function AsientosContables() {
                 </tr>
               </tfoot>
             </table>
+            </div>
 
             {/* Agregar línea */}
-            <div className="p-3 bg-gray-50/50 border-t border-gray-200">
+            <div className="p-3 bg-gray-50/50 border-t border-gray-200 rounded-b-lg">
               <div className="grid grid-cols-4 gap-2 items-end">
                 <div className="col-span-2">
                   <SearchSelect
