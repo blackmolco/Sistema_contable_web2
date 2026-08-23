@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { DocumentoTributario, Honorario } from '../types';
 import { storageKey } from '../utils/empresaStorage';
+import { useAppStore } from '../stores/appStore';
 import {
   isAuthenticated,
   fetchDocumentos, saveDocumento, updateDocumento, deleteDocumento,
@@ -81,7 +82,8 @@ const FacturacionContext = createContext<FacturacionContextType | undefined>(und
 export function FacturacionProvider({ children }: { children: ReactNode }) {
   const [state, baseDispatch] = useReducer(reducer, undefined, initFromStorage);
   const isFirstRender = useRef(true);
-  const apiLoaded = useRef(false);
+  const loadedForEmpresa = useRef<string | null>(null);
+  const empresaId = useAppStore(s => s.empresaActiva?.id ?? null);
 
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
@@ -97,8 +99,11 @@ export function FacturacionProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (apiLoaded.current || !isAuthenticated()) return;
-    apiLoaded.current = true;
+    // Depende de empresaId (reactivo, via zustand) en vez de un flag de una
+    // sola vez: el provider se monta antes de que termine el login, asi que
+    // un efecto [] con isAuthenticated() nunca vuelve a intentarlo despues.
+    if (!isAuthenticated() || loadedForEmpresa.current === empresaId) return;
+    loadedForEmpresa.current = empresaId;
 
     Promise.all([fetchDocumentos(), fetchHonorarios()]).then(([apiDocs, apiHonorarios]) => {
       // El servidor es siempre la fuente de verdad: si esta vacio, el estado local
@@ -115,7 +120,7 @@ export function FacturacionProvider({ children }: { children: ReactNode }) {
         },
       });
     }).catch(() => {});
-  }, []);
+  }, [empresaId]);
 
   const dispatch = useCallback((action: FacturacionAction) => {
     baseDispatch(action);

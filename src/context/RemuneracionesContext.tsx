@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { Trabajador, LiquidacionPeriodo } from '../types';
 import { storageKey } from '../utils/empresaStorage';
+import { useAppStore } from '../stores/appStore';
 import { isAuthenticated, fetchTrabajadores, saveTrabajador, updateTrabajador, deleteTrabajador } from '../services/apiSync';
 
 const STORAGE_KEY = storageKey('scc_remuneraciones');
@@ -65,11 +66,9 @@ const RemuneracionesContext = createContext<RemuneracionesContextType | undefine
 
 export function RemuneracionesProvider({ children }: { children: ReactNode }) {
   const [state, baseDispatch] = useReducer(reducer, undefined, initFromStorage);
-  const stateRef = useRef(state);
   const isFirstRender = useRef(true);
-  const apiLoaded = useRef(false);
-
-  stateRef.current = state;
+  const loadedForEmpresa = useRef<string | null>(null);
+  const empresaId = useAppStore(s => s.empresaActiva?.id ?? null);
 
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
@@ -77,18 +76,18 @@ export function RemuneracionesProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   useEffect(() => {
-    if (apiLoaded.current || !isAuthenticated()) return;
-    apiLoaded.current = true;
+    // Depende de empresaId (reactivo) en vez de un flag de una sola vez: el
+    // provider se monta antes de que termine el login, asi que un efecto []
+    // con isAuthenticated() nunca vuelve a intentarlo despues. Tampoco se
+    // re-sube la cache local cuando el servidor esta vacio — eso resucitaba
+    // trabajadores ya borrados intencionalmente.
+    if (!isAuthenticated() || loadedForEmpresa.current === empresaId) return;
+    loadedForEmpresa.current = empresaId;
 
     fetchTrabajadores().then(trabajadores => {
-      if (trabajadores.length > 0) {
-        baseDispatch({ type: 'LOAD_REMUNERACIONES', payload: { trabajadores } });
-      } else {
-        // Migración: subir trabajadores locales al servidor
-        stateRef.current.trabajadores.forEach(t => saveTrabajador(t).catch(() => {}));
-      }
+      baseDispatch({ type: 'LOAD_REMUNERACIONES', payload: { trabajadores } });
     }).catch(() => {});
-  }, []);
+  }, [empresaId]);
 
   const dispatch = useCallback((action: RemuneracionesAction) => {
     baseDispatch(action);
