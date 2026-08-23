@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, useRef, useCal
 import { DocumentoTributario, Honorario } from '../types';
 import { storageKey } from '../utils/empresaStorage';
 import { useAppStore } from '../stores/appStore';
+import { useAuthStore } from '../stores/authStore';
 import {
   isAuthenticated,
   fetchDocumentos, saveDocumento, updateDocumento, deleteDocumento,
@@ -84,6 +85,7 @@ export function FacturacionProvider({ children }: { children: ReactNode }) {
   const isFirstRender = useRef(true);
   const loadedForEmpresa = useRef<string | null>(null);
   const empresaId = useAppStore(s => s.empresaActiva?.id ?? null);
+  const authReady = useAuthStore(s => s.isAuthenticated);
 
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
@@ -99,28 +101,38 @@ export function FacturacionProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Depende de empresaId (reactivo, via zustand) en vez de un flag de una
-    // sola vez: el provider se monta antes de que termine el login, asi que
-    // un efecto [] con isAuthenticated() nunca vuelve a intentarlo despues.
-    if (!isAuthenticated() || loadedForEmpresa.current === empresaId) return;
-    loadedForEmpresa.current = empresaId;
+    const cargar = () => {
+      if (!isAuthenticated() || loadedForEmpresa.current === empresaId) return;
+      loadedForEmpresa.current = empresaId;
 
-    Promise.all([fetchDocumentos(), fetchHonorarios()]).then(([apiDocs, apiHonorarios]) => {
-      // El servidor es siempre la fuente de verdad: si esta vacio, el estado local
-      // tambien queda vacio (no se re-sube la cache local — eso resucitaba datos
-      // ya borrados intencionalmente en el servidor).
-      baseDispatch({
-        type: 'LOAD_FACTURACION',
-        payload: {
-          documentos: apiDocs,
-          honorarios: apiHonorarios,
-          numeroDocumento: apiDocs.length > 0
-            ? Math.max(...apiDocs.map(d => d.numero), 0) + 1
-            : 1,
-        },
-      });
-    }).catch(() => {});
-  }, [empresaId]);
+      Promise.all([fetchDocumentos(), fetchHonorarios()]).then(([apiDocs, apiHonorarios]) => {
+        // El servidor es siempre la fuente de verdad: si esta vacio, el estado local
+        // tambien queda vacio (no se re-sube la cache local — eso resucitaba datos
+        // ya borrados intencionalmente en el servidor).
+        baseDispatch({
+          type: 'LOAD_FACTURACION',
+          payload: {
+            documentos: apiDocs,
+            honorarios: apiHonorarios,
+            numeroDocumento: apiDocs.length > 0
+              ? Math.max(...apiDocs.map(d => d.numero), 0) + 1
+              : 1,
+          },
+        });
+      }).catch(() => {});
+    };
+
+    // empresaId/authReady (reactivos via zustand) no bastan solos como
+    // disparador: el provider se monta antes de que termine el login, y
+    // ambos pueden venir precargados (persistidos) de una sesion anterior
+    // sin volver a cambiar de valor. 'scc:login' es la señal confiable de
+    // que se acaba de iniciar sesion en esta pestaña — fuerza la recarga
+    // aunque loadedForEmpresa ya coincida con el empresaId actual.
+    const cargarForzado = () => { loadedForEmpresa.current = null; cargar(); };
+    if (authReady) cargar();
+    window.addEventListener('scc:login', cargarForzado);
+    return () => window.removeEventListener('scc:login', cargarForzado);
+  }, [empresaId, authReady]);
 
   const dispatch = useCallback((action: FacturacionAction) => {
     baseDispatch(action);

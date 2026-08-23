@@ -8,6 +8,7 @@ import {
   fetchAsientos, saveAsiento, updateAsientoEstado, deleteAsiento,
 } from '../services/apiSync';
 import { useAppStore } from '../stores/appStore';
+import { useAuthStore } from '../stores/authStore';
 
 const STORAGE_KEY = storageKey('scc_contabilidad');
 
@@ -130,6 +131,7 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
   const isFirstRender = useRef(true);
   const loadedForEmpresa = useRef<string | null>(null);
   const empresaId = useAppStore(s => s.empresaActiva?.id ?? null);
+  const authReady = useAuthStore(s => s.isAuthenticated);
 
   stateRef.current = state;
 
@@ -144,40 +146,51 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
 
   // Load from API when empresa changes; if API empty, push local data (migración)
   useEffect(() => {
-    if (!isAuthenticated() || !empresaId) return;
-    if (loadedForEmpresa.current === empresaId) return;
-    loadedForEmpresa.current = empresaId;
+    const cargar = () => {
+      if (!isAuthenticated() || !empresaId || loadedForEmpresa.current === empresaId) return;
+      loadedForEmpresa.current = empresaId;
 
-    Promise.all([
-      fetchCuentas(),
-      fetchAsientos(),
-    ]).then(async ([apiCuentas, apiAsientos]) => {
-      if (apiCuentas.length > 0 || apiAsientos.length > 0) {
-        // API tiene datos → usarlos como fuente de verdad
-        baseDispatch({
-          type: 'LOAD_CONTABILIDAD',
-          payload: {
-            cuentas: apiCuentas.length > 0 ? apiCuentas : undefined,
-            asientos: apiAsientos,
-            numeroAsiento: apiAsientos.length > 0
-              ? Math.max(...apiAsientos.map(a => a.numero), 0) + 1
-              : undefined,
-          },
-        });
-      } else {
-        // API vacía → subir datos locales al servidor (migración única)
-        const local = stateRef.current;
-        // Subir cuentas ordenadas por nivel (padres antes que hijos, FK constraint)
-        const cuentasOrdenadas = [...local.cuentas].sort((a, b) => (a.nivel ?? 1) - (b.nivel ?? 1));
-        for (const c of cuentasOrdenadas) {
-          await saveCuenta(c).catch(() => {});
+      Promise.all([
+        fetchCuentas(),
+        fetchAsientos(),
+      ]).then(async ([apiCuentas, apiAsientos]) => {
+        if (apiCuentas.length > 0 || apiAsientos.length > 0) {
+          // API tiene datos → usarlos como fuente de verdad
+          baseDispatch({
+            type: 'LOAD_CONTABILIDAD',
+            payload: {
+              cuentas: apiCuentas.length > 0 ? apiCuentas : undefined,
+              asientos: apiAsientos,
+              numeroAsiento: apiAsientos.length > 0
+                ? Math.max(...apiAsientos.map(a => a.numero), 0) + 1
+                : undefined,
+            },
+          });
+        } else {
+          // API vacía → subir datos locales al servidor (migración única)
+          const local = stateRef.current;
+          // Subir cuentas ordenadas por nivel (padres antes que hijos, FK constraint)
+          const cuentasOrdenadas = [...local.cuentas].sort((a, b) => (a.nivel ?? 1) - (b.nivel ?? 1));
+          for (const c of cuentasOrdenadas) {
+            await saveCuenta(c).catch(() => {});
+          }
+          for (const a of local.asientos) {
+            await saveAsiento(a).catch(() => {});
+          }
         }
-        for (const a of local.asientos) {
-          await saveAsiento(a).catch(() => {});
-        }
-      }
-    }).catch(() => { /* sin conexión — usar localStorage */ });
-  }, [empresaId]);
+      }).catch(() => { /* sin conexión — usar localStorage */ });
+    };
+
+    // empresaId/authReady (reactivos via zustand) no bastan solos como
+    // disparador: el provider se monta antes de que termine el login, y
+    // ambos pueden venir precargados (persistidos) de una sesion anterior
+    // sin volver a cambiar de valor. 'scc:login' es la señal confiable de
+    // que se acaba de iniciar sesion en esta pestaña.
+    const cargarForzado = () => { loadedForEmpresa.current = null; cargar(); };
+    if (authReady) cargar();
+    window.addEventListener('scc:login', cargarForzado);
+    return () => window.removeEventListener('scc:login', cargarForzado);
+  }, [empresaId, authReady]);
 
   // Dispatch interceptor: sync writes to API
   const dispatch = useCallback((action: ContabilidadAction) => {

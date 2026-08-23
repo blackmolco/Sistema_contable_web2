@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, useRef, useCal
 import { Trabajador, LiquidacionPeriodo } from '../types';
 import { storageKey } from '../utils/empresaStorage';
 import { useAppStore } from '../stores/appStore';
+import { useAuthStore } from '../stores/authStore';
 import { isAuthenticated, fetchTrabajadores, saveTrabajador, updateTrabajador, deleteTrabajador } from '../services/apiSync';
 
 const STORAGE_KEY = storageKey('scc_remuneraciones');
@@ -69,6 +70,7 @@ export function RemuneracionesProvider({ children }: { children: ReactNode }) {
   const isFirstRender = useRef(true);
   const loadedForEmpresa = useRef<string | null>(null);
   const empresaId = useAppStore(s => s.empresaActiva?.id ?? null);
+  const authReady = useAuthStore(s => s.isAuthenticated);
 
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
@@ -76,18 +78,25 @@ export function RemuneracionesProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   useEffect(() => {
-    // Depende de empresaId (reactivo) en vez de un flag de una sola vez: el
-    // provider se monta antes de que termine el login, asi que un efecto []
-    // con isAuthenticated() nunca vuelve a intentarlo despues. Tampoco se
-    // re-sube la cache local cuando el servidor esta vacio — eso resucitaba
-    // trabajadores ya borrados intencionalmente.
-    if (!isAuthenticated() || loadedForEmpresa.current === empresaId) return;
-    loadedForEmpresa.current = empresaId;
+    const cargar = () => {
+      if (!isAuthenticated() || loadedForEmpresa.current === empresaId) return;
+      loadedForEmpresa.current = empresaId;
 
-    fetchTrabajadores().then(trabajadores => {
-      baseDispatch({ type: 'LOAD_REMUNERACIONES', payload: { trabajadores } });
-    }).catch(() => {});
-  }, [empresaId]);
+      fetchTrabajadores().then(trabajadores => {
+        // El servidor es siempre la fuente de verdad — no se re-sube la cache
+        // local cuando esta vacio, eso resucitaba trabajadores ya borrados.
+        baseDispatch({ type: 'LOAD_REMUNERACIONES', payload: { trabajadores } });
+      }).catch(() => {});
+    };
+
+    // empresaId/authReady no bastan solos: pueden venir precargados
+    // (persistidos) de una sesion anterior. 'scc:login' fuerza la recarga
+    // aunque loadedForEmpresa ya coincida con el empresaId actual.
+    const cargarForzado = () => { loadedForEmpresa.current = null; cargar(); };
+    if (authReady) cargar();
+    window.addEventListener('scc:login', cargarForzado);
+    return () => window.removeEventListener('scc:login', cargarForzado);
+  }, [empresaId, authReady]);
 
   const dispatch = useCallback((action: RemuneracionesAction) => {
     baseDispatch(action);

@@ -63,6 +63,12 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         return;
       }
 
+      // Señal explicita de "sesion recien iniciada" — los contextos que
+      // sincronizan con el servidor (Facturacion, Contabilidad, etc.) la
+      // escuchan para pedir datos frescos, ya que useAuthStore.isAuthenticated
+      // puede venir precargado (persistido) de una sesion anterior y por eso
+      // no sirve como disparador confiable de un useEffect.
+      window.dispatchEvent(new Event('scc:login'));
       onLoginSuccess();
     } catch (err) {
       setError('Error al iniciar sesión. Intente nuevamente.');
