@@ -51,10 +51,15 @@ export const parseCurrency = (valor: string): number => {
  */
 export const formatDate = (fecha: string | Date): string => {
   const date = typeof fecha === 'string' ? new Date(fecha) : fecha;
+  // timeZone: 'UTC' — las fechas contables se guardan como medianoche UTC
+  // (sin hora real asociada); formatear en la zona local del navegador las
+  // corre un dia hacia atras en cualquier huso horario detras de UTC (Chile
+  // incluido). Leer el dia calendario en UTC evita ese corrimiento.
   return date.toLocaleDateString('es-CL', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: 'UTC',
   });
 };
 
