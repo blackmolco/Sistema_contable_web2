@@ -80,11 +80,8 @@ const FacturacionContext = createContext<FacturacionContextType | undefined>(und
 
 export function FacturacionProvider({ children }: { children: ReactNode }) {
   const [state, baseDispatch] = useReducer(reducer, undefined, initFromStorage);
-  const stateRef = useRef(state);
   const isFirstRender = useRef(true);
   const apiLoaded = useRef(false);
-
-  stateRef.current = state;
 
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
@@ -104,27 +101,19 @@ export function FacturacionProvider({ children }: { children: ReactNode }) {
     apiLoaded.current = true;
 
     Promise.all([fetchDocumentos(), fetchHonorarios()]).then(([apiDocs, apiHonorarios]) => {
-      if (apiDocs.length > 0 || apiHonorarios.length > 0) {
-        baseDispatch({
-          type: 'LOAD_FACTURACION',
-          payload: {
-            documentos: apiDocs.length > 0 ? apiDocs : undefined,
-            honorarios: apiHonorarios.length > 0 ? apiHonorarios : undefined,
-            numeroDocumento: apiDocs.length > 0
-              ? Math.max(...apiDocs.map(d => d.numero), 0) + 1
-              : undefined,
-          },
-        });
-      } else {
-        // Migración: subir datos locales
-        const rut = getEmpresaRut();
-        stateRef.current.documentos.forEach(d => saveDocumento(d, rut).catch((err: unknown) => {
-          console.warn('[migración doc]', d.tipo, d.fecha, err instanceof Error ? err.message : err);
-        }));
-        stateRef.current.honorarios.forEach(h => saveHonorario(h).catch((err: unknown) => {
-          console.warn('[migración hon]', h.rut, err instanceof Error ? err.message : err);
-        }));
-      }
+      // El servidor es siempre la fuente de verdad: si esta vacio, el estado local
+      // tambien queda vacio (no se re-sube la cache local — eso resucitaba datos
+      // ya borrados intencionalmente en el servidor).
+      baseDispatch({
+        type: 'LOAD_FACTURACION',
+        payload: {
+          documentos: apiDocs,
+          honorarios: apiHonorarios,
+          numeroDocumento: apiDocs.length > 0
+            ? Math.max(...apiDocs.map(d => d.numero), 0) + 1
+            : 1,
+        },
+      });
     }).catch(() => {});
   }, []);
 
