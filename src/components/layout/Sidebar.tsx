@@ -295,16 +295,16 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
       {/* Logo */}
       <div className="h-16 flex items-center justify-between px-4" style={{ borderBottom: '1px solid var(--sidebar-border)' }}>
         {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
-              <span className="font-bold text-white font-display">CC</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="font-bold text-white font-display text-xs">V&A</span>
             </div>
-            <span className="font-semibold text-sm font-display" style={{ color: 'var(--sidebar-fg)' }}>Contable Chile</span>
+            <span className="font-semibold text-sm font-display truncate" style={{ color: 'var(--sidebar-fg)' }}>Valenzuela & Asociados</span>
           </div>
         )}
         {collapsed && (
           <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center mx-auto">
-            <span className="font-bold text-white font-display">CC</span>
+            <span className="font-bold text-white font-display text-xs">V&A</span>
           </div>
         )}
       </div>

@@ -199,7 +199,7 @@ export class ExportService {
         { label: 'Total IVA', value: formatCurrency(totalIVA) },
         { label: 'Total General', value: formatCurrency(totalTotal) },
       ],
-      footer: 'Contable Chile - Sistema de Gestión Contable',
+      footer: 'Valenzuela & Asociados Asesorías SpA - Sistema de Gestión Contable',
     };
 
     return data;
@@ -230,7 +230,7 @@ export class ExportService {
         { label: 'Total Débitos', value: formatCurrency(totalDebe) },
         { label: 'Total Créditos', value: formatCurrency(totalHaber) },
       ],
-      footer: 'Contable Chile',
+      footer: 'Valenzuela & Asociados Asesorías SpA',
     };
 
     return data;
@@ -268,7 +268,7 @@ export class ExportService {
       summary: [
         { label: 'Resultado del Ejercicio', value: formatCurrency(resultado) },
       ],
-      footer: 'Contable Chile',
+      footer: 'Valenzuela & Asociados Asesorías SpA',
     };
 
     return data;
@@ -301,7 +301,7 @@ export class ExportService {
         { label: 'Total Descuentos', value: formatCurrency(liquidacion.totalDescuentos) },
         { label: 'Sueldo Líquido', value: formatCurrency(liquidacion.sueldoLiquido) },
       ],
-      footer: 'Contable Chile - Boleta de Pago',
+      footer: 'Valenzuela & Asociados Asesorías SpA - Boleta de Pago',
     };
 
     return data;

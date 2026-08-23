@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Sistema Contable Chile',
-        short_name: 'ContaCL',
+        name: 'Valenzuela & Asociados - Sistema Contable',
+        short_name: 'V&A Contable',
         description: 'Sistema de contabilidad electrónica para Chile',
         theme_color: '#1e40af',
         background_color: '#ffffff',

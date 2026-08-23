@@ -3,6 +3,7 @@ import { LogIn, Mail, Lock, AlertCircle, Shield } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { ApiAuthService, AuthError } from '../../services/apiAuth';
 import { Button, Input } from '../ui/FormElements';
+import logoValenzuela from '../../assets/logo-valenzuela.png';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -75,10 +76,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl mb-4 shadow-lg">
-            <span className="text-2xl font-bold text-primary font-display">CC</span>
+          <div className="inline-flex items-center justify-center bg-white rounded-2xl mb-4 shadow-lg px-6 py-4">
+            <img src={logoValenzuela} alt="Valenzuela & Asociados Asesorías SpA" className="h-24 w-auto" />
           </div>
-          <h1 className="text-3xl font-bold text-white font-display">Contable Chile</h1>
           <p className="text-white/70 mt-2">Sistema Contable Profesional</p>
         </div>
 
@@ -132,20 +132,12 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </Button>
           </form>
 
-          {/* Demo credentials */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500 mb-2 text-center">Credenciales de prueba:</p>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>Email:</strong> admin@contable.cl</p>
-              <p><strong>Contraseña:</strong> admin123</p>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-white/50 text-sm">
-            © 2024 Contable Chile - Normativas SII vigentes
+            © 2026 Sistema para Valenzuela & Asociados Asesorías SpA
           </p>
         </div>
       </div>

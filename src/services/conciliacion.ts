@@ -268,7 +268,7 @@ export class ConciliacionService {
   </div>
 
   <footer>
-    <p>Contable Chile - Sistema de Gestión Contable</p>
+    <p>Valenzuela & Asociados Asesorías SpA - Sistema de Gestión Contable</p>
   </footer>
 </body>
 </html>
