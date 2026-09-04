@@ -39,17 +39,28 @@ export default function LibroDiario() {
   const { state } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [mesFiltro, setMesFiltro] = useState('0');
+  // Sin año por defecto, "Enero" mezclaba enero de todos los años bajo un
+  // mismo listado. Se acota al año en curso; el selector se arma con los
+  // años que realmente tienen asientos, para no perder datos antiguos.
+  const anioActual = new Date().getFullYear();
+  const aniosDisponibles = Array.from(
+    new Set(state.asientos.map((a) => new Date(a.fecha).getFullYear()))
+  ).sort((a, b) => b - a);
+  if (!aniosDisponibles.includes(anioActual)) aniosDisponibles.unshift(anioActual);
+  const [anioFiltro, setAnioFiltro] = useState(String(anioActual));
 
   const mesFiltroNum = Number(mesFiltro);
+  const anioFiltroNum = Number(anioFiltro);
 
   const asientosOrdenados = [...state.asientos]
     .filter(a => {
       const fechaAsiento = new Date(a.fecha);
+      const coincideAnio = fechaAsiento.getFullYear() === anioFiltroNum;
       const coincideMes = fechaAsiento.getMonth() + 1 === mesFiltroNum || mesFiltroNum === 0;
       const coincideBusqueda =
         a.glosa.toLowerCase().includes(searchTerm.toLowerCase()) ||
         a.numero.toString().includes(searchTerm);
-      return coincideMes && coincideBusqueda;
+      return coincideAnio && coincideMes && coincideBusqueda;
     })
     .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
@@ -124,6 +135,14 @@ export default function LibroDiario() {
               leftIcon={<Search size={16} />}
             />
           </div>
+          <div className="w-full md:w-36">
+            <Select
+              label="Año"
+              value={anioFiltro}
+              onChange={(e) => setAnioFiltro(e.target.value)}
+              options={aniosDisponibles.map((a) => ({ value: String(a), label: String(a) }))}
+            />
+          </div>
           <div className="w-full md:w-52">
             <Select
               label="Filtrar por Mes"
@@ -148,7 +167,7 @@ export default function LibroDiario() {
           <p className="text-sm text-gray-600 mt-1">
             {state.configuracion.razonSocial} — RUT: {state.configuracion.rut}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Período: {mesLabel}</p>
+          <p className="text-xs text-gray-500 mt-1">Período: {mesLabel} {anioFiltro}</p>
         </div>
 
         <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">

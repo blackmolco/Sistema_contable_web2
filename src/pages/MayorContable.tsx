@@ -18,8 +18,12 @@ interface MovimientoMayor {
 export default function MayorContable() {
   const { state, showToast } = useApp();
   const [cuentaBusqueda, setCuentaBusqueda] = useState('');
-  const [fechaDesde, setFechaDesde] = useState('');
-  const [fechaHasta, setFechaHasta] = useState('');
+  // Por defecto acota al año en curso — sin esto, la lista mezclaba
+  // movimientos de todos los años con un saldo corrido único.
+  const hoy = new Date();
+  const primerDiaAnio = new Date(hoy.getFullYear(), 0, 1).toISOString().split('T')[0];
+  const [fechaDesde, setFechaDesde] = useState(primerDiaAnio);
+  const [fechaHasta, setFechaHasta] = useState(hoy.toISOString().split('T')[0]);
   const [cuentaSeleccionada, setCuentaSeleccionada] = useState<string>('');
   const [vistaT, setVistaT] = useState(false);
 
@@ -50,12 +54,35 @@ export default function MayorContable() {
     }
   }, [cuentasUnicas]);
 
+  // Tipo de la cuenta seleccionada — determina si arrastra saldo anterior.
+  const tipoCuentaSeleccionada = useMemo(
+    () => state.cuentas.find((c) => c.codigo === cuentaSeleccionada)?.tipo,
+    [state.cuentas, cuentaSeleccionada]
+  );
+
+  // Saldo anterior: arrastre de todo lo anterior a fechaDesde. Igual que en
+  // Balance 8 Columnas, Ingreso y Gasto quedan afuera — son cuentas de
+  // resultado, se cierran a cero en cada ejercicio y no arrastran saldo.
+  const saldoAnterior = useMemo(() => {
+    if (!cuentaSeleccionada || !fechaDesde) return 0;
+    if (tipoCuentaSeleccionada === 'ingreso' || tipoCuentaSeleccionada === 'gasto') return 0;
+    let saldo = 0;
+    state.asientos
+      .filter((a) => new Date(a.fecha) < new Date(fechaDesde))
+      .forEach((asiento) => {
+        asiento.detalles
+          .filter((d) => d.cuentaCodigo === cuentaSeleccionada)
+          .forEach((linea) => { saldo += linea.debe - linea.haber; });
+      });
+    return saldo;
+  }, [state.asientos, cuentaSeleccionada, fechaDesde, tipoCuentaSeleccionada]);
+
   // 3. Generar movimientos para la cuenta seleccionada
   const movimientosMayor = useMemo(() => {
     if (!cuentaSeleccionada) return [];
 
     const movimientos: MovimientoMayor[] = [];
-    let saldoAcumulado = 0;
+    let saldoAcumulado = saldoAnterior;
 
     const asientosFiltrados = state.asientos
       .filter((a) => {
@@ -83,7 +110,7 @@ export default function MayorContable() {
     });
 
     return movimientos;
-  }, [state.asientos, cuentaSeleccionada, fechaDesde, fechaHasta]);
+  }, [state.asientos, cuentaSeleccionada, fechaDesde, fechaHasta, saldoAnterior]);
 
   const handlePrint = () => {
     if (!cuentaSeleccionada) {
@@ -248,6 +275,17 @@ export default function MayorContable() {
                     : 'Todos los movimientos históricos'}
                 </p>
               </div>
+
+              {/* Saldo anterior — arrastre de ejercicios previos al rango filtrado */}
+              {fechaDesde && (
+                <p className="mx-5 mt-4 text-xs text-gray-500">
+                  Saldo anterior al {fechaDesde}:{' '}
+                  <span className="font-semibold text-gray-700">{formatCurrency(saldoAnterior)}</span>
+                  {(tipoCuentaSeleccionada === 'ingreso' || tipoCuentaSeleccionada === 'gasto') && (
+                    <span className="text-gray-400"> (cuenta de resultado, no arrastra entre ejercicios)</span>
+                  )}
+                </p>
+              )}
 
               {/* Saldo final destacado */}
               {saldoFinal !== null && (

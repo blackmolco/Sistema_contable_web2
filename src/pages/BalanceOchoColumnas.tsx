@@ -67,6 +67,13 @@ export default function BalanceOchoColumnas() {
           }
           const r = mapa.get(d.cuentaCodigo)!;
           if (esAnterior) {
+            // Ingreso/Gasto son cuentas de resultado: se cierran a cero al
+            // termino del ejercicio (asiento de cierre) y nunca arrastran
+            // saldo al periodo siguiente. Sin este filtro, un asiento de
+            // carga y su cierre — misma fecha, montos iguales y opuestos —
+            // quedaban sumados por separado en vez de anularse, mostrando
+            // un "saldo anterior" de gasto/ingreso que en realidad es cero.
+            if (r.tipo === 'ingreso' || r.tipo === 'gasto') return;
             r.antD += d.debe;
             r.antH += d.haber;
           } else {

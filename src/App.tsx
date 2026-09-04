@@ -126,7 +126,12 @@ function AppContent() {
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = React.useState(false);
   const { state, dispatch, showToast } = useApp();
-  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  // Se restaura la sesion desde sessionStorage al montar en vez de arrancar
+  // siempre en false: antes, cualquier F5 (incluido recuperarse de un error)
+  // forzaba a volver a escribir usuario y clave aunque el token siguiera
+  // vigente. Si el token quedo vencido, la primera llamada a la API dispara
+  // el flujo normal de refresh / SessionExpiredModal.
+  const [isAuthenticated, setIsAuthenticated] = React.useState(() => ApiAuthService.isAuthenticated());
 
   useEffect(() => {
     localStorage.setItem('dark-mode', JSON.stringify(darkMode));

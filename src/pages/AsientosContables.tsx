@@ -11,6 +11,15 @@ import { AsientoContableSchema, formatZodErrors } from '../utils/schemas';
 export default function AsientosContables() {
   const { state, dispatch, showToast } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
+  // Sin esto la lista mezclaba asientos de todos los años seguidos, sin
+  // forma de acotar a un ejercicio. Se arma con los años que realmente
+  // tienen asientos, e incluye siempre el año en curso.
+  const anioActual = new Date().getFullYear();
+  const aniosDisponibles = Array.from(
+    new Set((state.asientos ?? []).map((a) => new Date(a.fecha).getFullYear()))
+  ).sort((a, b) => b - a);
+  if (!aniosDisponibles.includes(anioActual)) aniosDisponibles.unshift(anioActual);
+  const [anioFiltro, setAnioFiltro] = useState(String(anioActual));
   const [showModal, setShowModal] = useState(false);
   const [editingAsiento, setEditingAsiento] = useState<AsientoContable | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -36,11 +45,12 @@ export default function AsientosContables() {
 
   // Filtrar asientos
   const asientosFiltrados = (state.asientos ?? []).filter((a) => {
-    return (
+    const coincideAnio = String(new Date(a.fecha).getFullYear()) === anioFiltro;
+    const coincideBusqueda =
       searchTerm === '' ||
       a.glosa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.numero.toString().includes(searchTerm)
-    );
+      a.numero.toString().includes(searchTerm);
+    return coincideAnio && coincideBusqueda;
   });
 
   // Cuentas disponibles como options para Select
@@ -234,12 +244,23 @@ export default function AsientosContables() {
 
       {/* Search */}
       <Card padding="sm">
-        <Input
-          placeholder="Buscar por número o glosa..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          leftIcon={<Search size={16} />}
-        />
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="flex-1">
+            <Input
+              placeholder="Buscar por número o glosa..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              leftIcon={<Search size={16} />}
+            />
+          </div>
+          <div className="w-full md:w-32">
+            <Select
+              value={anioFiltro}
+              onChange={(e) => setAnioFiltro(e.target.value)}
+              options={aniosDisponibles.map((a) => ({ value: String(a), label: String(a) }))}
+            />
+          </div>
+        </div>
         {searchTerm && (
           <p className="text-xs text-gray-500 mt-2">
             {asientosFiltrados.length} resultado{asientosFiltrados.length !== 1 ? 's' : ''} para &quot;{searchTerm}&quot;
