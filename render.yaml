@@ -3,9 +3,14 @@ services:
     name: sistema-contable-chile-backend
     runtime: node
     rootDir: backend
-    # NUNCA usar --force-reset aquí: borra toda la base de datos en cada deploy.
-    # ensure-admin garantiza que el usuario admin exista tras un reset (idempotente).
-    buildCommand: npm install && npx prisma generate && npx prisma db push && node prisma/ensure-admin.js
+    # NUNCA usar --force-reset ni "prisma db push" aquí: db push reconcilia el
+    # esquema comparando contra la base viva y puede recrear tablas (borrando
+    # sus datos) ante cualquier drift — eso es lo que borraba Cuentas y
+    # Asientos en cada deploy. migrate deploy solo aplica migraciones
+    # versionadas ya revisadas (prisma/migrations/), nunca reconcilia por su
+    # cuenta.
+    # ensure-admin garantiza que el usuario admin exista (idempotente).
+    buildCommand: npm install && npx prisma generate && npx prisma migrate deploy && node prisma/ensure-admin.js
     startCommand: node index.js
     plan: free
     healthCheckPath: /api/health
