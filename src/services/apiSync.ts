@@ -20,9 +20,10 @@ export function getEmpresaActivaId(): string | null {
 
 interface PaginatedResponse<T> {
   data: T[];
-  total: number;
-  page: number;
-  totalPages: number;
+  // El backend devuelve los metadatos anidados bajo `pagination`.
+  pagination?: { page: number; limit: number; total: number; totalPages: number };
+  // Forma plana, por si algún endpoint la usa.
+  totalPages?: number;
 }
 
 async function fetchAll<T>(path: string, params: Record<string, string> = {}): Promise<T[]> {
@@ -33,8 +34,12 @@ async function fetchAll<T>(path: string, params: Record<string, string> = {}): P
   while (page <= totalPages) {
     const qs = new URLSearchParams({ ...params, page: String(page), limit: '500' }).toString();
     const res = await apiFetch<PaginatedResponse<T>>(`${path}?${qs}`);
-    results.push(...res.data);
-    totalPages = res.totalPages ?? 1;
+    results.push(...(res.data ?? []));
+    // Antes se leía res.totalPages, que siempre venía undefined (los metadatos
+    // van dentro de res.pagination): quedaba en 1 y solo se traía la primera
+    // página. Como el backend topa el limit en 100, nunca se cargaban más de
+    // 100 registros de nada — cuentas, asientos, documentos, todo truncado.
+    totalPages = res.pagination?.totalPages ?? res.totalPages ?? 1;
     page++;
     if (page > totalPages) break;
   }
