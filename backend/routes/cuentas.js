@@ -78,12 +78,32 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, writeLimiter, validate(cuentaSchema), async (req, res) => {
     try {
         const { id, ...data } = req.body;
-        const cuentaId = id || require('crypto').randomUUID();
-        const cuenta = await prisma.cuenta.upsert({
-            where: { id: cuentaId },
-            create: { id: cuentaId, ...data },
-            update: data,
+        const empresaId = data.empresaId ?? null;
+
+        // La identidad real de una cuenta es (codigo, empresa) — asi lo declara
+        // @@unique([codigo, empresaId]) en el schema. NO se puede hacer upsert
+        // por id: el plan de cuentas por defecto usa el codigo como id, asi que
+        // dos empresas con el mismo codigo colisionaban sobre la misma fila y
+        // se transferian las cuentas entre ellas en vez de tener una cada una.
+        const existente = await prisma.cuenta.findFirst({
+            where: { codigo: data.codigo, empresaId },
+            select: { id: true },
         });
+
+        let cuenta;
+        if (existente) {
+            // activo: true reactiva una cuenta que hubiera quedado desactivada.
+            cuenta = await prisma.cuenta.update({
+                where: { id: existente.id },
+                data: { ...data, activo: true },
+            });
+        } else {
+            // Se respeta el id del cliente solo si esta libre; si ya lo ocupa
+            // otra empresa, esta cuenta recibe un id propio.
+            const idOcupado = id ? await prisma.cuenta.findUnique({ where: { id }, select: { id: true } }) : null;
+            const cuentaId = (id && !idOcupado) ? id : require('crypto').randomUUID();
+            cuenta = await prisma.cuenta.create({ data: { id: cuentaId, ...data } });
+        }
         await auditLog(req.usuario.id, 'CREAR', 'Cuenta', cuenta.id, req.body, req.ip, req.headers['user-agent']);
         res.status(201).json(cuenta);
     } catch (err) {
