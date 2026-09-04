@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   FilePen,
   Users,
-  Receipt,
   CloudCog,
   BarChart3,
   Settings,
@@ -12,34 +11,22 @@ import {
   ChevronRight,
   ChevronDown,
   Calculator,
-  DollarSign,
-  FileBarChart,
   LogOut,
   Building2,
   Database,
-  Upload,
   Download,
-  TrendingUp,
-  Package,
   Table,
   FileSpreadsheet,
   Bell,
-  Folder,
   CreditCard,
-  FileX,
   ListTree,
   BookText,
   BookMarked,
   BookUp,
   BookDown,
-  Landmark,
   HandCoins,
-  Banknote,
-  Waves,
-  GitCompareArrows,
   Combine,
   Star,
-  ScrollText,
   UserCog,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -69,22 +56,16 @@ const menuCategories = [
       { path: '/libro-mayor', icon: BookMarked, label: 'Libro Mayor' },
       { path: '/balance-8-columnas', icon: Table, label: 'Balance 8 Col.' },
       { path: '/estados-financieros', icon: BarChart3, label: 'Estados Financieros' },
-      { path: '/analisis-financiero', icon: TrendingUp, label: 'Análisis' },
-      { path: '/tesoreria', icon: Landmark, label: 'Tesorería' },
-      { path: '/conciliacion', icon: GitCompareArrows, label: 'Conciliación' },
     ]
   },
   {
     title: 'Compra y Venta',
     items: [
-      { path: '/facturacion', icon: Receipt, label: 'Facturación' },
       { path: '/sincronizacion-sii', icon: CloudCog, label: 'Sincronizar SII' },
       { path: '/libro-ventas', icon: BookUp, label: 'Libro Ventas' },
       { path: '/libro-compras', icon: BookDown, label: 'Libro Compras' },
       { path: '/centralizacion-libros', icon: Combine, label: 'Centralizar Libros' },
-      { path: '/honorarios', icon: DollarSign, label: 'Honorarios' },
       { path: '/f29', icon: FileSpreadsheet, label: 'Borrador F29' },
-      { path: '/f22', icon: FileBarChart,   label: 'Asistente F22' },
     ]
   },
   {
@@ -93,36 +74,22 @@ const menuCategories = [
       { path: '/clientes-proveedores', icon: Users,        label: 'Clientes/Proveedores' },
       { path: '/cuentas-cobrar',       icon: CreditCard,   label: 'Cuentas por Cobrar' },
       { path: '/cuentas-pagar',        icon: HandCoins,    label: 'Cuentas por Pagar' },
-      { path: '/notas-credito-debito', icon: FileX,        label: 'Notas Crd./Dbt.' },
-    ]
-  },
-  {
-    title: 'Proveedores y Pagos',
-    items: [
-      { path: '/pago-proveedores', icon: Banknote, label: 'Pago a Proveedores' },
     ]
   },
   // Remuneraciones: oculto del menú — se está migrando a un sistema dedicado aparte.
   // Las rutas y páginas siguen existiendo, solo no aparecen en esta navegación.
   {
-    title: 'Inventario',
+    title: 'Activos',
     items: [
-      { path: '/inventario', icon: Package, label: 'Inventario' },
       { path: '/activo-fijo', icon: Calculator, label: 'Activo Fijo' },
     ]
   },
   {
     title: 'Herramientas y Cierres',
     items: [
-      { path: '/flujo-caja',          icon: Waves,         label: 'Flujo de Caja' },
-      { path: '/documentos',          icon: Folder,        label: 'Documentos' },
       { path: '/cierre-tributario',   icon: FileSpreadsheet, label: 'Cierre Tributario' },
-      { path: '/reportes',            icon: FileBarChart,  label: 'Reportes' },
-      { path: '/calculadora',         icon: Calculator,    label: 'Calculadora' },
       { path: '/tablas-sii',          icon: Database,      label: 'Tablas SII' },
-      { path: '/importar',            icon: Upload,        label: 'Importar' },
       { path: '/backup',              icon: Download,      label: 'Backup' },
-      { path: '/auditoria',           icon: ScrollText,    label: 'Auditoría' },
       { path: '/usuarios',             icon: UserCog,       label: 'Usuarios' },
     ]
   }

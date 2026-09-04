@@ -35,7 +35,6 @@ function useBackendKeepalive() {
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const PlanCuentas = lazy(() => import('./pages/PlanCuentas'));
 const AsientosContables = lazy(() => import('./pages/AsientosContables'));
-const Remuneraciones = lazy(() => import('./pages/Remuneraciones'));
 const Facturacion = lazy(() => import('./pages/Facturacion'));
 const LibroVentas = lazy(() => import('./pages/LibroVentas'));
 const Honorarios = lazy(() => import('./pages/Honorarios'));
@@ -57,17 +56,11 @@ const F29 = lazy(() => import('./pages/F29'));
 const SincronizacionSII = lazy(() => import('./pages/SincronizacionSII'));
 const TablasSII = lazy(() => import('./pages/TablasSII'));
 const Calculadora = lazy(() => import('./pages/Calculadora'));
-const Anticipos = lazy(() => import('./pages/Anticipos'));
 const PagoProveedores = lazy(() => import('./pages/PagoProveedores'));
-const LibroRemuneraciones = lazy(() => import('./pages/LibroRemuneraciones'));
-const DocumentosRRHH = lazy(() => import('./pages/DocumentosRRHH'));
 const CentralizacionLibros = lazy(() => import('./pages/CentralizacionLibros'));
-const CentralizacionRemuneraciones = lazy(() => import('./pages/CentralizacionRemuneraciones'));
-const ConfiguracionSueldos = lazy(() => import('./pages/ConfiguracionSueldos'));
 const ConfiguracionEmpresa = lazy(() => import('./pages/ConfiguracionEmpresa'));
 const BackupSettings = lazy(() => import('./pages/BackupSettings'));
 const ImportarDatos = lazy(() => import('./pages/ImportarDatos'));
-const Previred = lazy(() => import('./pages/Previred'));
 const ClientesProveedores = lazy(() => import('./pages/ClientesProveedores'));
 const CuentasCobrar = lazy(() => import('./pages/CuentasCobrar'));
 const CuentasPagar = lazy(() => import('./pages/CuentasPagar'));
@@ -257,7 +250,6 @@ function AppContent() {
               <Route path="/" element={<ErrorBoundary moduleName="Dashboard"><Dashboard /></ErrorBoundary>} />
               <Route path="/plan-cuentas" element={<ErrorBoundary moduleName="Plan de Cuentas"><PlanCuentas /></ErrorBoundary>} />
               <Route path="/asientos" element={<ErrorBoundary moduleName="Asientos Contables"><AsientosContables /></ErrorBoundary>} />
-              <Route path="/remuneraciones" element={<ErrorBoundary moduleName="Remuneraciones"><Remuneraciones /></ErrorBoundary>} />
               <Route path="/facturacion" element={<ErrorBoundary moduleName="Facturación"><Facturacion /></ErrorBoundary>} />
               <Route path="/libro-ventas" element={<ErrorBoundary moduleName="Libro de Ventas"><LibroVentas tipo="ventas" /></ErrorBoundary>} />
               <Route path="/libro-compras" element={<ErrorBoundary moduleName="Libro de Compras"><LibroVentas tipo="compras" /></ErrorBoundary>} />
@@ -279,14 +271,8 @@ function AppContent() {
               <Route path="/herramientas/sii" element={<ErrorBoundary moduleName="Herramientas SII"><TablasSII /></ErrorBoundary>} />
               <Route path="/balance-8-columnas" element={<ErrorBoundary moduleName="Balance 8 Columnas"><BalanceOchoColumnas /></ErrorBoundary>} />
               <Route path="/libro-mayor" element={<ErrorBoundary moduleName="Libro Mayor"><MayorContable /></ErrorBoundary>} />
-              <Route path="/config-sueldos" element={<ErrorBoundary moduleName="Configuración Sueldos"><ConfiguracionSueldos /></ErrorBoundary>} />
               <Route path="/f29" element={<ErrorBoundary moduleName="F29"><F29 /></ErrorBoundary>} />
               <Route path="/libro-diario" element={<ErrorBoundary moduleName="Libro Diario"><LibroDiario /></ErrorBoundary>} />
-              <Route path="/libro-remuneraciones" element={<ErrorBoundary moduleName="Libro Remuneraciones"><LibroRemuneraciones /></ErrorBoundary>} />
-              <Route path="/centralizacion-remuneraciones" element={<ErrorBoundary moduleName="Centralización Remuneraciones"><CentralizacionRemuneraciones /></ErrorBoundary>} />
-              <Route path="/anticipos" element={<ErrorBoundary moduleName="Anticipos"><Anticipos /></ErrorBoundary>} />
-              <Route path="/documentos-rrhh" element={<ErrorBoundary moduleName="Documentos RRHH"><DocumentosRRHH /></ErrorBoundary>} />
-              <Route path="/previred" element={<ErrorBoundary moduleName="Previred"><Previred /></ErrorBoundary>} />
               <Route path="/sincronizacion-sii" element={<ErrorBoundary moduleName="Sincronización SII"><SincronizacionSII /></ErrorBoundary>} />
               <Route path="/pago-proveedores" element={<ErrorBoundary moduleName="Pago Proveedores"><PagoProveedores /></ErrorBoundary>} />
               <Route path="/cierre-tributario" element={<ErrorBoundary moduleName="Cierre Tributario"><CierreTributario /></ErrorBoundary>} />

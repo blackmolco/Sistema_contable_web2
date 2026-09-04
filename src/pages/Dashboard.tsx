@@ -868,13 +868,6 @@ export default function Dashboard() {
             <span className="text-sm font-medium text-emerald-900 dark:text-emerald-300">Nuevo Asiento</span>
           </button>
           <button
-            onClick={() => navigate('/remuneraciones')}
-            className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] text-center"
-          >
-            <Users className="mx-auto text-purple-600 dark:text-purple-400 mb-2" size={24} />
-            <span className="text-sm font-medium text-purple-900 dark:text-purple-300">Liq. Sueldo</span>
-          </button>
-          <button
             onClick={() => navigate('/reportes')}
             className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] text-center"
           >

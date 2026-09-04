@@ -60,9 +60,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
   Contabilidad: "#0E8073",
   "Compra y Venta": "#2E5FDA",
   "Clientes y Cobros": "#7B4FE0",
-  "Proveedores y Pagos": "#D6427A",
-  Remuneraciones: "#E08A2E",
-  Inventario: "#E08A2E",
+  Activos: "#E08A2E",
   "Herramientas y Cierres": "#1791C8",
 };
 

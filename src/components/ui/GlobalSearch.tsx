@@ -95,12 +95,6 @@ const SYSTEM_ITEMS: Omit<SearchResult, 'tipo'>[] = [
   { id: 'm_pago_prov', titulo: 'Pago a Proveedores', subtitulo: 'Nóminas de egreso y transferencias bancarias masivas', ruta: '/pago-proveedores', categoria: 'Tesorería', icon: 'Wallet' },
 
   // --- RECURSOS HUMANOS ---
-  { id: 'm_remuneraciones', titulo: 'Liquidaciones de Sueldo', subtitulo: 'Cálculo de liquidaciones y nómina mensual', ruta: '/remuneraciones', categoria: 'Recursos Humanos', icon: 'Users' },
-  { id: 'm_libro_rem', titulo: 'Libro de Remuneraciones LRE', subtitulo: 'Libro auxiliar mensual para reporte a la Dirección del Trabajo', ruta: '/libro-remuneraciones', categoria: 'Recursos Humanos', icon: 'FileText' },
-  { id: 'm_docs_rrhh', titulo: 'Documentos y Contratos', subtitulo: 'Gestión de contratos de trabajo, anexos y licencias', ruta: '/documentos-rrhh', categoria: 'Recursos Humanos', icon: 'Archive' },
-  { id: 'm_previred', titulo: 'Previred', subtitulo: 'Exportación de archivo de 105 columnas para cotizaciones', ruta: '/previred', categoria: 'Recursos Humanos', icon: 'HardDrive' },
-  { id: 'm_anticipos', titulo: 'Anticipos de Sueldo', subtitulo: 'Control de egresos por adelantos de sueldos', ruta: '/anticipos', categoria: 'Recursos Humanos', icon: 'DollarSign' },
-  { id: 'm_centralizacion', titulo: 'Centralización Remuneraciones', subtitulo: 'Generación del asiento contable de sueldos mensual', ruta: '/centralizacion-remuneraciones', categoria: 'Recursos Humanos', icon: 'PlusCircle' },
 
   // --- IMPUESTOS Y SII ---
   { id: 'm_sinc_sii', titulo: 'Sincronización SII', subtitulo: 'Descarga automática de DTEs desde el portal del SII', ruta: '/sincronizacion-sii', categoria: 'Impuestos y SII', icon: 'RefreshCw' },
@@ -116,7 +110,6 @@ const SYSTEM_ITEMS: Omit<SearchResult, 'tipo'>[] = [
   // --- CONFIGURACIÓN ---
   { id: 'm_config', titulo: 'Ajustes del Sistema', subtitulo: 'Parámetros del sistema y cuentas predeterminadas', ruta: '/configuracion', categoria: 'Configuración', icon: 'Settings' },
   { id: 'm_config_emp', titulo: 'Configuración Empresa (Multi-Empresa)', subtitulo: 'Gestión de RUTs de empresas del holding', ruta: '/multi-empresa', categoria: 'Configuración', icon: 'Sliders' },
-  { id: 'm_config_sueldos', titulo: 'Configuración de Sueldos', subtitulo: 'Parámetros previsionales (porcentajes de AFP, tope imponible)', ruta: '/config-sueldos', categoria: 'Configuración', icon: 'Sliders' },
   { id: 'm_backup', titulo: 'Respaldo de Datos (Backup)', subtitulo: 'Respaldar base de datos y restaurar configuraciones', ruta: '/backup', categoria: 'Configuración', icon: 'Database' },
 
   // --- ACCIONES DIRECTAS ---
@@ -127,7 +120,6 @@ const SYSTEM_ITEMS: Omit<SearchResult, 'tipo'>[] = [
   { id: 'a_calcular_hon', titulo: 'Calcular Honorario Líquido', subtitulo: 'Ejecutar calculadora rápida de retención de boletas de honorarios', ruta: '/calculadora', categoria: 'Acciones', icon: 'Calculator', actionId: 'calcular_honorario' },
   { id: 'a_descargar_tablas', titulo: 'Descargar Tablas Tributarias SII', subtitulo: 'Sincronizar y actualizar UF/UTM del SII con mindicador.cl', ruta: '/tablas-sii', categoria: 'Acciones', icon: 'RefreshCw', actionId: 'descargar_tablas' },
   { id: 'a_generar_dj', titulo: 'Generar Declaración Jurada 1887', subtitulo: 'Exportar planilla de sueldos para declaración jurada anual', ruta: '/f22', categoria: 'Acciones', icon: 'FileSpreadsheet', actionId: 'generar_dj_1887' },
-  { id: 'a_previred_105', titulo: 'Exportar Nómina Previred', subtitulo: 'Generar el archivo plano estructurado de 105 campos', ruta: '/previred', categoria: 'Acciones', icon: 'HardDrive', actionId: 'exportar_previred' },
   { id: 'a_ver_alertas', titulo: 'Ver Alertas Tributarias de IA', subtitulo: 'Listar advertencias y anomalías detectadas en la facturación y PPM', ruta: '/alertas', categoria: 'Acciones', icon: 'AlertTriangle', actionId: 'ver_alertas' },
 ];
 
@@ -203,24 +195,8 @@ function buscarTodo(q: string, state: ReturnType<typeof useApp>['state']): Searc
     }
   });
 
-  // Trabajadores
-  (state.trabajadores ?? []).forEach(w => {
-    const nombre = `${w.nombre ?? ''} ${w.apellido ?? ''}`.trim();
-    if (
-      nombre.toLowerCase().includes(cleanQ) ||
-      (w.rut ?? '').toLowerCase().includes(cleanQ) ||
-      (w.cargo ?? '').toLowerCase().includes(cleanQ)
-    ) {
-      results.push({
-        tipo: 'trabajador',
-        id: w.id,
-        titulo: nombre || w.rut,
-        subtitulo: `Cargo: ${w.cargo ?? 'No definido'} | RUT: ${w.rut}`,
-        ruta: '/remuneraciones',
-        categoria: 'Fichas de R.R.H.H.',
-      });
-    }
-  });
+  // Trabajadores: sin resultados de búsqueda — remuneraciones se gestiona en
+  // un sistema aparte, así que no hay página a la que llevar al usuario.
 
   // Documentos
   (state.documentos ?? []).forEach(d => {
