@@ -38,23 +38,43 @@ export default function F29() {
   const [mesAuto, setMesAuto] = useState(hoy.getMonth() + 1);
   const [anioAuto, setAnioAuto] = useState(hoy.getFullYear());
 
-  // Totales desde libros del sistema para el período seleccionado
+  // Totales desde los documentos ya cargados (importación SII / Facturación
+  // manual) para el período seleccionado.
+  // Antes esto leía state.libroVentas / state.libroCompras, que ninguna
+  // pantalla del sistema llega a poblar (esas acciones nunca se despachan) —
+  // por eso el F29 siempre mostraba 0 documentos. Los datos reales viven en
+  // state.documentos (FacturacionContext), igual que en Libro de Ventas/Compras,
+  // así que se reutiliza la misma clasificación compra/venta de esa pantalla.
   const datosDelSistema = useMemo(() => {
     const matchPeriodo = (fecha: string) => {
       const d = new Date(fecha);
       return d.getMonth() + 1 === mesAuto && d.getFullYear() === anioAuto;
     };
-    const ventas  = (state.libroVentas ?? []).filter(r => matchPeriodo(r.fecha));
-    const compras = (state.libroCompras ?? []).filter(r => matchPeriodo(r.fecha));
+    const esCompra = (d: typeof state.documentos[number]) =>
+      d.libro === 'compras' ||
+      d.tipo === 'factura_compra' ||
+      (d.libro !== 'ventas' && d.estado === 'pendiente');
+    const esVenta = (d: typeof state.documentos[number]) =>
+      d.libro === 'ventas' ||
+      (d.libro !== 'compras' && d.tipo !== 'factura_compra' && d.estado === 'emitido');
+
+    const docsDelPeriodo = (state.documentos ?? []).filter(d => matchPeriodo(d.fecha));
+    const ventas  = docsDelPeriodo.filter(esVenta);
+    const compras = docsDelPeriodo.filter(esCompra);
+    // Las notas de crédito restan del libro correspondiente.
+    const signo = (d: typeof state.documentos[number]) => (d.tipo === 'nota_credito' ? -1 : 1);
+    const sumaNeto = (docs: typeof state.documentos) => docs.reduce((s, d) => s + (d.neto ?? d.subtotal ?? 0) * signo(d), 0);
+    const sumaIva  = (docs: typeof state.documentos) => docs.reduce((s, d) => s + (d.iva ?? 0) * signo(d), 0);
+
     return {
-      ventasNeto:  ventas.reduce((s, r) => s + r.neto,  0),
-      ventasIva:   ventas.reduce((s, r) => s + r.iva,   0),
-      comprasNeto: compras.reduce((s, r) => s + r.neto, 0),
-      comprasIva:  compras.reduce((s, r) => s + r.iva,  0),
+      ventasNeto:  sumaNeto(ventas),
+      ventasIva:   sumaIva(ventas),
+      comprasNeto: sumaNeto(compras),
+      comprasIva:  sumaIva(compras),
       countVentas:  ventas.length,
       countCompras: compras.length,
     };
-  }, [state.libroVentas, state.libroCompras, mesAuto, anioAuto]);
+  }, [state.documentos, mesAuto, anioAuto]);
 
   const cargarDesistema = () => {
     setVentasNeto(datosDelSistema.ventasNeto);
