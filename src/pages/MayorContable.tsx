@@ -127,7 +127,13 @@ export default function MayorContable() {
   };
 
   const infoCuenta = cuentasUnicas.find((c) => c.codigo === cuentaSeleccionada);
-  const saldoFinal = movimientosMayor.at(-1)?.saldo ?? null;
+  // Si no hay movimientos en el período, el saldo actual sigue siendo el
+  // saldo anterior (no cambió) — antes se perdía por completo porque .at(-1)
+  // sobre una lista vacía es undefined, ocultando el badge aunque la cuenta
+  // sí tuviera saldo real.
+  const saldoFinal = cuentaSeleccionada
+    ? (movimientosMayor.at(-1)?.saldo ?? saldoAnterior)
+    : null;
   const totalDebe = movimientosMayor.reduce((acc, m) => acc + m.debe, 0);
   const totalHaber = movimientosMayor.reduce((acc, m) => acc + m.haber, 0);
 
