@@ -328,6 +328,11 @@ export default function SincronizacionSII() {
           totalExento: fila.exento,
           total: fila.total,
           estado: tipoArchivo === 'venta' ? 'emitido' : 'pendiente' as any,
+          // Sin esto, saveDocumento() (apiSync.ts) no sabe si es venta o compra
+          // (usa doc.libro === 'compras' para decidir tipoTransaccion al guardar
+          // en el backend) y todo se guarda como 'venta' — las compras
+          // importadas desaparecían del Libro de Compras al recargar.
+          libro: tipoArchivo === 'venta' ? 'ventas' : 'compras',
         }));
 
         // Un solo dispatch → un solo re-render
