@@ -129,8 +129,13 @@ function parsearCSVSII(texto: string, tipoLibro: 'venta' | 'compra'): { filas: F
     tipo    : resolverCol(colMap, ['tipodoc', 'tipodocumento', 'codigodoc', 'tipo']),
     // "Folio" → folio; "Folio Desde" → foliodesde (boletas)
     folio   : resolverCol(colMap, ['folio', 'nrofolio', 'numero', 'nrooper']),
-    // "RUT" → rut; también rutrec, rutem, rutemitente
-    rut     : resolverCol(colMap, ['rutrec', 'rutem', 'rutemitente', 'ruteceptor', 'rut']),
+    // "Rut cliente"/"RUT" → rut, chequeado primero: el RCV tambien trae la
+    // columna "RUT Emisor Liquid. Factura" (normaliza a "rutemisorliquid...",
+    // casi siempre "-"), que calzaba antes con el alias 'rutem' y ganaba por
+    // el orden de la lista, dejando el RUT del cliente vacio en TODAS las
+    // filas. 'rut' es mas generico pero el orden de columnas del SII pone
+    // "Rut cliente"/"Rut Proveedor" bien al principio, antes que esa columna.
+    rut     : resolverCol(colMap, ['rut', 'rutrec', 'rutem', 'rutemitente', 'ruteceptor']),
     // "Razón Social" → razonsocial; también nombre, razon
     razon   : resolverCol(colMap, ['razonsocial', 'nombrerec', 'nombreem', 'razon', 'nombre']),
     // "Fecha Docto" → fechadocto; también fechaemision, fecha
