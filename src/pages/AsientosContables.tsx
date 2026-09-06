@@ -229,8 +229,8 @@ export default function AsientosContables() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Asientos Contables</h1>
-          <p className="text-sm text-gray-500 mt-1">Registro de movimientos contables</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Asientos Contables</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Registro de movimientos contables</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" icon={<Bookmark size={15} />} onClick={() => setShowPlantillasModal(true)}>
@@ -262,7 +262,7 @@ export default function AsientosContables() {
           </div>
         </div>
         {searchTerm && (
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             {asientosFiltrados.length} resultado{asientosFiltrados.length !== 1 ? 's' : ''} para &quot;{searchTerm}&quot;
           </p>
         )}
@@ -288,10 +288,10 @@ export default function AsientosContables() {
               <tr>
                 <td colSpan={7} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                      <CheckCircle size={22} className="text-gray-300" />
+                    <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                      <CheckCircle size={22} className="text-gray-300 dark:text-gray-600" />
                     </div>
-                    <p className="text-sm font-medium text-gray-500">No hay asientos registrados</p>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No hay asientos registrados</p>
                     <Button size="sm" onClick={abrirModalNuevo}>
                       Crear primer asiento
                     </Button>
@@ -301,17 +301,17 @@ export default function AsientosContables() {
             ) : (
               asientosFiltrados.map((asiento) => (
                 <tr key={asiento.id} className="odd:bg-gray-50/50 dark:odd:bg-gray-800/30 hover:bg-blue-50 dark:hover:bg-gray-700/50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                  <td className="px-4 py-3 text-sm font-data font-medium text-gray-900 dark:text-gray-100">
                     #{asiento.numero}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                     {formatDate(asiento.fecha)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{asiento.glosa}</td>
-                  <td className="px-4 py-3 text-sm text-right tnum text-gray-900">
+                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{asiento.glosa}</td>
+                  <td className="px-4 py-3 text-sm text-right font-data text-gray-900 dark:text-gray-100">
                     {formatCurrency(asiento.totalDebe)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-right tnum text-gray-900">
+                  <td className="px-4 py-3 text-sm text-right font-data text-gray-900 dark:text-gray-100">
                     {formatCurrency(asiento.totalHaber)}
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -326,7 +326,7 @@ export default function AsientosContables() {
                     <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={() => abrirModalEditar(asiento)}
-                        className="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 rounded-lg
+                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg
                           transition-[background-color,color] duration-150 active:scale-[0.95]"
                         title="Editar"
                         aria-label={`Editar asiento #${asiento.numero}`}
@@ -335,7 +335,7 @@ export default function AsientosContables() {
                       </button>
                       <button
                         onClick={() => clonarAsiento(asiento)}
-                        className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg
+                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg
                           transition-[background-color,color] duration-150 active:scale-[0.95]"
                         title="Clonar asiento"
                         aria-label={`Clonar asiento #${asiento.numero}`}
@@ -344,7 +344,7 @@ export default function AsientosContables() {
                       </button>
                       <button
                         onClick={() => setConfirmDeleteId(asiento.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg
+                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg
                           transition-[background-color,color] duration-150 active:scale-[0.95]"
                         title="Eliminar"
                         aria-label={`Eliminar asiento #${asiento.numero}`}
@@ -420,41 +420,41 @@ export default function AsientosContables() {
           </div>
 
           {/* Líneas del asiento */}
-          <div className="border border-gray-200 rounded-lg">
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
             <div className="overflow-hidden rounded-t-lg">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Cuenta</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase w-28">Debe</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase w-28">Haber</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Cuenta</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase w-28">Debe</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase w-28">Haber</th>
                   <th className="px-3 py-2 w-10"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {formData.detalles.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-3 py-4 text-center text-xs text-gray-400">
+                    <td colSpan={4} className="px-3 py-4 text-center text-xs text-gray-400 dark:text-gray-500">
                       Agrega cuentas usando el formulario de abajo
                     </td>
                   </tr>
                 ) : (
                   formData.detalles.map((detalle, index) => (
-                    <tr key={index} className="hover:bg-gray-50/80">
+                    <tr key={index} className="hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
                       <td className="px-3 py-2">
-                        <span className="font-mono text-xs text-gray-400 mr-2">{detalle.cuentaCodigo}</span>
-                        <span className="text-gray-800">{detalle.cuentaNombre}</span>
+                        <span className="font-data text-xs text-gray-400 dark:text-gray-500 mr-2">{detalle.cuentaCodigo}</span>
+                        <span className="text-gray-800 dark:text-gray-200">{detalle.cuentaNombre}</span>
                       </td>
-                      <td className="px-3 py-2 text-right text-gray-900">
+                      <td className="px-3 py-2 text-right font-data text-gray-900 dark:text-gray-100">
                         {detalle.debe > 0 ? formatCurrency(detalle.debe) : ''}
                       </td>
-                      <td className="px-3 py-2 text-right text-gray-900">
+                      <td className="px-3 py-2 text-right font-data text-gray-900 dark:text-gray-100">
                         {detalle.haber > 0 ? formatCurrency(detalle.haber) : ''}
                       </td>
                       <td className="px-3 py-2 text-center">
                         <button
                           onClick={() => eliminarLinea(index)}
-                          className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded
+                          className="p-1 text-red-400 dark:text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded
                             transition-[background-color,color] duration-150 active:scale-[0.93]"
                         >
                           <Trash2 size={13} />
@@ -464,11 +464,11 @@ export default function AsientosContables() {
                   ))
                 )}
               </tbody>
-              <tfoot className="bg-gray-50 border-t border-gray-200">
-                <tr className="font-semibold text-gray-700">
+              <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                <tr className="font-semibold text-gray-700 dark:text-gray-300">
                   <td className="px-3 py-2 text-xs uppercase">Totales</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(totales.debe)}</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(totales.haber)}</td>
+                  <td className="px-3 py-2 text-right font-data">{formatCurrency(totales.debe)}</td>
+                  <td className="px-3 py-2 text-right font-data">{formatCurrency(totales.haber)}</td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -476,7 +476,7 @@ export default function AsientosContables() {
             </div>
 
             {/* Agregar línea */}
-            <div className="p-3 bg-gray-50/50 border-t border-gray-200 rounded-b-lg">
+            <div className="p-3 bg-gray-50/50 dark:bg-gray-800/40 border-t border-gray-200 dark:border-gray-700 rounded-b-lg">
               <div className="grid grid-cols-4 gap-2 items-end">
                 <div className="col-span-2">
                   <SearchSelect
@@ -511,10 +511,10 @@ export default function AsientosContables() {
           <div
             className={`p-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium ${
               balanceado && formData.detalles.length > 0
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                 : formData.detalles.length === 0
-                ? 'bg-gray-50 text-gray-400 border border-gray-200'
-                : 'bg-red-50 text-red-700 border border-red-200'
+                ? 'bg-gray-50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700'
+                : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
             }`}
           >
             {balanceado && formData.detalles.length > 0 ? (
@@ -530,13 +530,13 @@ export default function AsientosContables() {
             ) : (
               <>
                 <AlertCircle size={16} />
-                Diferencia: {formatCurrency(Math.abs(totales.debe - totales.haber))}
+                <span className="font-data">Diferencia: {formatCurrency(Math.abs(totales.debe - totales.haber))}</span>
               </>
             )}
           </div>
 
           {(formErrors[''] || formErrors.detalles) && (
-            <p className="text-xs text-red-600 flex items-center gap-1">
+            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
               <AlertCircle size={12} />
               {formErrors[''] || formErrors.detalles}
             </p>
@@ -548,7 +548,7 @@ export default function AsientosContables() {
               <button
                 type="button"
                 onClick={() => setShowGuardarPlantillaModal(true)}
-                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary transition-colors"
+                className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-blue-400 transition-colors"
               >
                 <BookmarkPlus size={13} />
                 Guardar como plantilla reutilizable
@@ -568,17 +568,17 @@ export default function AsientosContables() {
       >
         {plantillas.length === 0 ? (
           <div className="py-12 text-center">
-            <Bookmark size={32} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-gray-500">No hay plantillas guardadas</p>
-            <p className="text-xs text-gray-400 mt-1">Crea un asiento y usa "Guardar como plantilla"</p>
+            <Bookmark size={32} className="text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">No hay plantillas guardadas</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Crea un asiento y usa "Guardar como plantilla"</p>
           </div>
         ) : (
           <div className="space-y-2">
             {plantillas.map(p => (
-              <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50">
+              <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{p.nombre}</p>
-                  <p className="text-xs text-gray-500">{p.glosa} · {p.detalles.length} líneas · usado {p.usosCount}x</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{p.nombre}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{p.glosa} · {p.detalles.length} líneas · usado {p.usosCount}x</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" onClick={() => { aplicarPlantilla(p); setShowModal(true); }}>
@@ -586,7 +586,7 @@ export default function AsientosContables() {
                   </Button>
                   <button
                     onClick={() => dispatch({ type: 'DELETE_PLANTILLA', payload: p.id })}
-                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                    className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition-colors"
                     title="Eliminar plantilla"
                   >
                     <Trash2 size={14} />
@@ -618,7 +618,7 @@ export default function AsientosContables() {
           placeholder="Ej: Depreciación mensual activos"
           autoFocus
         />
-        <p className="text-xs text-gray-400 mt-2">La glosa y todas las líneas del asiento actual se guardarán como plantilla.</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">La glosa y todas las líneas del asiento actual se guardarán como plantilla.</p>
       </Modal>
 
       {/* Confirmación de eliminación */}

@@ -150,8 +150,8 @@ export default function BalanceOchoColumnas() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Balance de 8 Columnas</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Balance de 8 Columnas</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Calculado desde los asientos del Libro Diario
           </p>
         </div>
@@ -179,7 +179,7 @@ export default function BalanceOchoColumnas() {
               onChange={(e) => setFechaFin(e.target.value)}
             />
           </div>
-          <div className="text-xs text-gray-500 self-end pb-2">
+          <div className="text-xs text-gray-500 dark:text-gray-400 self-end pb-2">
             <strong>Saldo Anterior</strong> = movimientos antes de la fecha inicio<br />
             <strong>Movimiento</strong> = movimientos dentro del período
           </div>
@@ -189,12 +189,12 @@ export default function BalanceOchoColumnas() {
       {/* Sin datos */}
       {filas.length === 0 && (
         <Card>
-          <div className="flex flex-col items-center py-12 text-gray-400 gap-3">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-              <AlertCircle size={22} className="text-gray-400" />
+          <div className="flex flex-col items-center py-12 text-gray-400 dark:text-gray-500 gap-3">
+            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <AlertCircle size={22} className="text-gray-400 dark:text-gray-500" />
             </div>
-            <p className="font-medium text-gray-500">No hay asientos en el período seleccionado</p>
-            <p className="text-sm text-gray-400">Ingresa asientos en el Libro Diario para ver el balance.</p>
+            <p className="font-medium text-gray-500 dark:text-gray-400">No hay asientos en el período seleccionado</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">Ingresa asientos en el Libro Diario para ver el balance.</p>
           </div>
         </Card>
       )}
@@ -203,51 +203,51 @@ export default function BalanceOchoColumnas() {
       {filas.length > 0 && (
         <Card padding="none">
           <div className="overflow-x-auto overflow-y-auto max-h-[65vh] rounded-xl">
-            <table className="w-full text-xs tnum border-separate border-spacing-0">
+            <table className="w-full text-xs border-separate border-spacing-0">
               <thead>
-                <tr className="sticky top-0 z-10 bg-gray-900 text-white">
-                  <th className="py-3 px-2 text-left border border-gray-700" colSpan={2}>Cuenta</th>
-                  <th className="py-3 px-2 text-center border border-gray-700" colSpan={2}>Saldo Anterior</th>
-                  <th className="py-3 px-2 text-center border border-gray-700" colSpan={2}>Movimiento del Período</th>
-                  <th className="py-3 px-2 text-center border border-gray-700" colSpan={2}>Saldo Acumulado</th>
+                <tr className="sticky top-0 z-10 bg-gray-900 dark:bg-black text-white">
+                  <th className="py-3 px-2 text-left border border-gray-700 dark:border-gray-800" colSpan={2}>Cuenta</th>
+                  <th className="py-3 px-2 text-center border border-gray-700 dark:border-gray-800" colSpan={2}>Saldo Anterior</th>
+                  <th className="py-3 px-2 text-center border border-gray-700 dark:border-gray-800" colSpan={2}>Movimiento del Período</th>
+                  <th className="py-3 px-2 text-center border border-gray-700 dark:border-gray-800" colSpan={2}>Saldo Acumulado</th>
                 </tr>
-                <tr className="sticky top-[45px] z-10 bg-gray-800 text-white/90 text-right">
-                  <th className="py-2 px-2 text-left border border-gray-700">Código</th>
-                  <th className="py-2 px-2 text-left border border-gray-700">Nombre</th>
-                  <th className="py-2 px-2 border border-gray-700">Debe</th>
-                  <th className="py-2 px-2 border border-gray-700">Haber</th>
-                  <th className="py-2 px-2 border border-gray-700">Debe</th>
-                  <th className="py-2 px-2 border border-gray-700">Haber</th>
-                  <th className="py-2 px-2 border border-gray-700">Debe</th>
-                  <th className="py-2 px-2 border border-gray-700">Haber</th>
+                <tr className="sticky top-[45px] z-10 bg-gray-800 dark:bg-gray-900 text-white/90 text-right">
+                  <th className="py-2 px-2 text-left border border-gray-700 dark:border-gray-800">Código</th>
+                  <th className="py-2 px-2 text-left border border-gray-700 dark:border-gray-800">Nombre</th>
+                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Debe</th>
+                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Haber</th>
+                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Debe</th>
+                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Haber</th>
+                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Debe</th>
+                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Haber</th>
                 </tr>
               </thead>
               <tbody>
                 {filas.map((f, i) => (
                   <tr
                     key={f.codigo}
-                    className={`transition-colors duration-100 hover:bg-blue-50/40 ${
-                      i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'
+                    className={`transition-colors duration-100 hover:bg-blue-50/40 dark:hover:bg-gray-800/50 ${
+                      i % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/60 dark:bg-gray-800/30'
                     }`}
                   >
-                    <td className="py-2 px-2 border border-gray-200 font-mono text-gray-600">{f.codigo}</td>
-                    <td className="py-2 px-2 border border-gray-200 text-gray-800">{f.nombre}</td>
-                    <td className="py-2 px-2 border border-gray-200 text-right text-blue-700">
+                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 font-data text-gray-600 dark:text-gray-400">{f.codigo}</td>
+                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200">{f.nombre}</td>
+                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data text-blue-700 dark:text-blue-400">
                       {f.saldoAnt.debe > 0 ? formatCurrency(f.saldoAnt.debe) : ''}
                     </td>
-                    <td className="py-2 px-2 border border-gray-200 text-right text-blue-700">
+                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data text-blue-700 dark:text-blue-400">
                       {f.saldoAnt.haber > 0 ? formatCurrency(f.saldoAnt.haber) : ''}
                     </td>
-                    <td className="py-2 px-2 border border-gray-200 text-right text-gray-700">
+                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data text-gray-700 dark:text-gray-300">
                       {f.movimiento.debe > 0 ? formatCurrency(f.movimiento.debe) : ''}
                     </td>
-                    <td className="py-2 px-2 border border-gray-200 text-right text-gray-700">
+                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data text-gray-700 dark:text-gray-300">
                       {f.movimiento.haber > 0 ? formatCurrency(f.movimiento.haber) : ''}
                     </td>
-                    <td className="py-2 px-2 border border-gray-200 text-right font-semibold text-gray-900">
+                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data font-semibold text-gray-900 dark:text-gray-100">
                       {f.saldoAct.debe > 0 ? formatCurrency(f.saldoAct.debe) : ''}
                     </td>
-                    <td className="py-2 px-2 border border-gray-200 text-right font-semibold text-gray-900">
+                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data font-semibold text-gray-900 dark:text-gray-100">
                       {f.saldoAct.haber > 0 ? formatCurrency(f.saldoAct.haber) : ''}
                     </td>
                   </tr>
@@ -256,14 +256,14 @@ export default function BalanceOchoColumnas() {
               </tbody>
               {/* Fila de totales al pie */}
               <tfoot>
-                <tr className="bg-gray-900 text-white font-bold text-right">
-                  <td className="py-3 px-2 border border-gray-700 text-left" colSpan={2}>TOTALES</td>
-                  <td className="py-3 px-2 border border-gray-700">{formatCurrency(totales.saldoAnt.debe)}</td>
-                  <td className="py-3 px-2 border border-gray-700">{formatCurrency(totales.saldoAnt.haber)}</td>
-                  <td className="py-3 px-2 border border-gray-700">{formatCurrency(totales.movimiento.debe)}</td>
-                  <td className="py-3 px-2 border border-gray-700">{formatCurrency(totales.movimiento.haber)}</td>
-                  <td className="py-3 px-2 border border-gray-700">{formatCurrency(totales.saldoAct.debe)}</td>
-                  <td className="py-3 px-2 border border-gray-700">{formatCurrency(totales.saldoAct.haber)}</td>
+                <tr className="bg-gray-900 dark:bg-black text-white font-bold text-right">
+                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 text-left" colSpan={2}>TOTALES</td>
+                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.saldoAnt.debe)}</td>
+                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.saldoAnt.haber)}</td>
+                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.movimiento.debe)}</td>
+                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.movimiento.haber)}</td>
+                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.saldoAct.debe)}</td>
+                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.saldoAct.haber)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -272,12 +272,12 @@ export default function BalanceOchoColumnas() {
           {/* Indicador cuadre */}
           <div className="px-5 py-3">
             {balanceCuadra ? (
-              <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-sm">
+              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg px-4 py-2 text-sm">
                 <CheckCircle size={16} />
                 Balance cuadrado correctamente
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-2 text-sm">
                 <AlertCircle size={16} />
                 El saldo acumulado no cuadra (Debe ≠ Haber). Revisa que todos los asientos estén balanceados.
               </div>
@@ -293,7 +293,7 @@ export default function BalanceOchoColumnas() {
           {/* Estado de Resultados */}
           <Card title="Estado de Resultados">
             {estadoResultados.ingresos.length === 0 && estadoResultados.gastos.length === 0 ? (
-              <p className="text-sm text-gray-400 italic">
+              <p className="text-sm text-gray-400 dark:text-gray-500 italic">
                 Sin cuentas de ingreso/gasto en el período.<br />
                 Asegúrate de que las cuentas en el Plan de Cuentas tengan tipo &quot;ingreso&quot; o &quot;gasto&quot;.
               </p>
@@ -301,45 +301,45 @@ export default function BalanceOchoColumnas() {
               <div className="space-y-1 text-sm">
                 {estadoResultados.ingresos.length > 0 && (
                   <>
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Ingresos</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Ingresos</p>
                     {estadoResultados.ingresos.map((x) => (
                       <div key={x.nombre} className="flex justify-between py-0.5">
-                        <span className="text-gray-600 truncate pr-2">{x.nombre}</span>
-                        <span className="font-medium text-emerald-700 shrink-0">{formatCurrency(x.monto)}</span>
+                        <span className="text-gray-600 dark:text-gray-300 truncate pr-2">{x.nombre}</span>
+                        <span className="font-data font-medium text-emerald-700 dark:text-emerald-400 shrink-0">{formatCurrency(x.monto)}</span>
                       </div>
                     ))}
-                    <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 font-semibold text-emerald-700">
+                    <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 mt-1 font-semibold text-emerald-700 dark:text-emerald-400">
                       <span>Total Ingresos</span>
-                      <span>{formatCurrency(estadoResultados.totalIngresos)}</span>
+                      <span className="font-data">{formatCurrency(estadoResultados.totalIngresos)}</span>
                     </div>
                   </>
                 )}
 
                 {estadoResultados.gastos.length > 0 && (
                   <>
-                    <p className="text-xs font-semibold text-gray-500 uppercase mt-4 mb-2">Gastos</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mt-4 mb-2">Gastos</p>
                     {estadoResultados.gastos.map((x) => (
                       <div key={x.nombre} className="flex justify-between py-0.5">
-                        <span className="text-gray-600 truncate pr-2">{x.nombre}</span>
-                        <span className="font-medium text-red-600 shrink-0">({formatCurrency(x.monto)})</span>
+                        <span className="text-gray-600 dark:text-gray-300 truncate pr-2">{x.nombre}</span>
+                        <span className="font-data font-medium text-red-600 dark:text-red-400 shrink-0">({formatCurrency(x.monto)})</span>
                       </div>
                     ))}
-                    <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 font-semibold text-red-600">
+                    <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 mt-1 font-semibold text-red-600 dark:text-red-400">
                       <span>Total Gastos</span>
-                      <span>({formatCurrency(estadoResultados.totalGastos)})</span>
+                      <span className="font-data">({formatCurrency(estadoResultados.totalGastos)})</span>
                     </div>
                   </>
                 )}
 
                 <div
-                  className={`flex justify-between border-t-2 border-gray-300 pt-3 mt-2 font-bold text-base ${
-                    estadoResultados.utilidad >= 0 ? 'text-emerald-700' : 'text-red-700'
+                  className={`flex justify-between border-t-2 border-gray-300 dark:border-gray-600 pt-3 mt-2 font-bold text-base ${
+                    estadoResultados.utilidad >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'
                   }`}
                 >
                   <span>
                     {estadoResultados.utilidad >= 0 ? 'Utilidad del Ejercicio' : 'Pérdida del Ejercicio'}
                   </span>
-                  <span>{formatCurrency(Math.abs(estadoResultados.utilidad))}</span>
+                  <span className="font-data">{formatCurrency(Math.abs(estadoResultados.utilidad))}</span>
                 </div>
               </div>
             )}
@@ -348,76 +348,76 @@ export default function BalanceOchoColumnas() {
           {/* Balance General */}
           <Card title="Balance General">
             {balanceGeneral.activos.length === 0 && balanceGeneral.pasivos.length === 0 ? (
-              <p className="text-sm text-gray-400 italic">
+              <p className="text-sm text-gray-400 dark:text-gray-500 italic">
                 Sin cuentas de activo/pasivo/patrimonio en el período.<br />
                 Verifica los tipos de cuenta en el Plan de Cuentas.
               </p>
             ) : (
               <div className="space-y-1 text-sm">
                 {/* Activos */}
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Activos</p>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Activos</p>
                 {balanceGeneral.activos.map((x) => (
                   <div key={x.nombre} className="flex justify-between py-0.5">
-                    <span className="text-gray-600 truncate pr-2">{x.nombre}</span>
-                    <span className="font-medium shrink-0">{formatCurrency(x.monto)}</span>
+                    <span className="text-gray-600 dark:text-gray-300 truncate pr-2">{x.nombre}</span>
+                    <span className="font-data font-medium text-gray-800 dark:text-gray-200 shrink-0">{formatCurrency(x.monto)}</span>
                   </div>
                 ))}
-                <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 font-semibold text-blue-700">
+                <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 mt-1 font-semibold text-blue-700 dark:text-blue-400">
                   <span>Total Activos</span>
-                  <span>{formatCurrency(balanceGeneral.totalActivos)}</span>
+                  <span className="font-data">{formatCurrency(balanceGeneral.totalActivos)}</span>
                 </div>
 
                 {/* Pasivos */}
                 {balanceGeneral.pasivos.length > 0 && (
                   <>
-                    <p className="text-xs font-semibold text-gray-500 uppercase mt-4 mb-2">Pasivos</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mt-4 mb-2">Pasivos</p>
                     {balanceGeneral.pasivos.map((x) => (
                       <div key={x.nombre} className="flex justify-between py-0.5">
-                        <span className="text-gray-600 truncate pr-2">{x.nombre}</span>
-                        <span className="font-medium shrink-0">{formatCurrency(x.monto)}</span>
+                        <span className="text-gray-600 dark:text-gray-300 truncate pr-2">{x.nombre}</span>
+                        <span className="font-data font-medium text-gray-800 dark:text-gray-200 shrink-0">{formatCurrency(x.monto)}</span>
                       </div>
                     ))}
-                    <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 font-semibold text-red-600">
+                    <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 mt-1 font-semibold text-red-600 dark:text-red-400">
                       <span>Total Pasivos</span>
-                      <span>{formatCurrency(balanceGeneral.totalPasivos)}</span>
+                      <span className="font-data">{formatCurrency(balanceGeneral.totalPasivos)}</span>
                     </div>
                   </>
                 )}
 
                 {/* Patrimonio */}
-                <p className="text-xs font-semibold text-gray-500 uppercase mt-4 mb-2">Patrimonio</p>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mt-4 mb-2">Patrimonio</p>
                 {balanceGeneral.patrimonio.map((x) => (
                   <div key={x.nombre} className="flex justify-between py-0.5">
-                    <span className="text-gray-600 truncate pr-2">{x.nombre}</span>
-                    <span className="font-medium shrink-0">{formatCurrency(x.monto)}</span>
+                    <span className="text-gray-600 dark:text-gray-300 truncate pr-2">{x.nombre}</span>
+                    <span className="font-data font-medium text-gray-800 dark:text-gray-200 shrink-0">{formatCurrency(x.monto)}</span>
                   </div>
                 ))}
                 <div className="flex justify-between py-0.5">
-                  <span className="text-gray-600">
+                  <span className="text-gray-600 dark:text-gray-300">
                     {estadoResultados.utilidad >= 0 ? 'Utilidad del Ejercicio' : 'Pérdida del Ejercicio'}
                   </span>
                   <span
-                    className={`font-medium shrink-0 ${
-                      estadoResultados.utilidad >= 0 ? 'text-emerald-700' : 'text-red-600'
+                    className={`font-data font-medium shrink-0 ${
+                      estadoResultados.utilidad >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
                     }`}
                   >
                     {formatCurrency(estadoResultados.utilidad)}
                   </span>
                 </div>
-                <div className="flex justify-between border-t border-gray-200 pt-2 mt-1 font-semibold text-emerald-700">
+                <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 mt-1 font-semibold text-emerald-700 dark:text-emerald-400">
                   <span>Total Patrimonio</span>
-                  <span>{formatCurrency(balanceGeneral.totalPatrimonio)}</span>
+                  <span className="font-data">{formatCurrency(balanceGeneral.totalPatrimonio)}</span>
                 </div>
 
                 {/* Total Pasivo + Patrimonio */}
-                <div className="flex justify-between border-t-2 border-blue-300 mt-3 pt-3 font-bold text-blue-700">
+                <div className="flex justify-between border-t-2 border-blue-300 dark:border-blue-700 mt-3 pt-3 font-bold text-blue-700 dark:text-blue-400">
                   <span>Total Pasivo + Patrimonio</span>
-                  <span>{formatCurrency(balanceGeneral.totalPasivos + balanceGeneral.totalPatrimonio)}</span>
+                  <span className="font-data">{formatCurrency(balanceGeneral.totalPasivos + balanceGeneral.totalPatrimonio)}</span>
                 </div>
 
                 {/* Alerta cuadre */}
                 {Math.abs(balanceGeneral.totalActivos - (balanceGeneral.totalPasivos + balanceGeneral.totalPatrimonio)) > 100 && (
-                  <div className="mt-3 flex items-center gap-1.5 text-amber-600 text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <div className="mt-3 flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
                     <AlertCircle size={13} />
                     El balance no cuadra. Activos ≠ Pasivo + Patrimonio.
                   </div>

@@ -284,9 +284,9 @@ export default function MayorContable() {
 
               {/* Saldo anterior — arrastre de ejercicios previos al rango filtrado */}
               {fechaDesde && (
-                <p className="mx-5 mt-4 text-xs text-gray-500">
+                <p className="mx-5 mt-4 text-xs text-gray-500 dark:text-gray-400">
                   Saldo anterior al {fechaDesde}:{' '}
-                  <span className="font-semibold text-gray-700">{formatCurrency(saldoAnterior)}</span>
+                  <span className="font-data font-semibold text-gray-700 dark:text-gray-300">{formatCurrency(saldoAnterior)}</span>
                   {(tipoCuentaSeleccionada === 'ingreso' || tipoCuentaSeleccionada === 'gasto') && (
                     <span className="text-gray-400"> (cuenta de resultado, no arrastra entre ejercicios)</span>
                   )}
@@ -297,14 +297,14 @@ export default function MayorContable() {
               {saldoFinal !== null && (
                 <div className={`mx-5 mt-4 mb-1 flex items-center gap-3 p-3 rounded-lg border ${
                   saldoFinal >= 0
-                    ? 'bg-emerald-50 border-emerald-200'
-                    : 'bg-red-50 border-red-200'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800'
                 }`}>
-                  <span className="text-sm text-gray-600">Saldo actual:</span>
-                  <span className={`text-lg font-bold ${saldoFinal >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">Saldo actual:</span>
+                  <span className={`font-data text-lg font-bold ${saldoFinal >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
                     {formatCurrency(saldoFinal)}
                   </span>
-                  <span className="text-xs text-gray-400 ml-auto">
+                  <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
                     {movimientosMayor.length} movimiento{movimientosMayor.length !== 1 ? 's' : ''}
                   </span>
                 </div>
@@ -328,8 +328,8 @@ export default function MayorContable() {
                         <tr>
                           <td colSpan={6} className="py-10 text-center">
                             <div className="flex flex-col items-center gap-2">
-                              <BookOpen size={32} className="text-gray-200" />
-                              <p className="text-sm text-gray-500">
+                              <BookOpen size={32} className="text-gray-200 dark:text-gray-700" />
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
                                 No hay movimientos para esta cuenta en el período seleccionado.
                               </p>
                             </div>
@@ -338,20 +338,20 @@ export default function MayorContable() {
                       ) : (
                         movimientosMayor.map((mov, idx) => (
                           <tr key={idx} className="odd:bg-gray-50/50 dark:odd:bg-gray-800/30 hover:bg-blue-50 dark:hover:bg-gray-700/50">
-                            <td className="py-2 px-4 text-xs">{formatDate(mov.fecha)}</td>
-                            <td className="py-2 px-4 font-mono text-xs text-primary font-bold">
+                            <td className="py-2 px-4 text-xs text-gray-600 dark:text-gray-300">{formatDate(mov.fecha)}</td>
+                            <td className="py-2 px-4 font-data text-xs text-primary dark:text-blue-400 font-bold">
                               #{mov.numeroAsiento}
                             </td>
-                            <td className="py-2 px-4 text-xs text-gray-700">{mov.glosa}</td>
-                            <td className="py-2 px-4 text-right tnum text-sm font-medium text-gray-900">
+                            <td className="py-2 px-4 text-xs text-gray-700 dark:text-gray-300">{mov.glosa}</td>
+                            <td className="py-2 px-4 text-right font-data text-sm font-medium text-gray-900 dark:text-gray-100">
                               {mov.debe > 0 ? formatCurrency(mov.debe) : ''}
                             </td>
-                            <td className="py-2 px-4 text-right tnum text-sm font-medium text-gray-900">
+                            <td className="py-2 px-4 text-right font-data text-sm font-medium text-gray-900 dark:text-gray-100">
                               {mov.haber > 0 ? formatCurrency(mov.haber) : ''}
                             </td>
                             <td
-                              className={`py-2 px-4 text-right tnum text-sm font-bold ${
-                                mov.saldo < 0 ? 'text-red-600' : 'text-emerald-700'
+                              className={`py-2 px-4 text-right font-data text-sm font-bold ${
+                                mov.saldo < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'
                               }`}
                             >
                               {formatCurrency(mov.saldo)}
@@ -366,15 +366,15 @@ export default function MayorContable() {
                           <td colSpan={3} className="py-3 px-4 text-right uppercase text-xs">
                             Sumas Totales y Saldo Final:
                           </td>
-                          <td className="py-3 px-4 text-right tnum text-emerald-700">
+                          <td className="py-3 px-4 text-right font-data text-emerald-700 dark:text-emerald-400">
                             {formatCurrency(totalDebe)}
                           </td>
-                          <td className="py-3 px-4 text-right tnum text-red-600">
+                          <td className="py-3 px-4 text-right font-data text-red-600 dark:text-red-400">
                             {formatCurrency(totalHaber)}
                           </td>
                           <td
-                            className={`py-3 px-4 text-right tnum text-base font-bold ${
-                              (saldoFinal ?? 0) < 0 ? 'text-red-700' : 'text-emerald-700'
+                            className={`py-3 px-4 text-right font-data text-base font-bold ${
+                              (saldoFinal ?? 0) < 0 ? 'text-red-700 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'
                             }`}
                           >
                             {saldoFinal !== null ? formatCurrency(saldoFinal) : ''}
@@ -389,24 +389,24 @@ export default function MayorContable() {
                   {/* The T layout body */}
                   <div className="grid grid-cols-2 gap-0 relative min-h-[250px]">
                     {/* Vertical Divider */}
-                    <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gray-405 -translate-x-1/2"></div>
+                    <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gray-300 dark:bg-gray-700 -translate-x-1/2"></div>
                     
                     {/* Left Column: DEBE */}
                     <div className="pr-6">
-                      <div className="text-center font-bold uppercase text-gray-700 pb-2 border-b-2 border-gray-400 mb-2 text-sm">
+                      <div className="text-center font-bold uppercase text-gray-700 dark:text-gray-300 pb-2 border-b-2 border-gray-400 dark:border-gray-600 mb-2 text-sm">
                         Debe (Débitos)
                       </div>
-                      <div className="space-y-1 divide-y divide-gray-100 max-h-[400px] overflow-y-auto pr-1">
+                      <div className="space-y-1 divide-y divide-gray-100 dark:divide-gray-800 max-h-[400px] overflow-y-auto pr-1">
                         {movimientosMayor.filter(m => m.debe > 0).length === 0 ? (
-                          <p className="text-center text-xs text-gray-400 py-10">Sin cargos</p>
+                          <p className="text-center text-xs text-gray-400 dark:text-gray-500 py-10">Sin cargos</p>
                         ) : (
                           movimientosMayor.filter(m => m.debe > 0).map((mov, idx) => (
-                            <div key={idx} className="py-2 text-xs hover:bg-gray-50 px-2 rounded transition-colors">
+                            <div key={idx} className="py-2 text-xs hover:bg-gray-50 dark:hover:bg-gray-800/50 px-2 rounded transition-colors">
                               <div className="flex justify-between items-start gap-2">
-                                <span className="font-mono text-primary font-semibold">#{mov.numeroAsiento}</span>
-                                <span className="font-bold text-gray-900">{formatCurrency(mov.debe)}</span>
+                                <span className="font-data text-primary dark:text-blue-400 font-semibold">#{mov.numeroAsiento}</span>
+                                <span className="font-data font-bold text-gray-900 dark:text-gray-100">{formatCurrency(mov.debe)}</span>
                               </div>
-                              <div className="flex justify-between items-center text-[10px] text-gray-500 mt-0.5">
+                              <div className="flex justify-between items-center text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
                                 <span className="truncate max-w-[150px] md:max-w-[200px]" title={mov.glosa}>{mov.glosa}</span>
                                 <span>{formatDate(mov.fecha)}</span>
                               </div>
@@ -418,20 +418,20 @@ export default function MayorContable() {
 
                     {/* Right Column: HABER */}
                     <div className="pl-6">
-                      <div className="text-center font-bold uppercase text-gray-700 pb-2 border-b-2 border-gray-400 mb-2 text-sm">
+                      <div className="text-center font-bold uppercase text-gray-700 dark:text-gray-300 pb-2 border-b-2 border-gray-400 dark:border-gray-600 mb-2 text-sm">
                         Haber (Créditos)
                       </div>
-                      <div className="space-y-1 divide-y divide-gray-100 max-h-[400px] overflow-y-auto pr-1">
+                      <div className="space-y-1 divide-y divide-gray-100 dark:divide-gray-800 max-h-[400px] overflow-y-auto pr-1">
                         {movimientosMayor.filter(m => m.haber > 0).length === 0 ? (
-                          <p className="text-center text-xs text-gray-400 py-10">Sin abonos</p>
+                          <p className="text-center text-xs text-gray-400 dark:text-gray-500 py-10">Sin abonos</p>
                         ) : (
                           movimientosMayor.filter(m => m.haber > 0).map((mov, idx) => (
-                            <div key={idx} className="py-2 text-xs hover:bg-gray-50 px-2 rounded transition-colors">
+                            <div key={idx} className="py-2 text-xs hover:bg-gray-50 dark:hover:bg-gray-800/50 px-2 rounded transition-colors">
                               <div className="flex justify-between items-start gap-2">
-                                <span className="font-mono text-primary font-semibold">#{mov.numeroAsiento}</span>
-                                <span className="font-bold text-gray-900">{formatCurrency(mov.haber)}</span>
+                                <span className="font-data text-primary dark:text-blue-400 font-semibold">#{mov.numeroAsiento}</span>
+                                <span className="font-data font-bold text-gray-900 dark:text-gray-100">{formatCurrency(mov.haber)}</span>
                               </div>
-                              <div className="flex justify-between items-center text-[10px] text-gray-500 mt-0.5">
+                              <div className="flex justify-between items-center text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
                                 <span className="truncate max-w-[150px] md:max-w-[200px]" title={mov.glosa}>{mov.glosa}</span>
                                 <span>{formatDate(mov.fecha)}</span>
                               </div>
@@ -443,34 +443,34 @@ export default function MayorContable() {
                   </div>
 
                   {/* Totals under columns */}
-                  <div className="grid grid-cols-2 gap-0 border-t-2 border-gray-400 pt-3 relative">
-                    <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gray-405 -translate-x-1/2"></div>
+                  <div className="grid grid-cols-2 gap-0 border-t-2 border-gray-400 dark:border-gray-600 pt-3 relative">
+                    <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gray-300 dark:bg-gray-700 -translate-x-1/2"></div>
                     <div className="pr-6 text-right">
-                      <span className="text-[10px] text-gray-500 uppercase block font-semibold">Suma Debe</span>
-                      <span className="font-bold text-sm text-gray-900">{formatCurrency(totalDebe)}</span>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 uppercase block font-semibold">Suma Debe</span>
+                      <span className="font-data font-bold text-sm text-gray-900 dark:text-gray-100">{formatCurrency(totalDebe)}</span>
                     </div>
                     <div className="pl-6 text-right">
-                      <span className="text-[10px] text-gray-500 uppercase block font-semibold">Suma Haber</span>
-                      <span className="font-bold text-sm text-gray-900">{formatCurrency(totalHaber)}</span>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 uppercase block font-semibold">Suma Haber</span>
+                      <span className="font-data font-bold text-sm text-gray-900 dark:text-gray-100">{formatCurrency(totalHaber)}</span>
                     </div>
                   </div>
 
                   {/* Net Balance (Saldo) under the larger side */}
-                  <div className="grid grid-cols-2 gap-0 border-t border-dashed border-gray-300 mt-3 pt-3 relative">
-                    <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gray-405 -translate-x-1/2"></div>
+                  <div className="grid grid-cols-2 gap-0 border-t border-dashed border-gray-300 dark:border-gray-700 mt-3 pt-3 relative">
+                    <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gray-300 dark:bg-gray-700 -translate-x-1/2"></div>
                     <div className="pr-6">
                       {saldoFinal !== null && saldoFinal >= 0 ? (
                         <div className="text-right">
-                          <span className="text-[10px] text-emerald-600 uppercase font-bold block">Saldo Deudor</span>
-                          <span className="font-extrabold text-base text-emerald-700">{formatCurrency(saldoFinal)}</span>
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-bold block">Saldo Deudor</span>
+                          <span className="font-data font-extrabold text-base text-emerald-700 dark:text-emerald-400">{formatCurrency(saldoFinal)}</span>
                         </div>
                       ) : null}
                     </div>
                     <div className="pl-6">
                       {saldoFinal !== null && saldoFinal < 0 ? (
                         <div className="text-right">
-                          <span className="text-[10px] text-red-600 uppercase font-bold block">Saldo Acreedor</span>
-                          <span className="font-extrabold text-base text-red-700">{formatCurrency(Math.abs(saldoFinal))}</span>
+                          <span className="text-[10px] text-red-600 dark:text-red-400 uppercase font-bold block">Saldo Acreedor</span>
+                          <span className="font-data font-extrabold text-base text-red-700 dark:text-red-400">{formatCurrency(Math.abs(saldoFinal))}</span>
                         </div>
                       ) : null}
                     </div>

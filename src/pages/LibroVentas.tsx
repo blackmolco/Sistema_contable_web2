@@ -127,19 +127,19 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             Libro de {tipo === 'ventas' ? 'Ventas' : 'Compras'}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {documentos.length} documento{documentos.length !== 1 ? 's' : ''} en total ·
-            <span className="font-semibold text-primary ml-1">{registros.length} en {nombreMes} {selectedAnio}</span>
+            <span className="font-semibold text-primary dark:text-blue-400 ml-1">{registros.length} en {nombreMes} {selectedAnio}</span>
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={exportarCSV}
             disabled={registros.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <Download size={15} /> Exportar CSV
           </button>
@@ -150,14 +150,14 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
       <Card padding="sm">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <Calendar size={18} className="text-gray-400" />
-            <span className="text-sm font-medium text-gray-600">Período:</span>
+            <Calendar size={18} className="text-gray-400 dark:text-gray-500" />
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Período:</span>
           </div>
           {/* Selector de MES */}
           <select
             value={selectedMes}
             onChange={(e) => setSelectedMes(Number(e.target.value))}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {MESES.map((mes) => (
               <option key={mes.numero} value={mes.numero}>
@@ -169,14 +169,14 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
           <select
             value={selectedAnio}
             onChange={(e) => setSelectedAnio(Number(e.target.value))}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {[2023, 2024, 2025, 2026, 2027].map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
           {documentos.length > 0 && registros.length === 0 && (
-            <span className="text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-lg border border-amber-200">
+            <span className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-3 py-1 rounded-lg border border-amber-200 dark:border-amber-800">
               ⚠️ Sin documentos en {nombreMes} {selectedAnio} — prueba otro período
             </span>
           )}
@@ -186,24 +186,24 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
       {/* Totales */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card padding="sm">
-          <p className="text-sm text-gray-500 mb-1">Exento</p>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(totales.exento)}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Exento</p>
+          <p className="text-xl font-data font-bold text-gray-900 dark:text-gray-100">{formatCurrency(totales.exento)}</p>
         </Card>
         <Card padding="sm">
-          <p className="text-sm text-gray-500 mb-1">Neto</p>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(totales.neto)}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Neto</p>
+          <p className="text-xl font-data font-bold text-gray-900 dark:text-gray-100">{formatCurrency(totales.neto)}</p>
         </Card>
         <Card padding="sm">
-          <p className="text-sm text-gray-500 mb-1">IVA</p>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(totales.iva)}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">IVA</p>
+          <p className="text-xl font-data font-bold text-gray-900 dark:text-gray-100">{formatCurrency(totales.iva)}</p>
         </Card>
         <Card padding="sm">
-          <p className="text-sm text-gray-500 mb-1">Total</p>
-          <p className="text-xl font-bold text-primary">{formatCurrency(totales.total)}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total</p>
+          <p className="text-xl font-data font-bold text-primary dark:text-blue-400">{formatCurrency(totales.total)}</p>
         </Card>
         <Card padding="sm">
-          <p className="text-sm text-gray-500 mb-1">Documentos</p>
-          <p className="text-xl font-bold text-gray-900">{registros.length}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Documentos</p>
+          <p className="text-xl font-data font-bold text-gray-900 dark:text-gray-100">{registros.length}</p>
         </Card>
       </div>
 
@@ -213,15 +213,15 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
           {Object.entries(porTipo).map(([tipoDoc, data]) => {
             const tipoInfo = TIPOS_DOCUMENTO_SII.find((t) => t.codigo === tipoDoc);
             return (
-              <div key={tipoDoc} className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-500">{tipoInfo?.nombre || tipoDoc}</p>
-                <p className="text-lg font-bold text-gray-900">{data.cantidad}</p>
-                <p className="text-sm text-gray-600">{formatCurrency(data.total)}</p>
+              <div key={tipoDoc} className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <p className="text-sm text-gray-500 dark:text-gray-400">{tipoInfo?.nombre || tipoDoc}</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{data.cantidad}</p>
+                <p className="text-sm font-data text-gray-600 dark:text-gray-300">{formatCurrency(data.total)}</p>
               </div>
             );
           })}
           {Object.keys(porTipo).length === 0 && (
-            <p className="col-span-4 text-center text-gray-500 py-4">
+            <p className="col-span-4 text-center text-gray-500 dark:text-gray-400 py-4">
               No hay documentos en este período
             </p>
           )}
@@ -234,39 +234,39 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
         <table className="w-full">
           <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
             <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Fecha</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tipo</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">N°</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">RUT</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Cliente/Proveedor</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Exento</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Neto</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">IVA</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Fecha</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Tipo</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">N°</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">RUT</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Cliente/Proveedor</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Exento</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Neto</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">IVA</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Total</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
             {registros.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-12 text-center">
-                  <FileText className="mx-auto text-gray-300 mb-3" size={48} />
-                  <p className="text-gray-500">No hay documentos en este período</p>
+                  <FileText className="mx-auto text-gray-300 dark:text-gray-600 mb-3" size={48} />
+                  <p className="text-gray-500 dark:text-gray-400">No hay documentos en este período</p>
                 </td>
               </tr>
             ) : (
               registros.map((registro) => (
                 <tr key={registro.id} className="odd:bg-gray-50/50 dark:odd:bg-gray-800/30 hover:bg-blue-50 dark:hover:bg-gray-700/50">
-                  <td className="px-4 py-3 text-sm text-gray-600">{formatDate(registro.fecha)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{formatDate(registro.fecha)}</td>
                   <td className="px-4 py-3 text-sm">
                     <Badge variant="info">{registro.tipoDocumento.toUpperCase()}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 text-center font-mono">{registro.numeroDocumento}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{formatRUT(registro.rut)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{registro.razonSocial}</td>
-                  <td className="px-4 py-3 text-sm text-right tnum text-gray-600">{formatCurrency(registro.exento)}</td>
-                  <td className="px-4 py-3 text-sm text-right tnum text-gray-600">{formatCurrency(registro.neto)}</td>
-                  <td className="px-4 py-3 text-sm text-right tnum text-gray-600">{formatCurrency(registro.iva)}</td>
-                  <td className="px-4 py-3 text-sm text-right tnum font-medium text-gray-900">{formatCurrency(registro.total)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 text-center font-data">{registro.numeroDocumento}</td>
+                  <td className="px-4 py-3 text-sm font-data text-gray-600 dark:text-gray-300">{formatRUT(registro.rut)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{registro.razonSocial}</td>
+                  <td className="px-4 py-3 text-sm text-right font-data text-gray-600 dark:text-gray-300">{formatCurrency(registro.exento)}</td>
+                  <td className="px-4 py-3 text-sm text-right font-data text-gray-600 dark:text-gray-300">{formatCurrency(registro.neto)}</td>
+                  <td className="px-4 py-3 text-sm text-right font-data text-gray-600 dark:text-gray-300">{formatCurrency(registro.iva)}</td>
+                  <td className="px-4 py-3 text-sm text-right font-data font-medium text-gray-900 dark:text-gray-100">{formatCurrency(registro.total)}</td>
                 </tr>
               ))
             )}
@@ -276,10 +276,10 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
               <td colSpan={5} className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">
                 TOTALES
               </td>
-              <td className="px-4 py-3 text-right tnum font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(totales.exento)}</td>
-              <td className="px-4 py-3 text-right tnum font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(totales.neto)}</td>
-              <td className="px-4 py-3 text-right tnum font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(totales.iva)}</td>
-              <td className="px-4 py-3 text-right tnum font-semibold text-primary dark:text-blue-300">{formatCurrency(totales.total)}</td>
+              <td className="px-4 py-3 text-right font-data font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(totales.exento)}</td>
+              <td className="px-4 py-3 text-right font-data font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(totales.neto)}</td>
+              <td className="px-4 py-3 text-right font-data font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(totales.iva)}</td>
+              <td className="px-4 py-3 text-right font-data font-semibold text-primary dark:text-blue-300">{formatCurrency(totales.total)}</td>
             </tr>
           </tfoot>
         </table>

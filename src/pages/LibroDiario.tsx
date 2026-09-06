@@ -106,8 +106,8 @@ export default function LibroDiario() {
             <Book className="text-primary" size={24} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Libro Diario</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Libro Diario</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Registro cronológico de todos los comprobantes contables
             </p>
           </div>
@@ -153,21 +153,21 @@ export default function LibroDiario() {
           </div>
         </div>
         {searchTerm && (
-          <p className="text-xs text-gray-500 mt-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
             {asientosOrdenados.length} resultado{asientosOrdenados.length !== 1 ? 's' : ''} para &quot;{searchTerm}&quot;
           </p>
         )}
       </Card>
 
       {/* Vista Imprimible del Libro */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden print:border-none print:shadow-none">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden print:border-none print:shadow-none">
         {/* Cabecera del Documento */}
-        <div className="p-6 border-b border-gray-200 text-center">
-          <h2 className="text-2xl font-bold uppercase tracking-wider text-gray-900">LIBRO DIARIO</h2>
-          <p className="text-sm text-gray-600 mt-1">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-800 text-center">
+          <h2 className="text-2xl font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100">LIBRO DIARIO</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
             {state.configuracion.razonSocial} — RUT: {state.configuracion.rut}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Período: {mesLabel} {anioFiltro}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Período: {mesLabel} {anioFiltro}</p>
         </div>
 
         <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
@@ -187,11 +187,11 @@ export default function LibroDiario() {
                 <tr>
                   <td colSpan={6} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                        <Book size={22} className="text-gray-400" />
+                      <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                        <Book size={22} className="text-gray-400 dark:text-gray-500" />
                       </div>
-                      <p className="text-sm font-medium text-gray-500">Sin asientos en este período</p>
-                      <p className="text-xs text-gray-400">Ajusta el filtro o crea un nuevo asiento</p>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Sin asientos en este período</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Ajusta el filtro o crea un nuevo asiento</p>
                     </div>
                   </td>
                 </tr>
@@ -199,16 +199,16 @@ export default function LibroDiario() {
                 asientosOrdenados.map((asiento) => (
                   <React.Fragment key={asiento.id}>
                     {/* Fila Cabecera del Asiento */}
-                    <tr className="bg-blue-50/50 border-t border-gray-200">
-                      <td className="p-3 text-xs font-medium text-gray-900 whitespace-nowrap">
+                    <tr className="bg-blue-50/50 dark:bg-blue-950/30 border-t border-gray-200 dark:border-gray-800">
+                      <td className="p-3 text-xs font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                         {formatDate(asiento.fecha)}
                       </td>
-                      <td className="p-3 text-xs font-bold text-primary">
+                      <td className="p-3 text-xs font-data font-bold text-primary dark:text-blue-400">
                         {asiento.numero.toString().padStart(4, '0')}
                       </td>
                       <td colSpan={4} className="p-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-700 italic">{asiento.glosa}</span>
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 italic">{asiento.glosa}</span>
                           {asiento.tipo && (
                             <Badge
                               variant={TIPO_VARIANT[asiento.tipo] ?? 'default'}
@@ -223,18 +223,18 @@ export default function LibroDiario() {
 
                     {/* Detalle de cuentas */}
                     {asiento.detalles.map((detalle) => (
-                      <tr key={detalle.id} className="border-b border-gray-100 last:border-b-0 text-sm odd:bg-gray-50/50 dark:odd:bg-gray-800/30 hover:bg-blue-50 dark:hover:bg-gray-700/50">
+                      <tr key={detalle.id} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0 text-sm odd:bg-gray-50/50 dark:odd:bg-gray-800/30 hover:bg-blue-50 dark:hover:bg-gray-700/50">
                         <td colSpan={2}></td>
-                        <td className="p-2 text-xs font-mono text-gray-500">
+                        <td className="p-2 font-data text-xs text-gray-500 dark:text-gray-400">
                           {detalle.cuentaCodigo}
                         </td>
-                        <td className={`p-2 text-gray-700 ${detalle.haber > 0 ? 'pl-8' : ''}`}>
+                        <td className={`p-2 text-gray-700 dark:text-gray-300 ${detalle.haber > 0 ? 'pl-8' : ''}`}>
                           {detalle.cuentaNombre}
                         </td>
-                        <td className="p-2 text-right tnum font-medium text-gray-900">
+                        <td className="p-2 text-right font-data font-medium text-gray-900 dark:text-gray-100">
                           {detalle.debe > 0 ? formatCurrency(detalle.debe) : ''}
                         </td>
-                        <td className="p-2 text-right tnum font-medium text-gray-900">
+                        <td className="p-2 text-right font-data font-medium text-gray-900 dark:text-gray-100">
                           {detalle.haber > 0 ? formatCurrency(detalle.haber) : ''}
                         </td>
                       </tr>
@@ -250,16 +250,16 @@ export default function LibroDiario() {
                   <td colSpan={4} className="p-4 text-right uppercase text-sm">
                     Total Período:
                   </td>
-                  <td className="p-4 text-right tnum border-l border-gray-300 dark:border-gray-600">
+                  <td className="p-4 text-right font-data border-l border-gray-300 dark:border-gray-600">
                     {formatCurrency(totalDebePeriodo)}
                   </td>
-                  <td className="p-4 text-right tnum border-l border-gray-300 dark:border-gray-600">
+                  <td className="p-4 text-right font-data border-l border-gray-300 dark:border-gray-600">
                     {formatCurrency(totalHaberPeriodo)}
                   </td>
                 </tr>
                 {totalDebePeriodo !== totalHaberPeriodo && (
                   <tr>
-                    <td colSpan={6} className="p-2 bg-red-100 text-red-700 text-center text-xs font-bold">
+                    <td colSpan={6} className="p-2 bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 text-center text-xs font-bold">
                       ¡ADVERTENCIA! El Debe y Haber total no cuadran. Revise los asientos descuadrados.
                     </td>
                   </tr>

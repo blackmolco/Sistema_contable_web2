@@ -430,12 +430,12 @@ export default function F29() {
               </thead>
               <tbody>
                 {detallesCompras.slice(0, 10).map((linea) => (
-                  <tr key={linea.id} className="text-sm border-b hover:bg-gray-50">
-                    <td className="p-2 font-mono text-xs">{linea.rut}</td>
-                    <td className="p-2 truncate max-w-[200px]" title={linea.razonSocial}>{linea.razonSocial}</td>
-                    <td className="p-2 text-xs">{linea.folio}</td>
-                    <td className="p-2 text-right">{formatCurrency(linea.neto)}</td>
-                    <td className="p-2 text-right">{formatCurrency(linea.iva)}</td>
+                  <tr key={linea.id} className="text-sm border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td className="p-2 font-data text-xs text-gray-600 dark:text-gray-400">{linea.rut}</td>
+                    <td className="p-2 truncate max-w-[200px] text-gray-800 dark:text-gray-200" title={linea.razonSocial}>{linea.razonSocial}</td>
+                    <td className="p-2 text-xs text-gray-600 dark:text-gray-400">{linea.folio}</td>
+                    <td className="p-2 text-right font-data text-gray-800 dark:text-gray-200">{formatCurrency(linea.neto)}</td>
+                    <td className="p-2 text-right font-data text-gray-800 dark:text-gray-200">{formatCurrency(linea.iva)}</td>
                     <td className="p-2">
                       <select 
                         className={`w-full text-xs p-1.5 border rounded ${linea.cuentaId ? 'bg-emerald-50 border-emerald-300' : 'bg-red-50 border-red-300'}`}
@@ -453,7 +453,7 @@ export default function F29() {
               </tbody>
             </table>
             {detallesCompras.length > 10 && (
-              <p className="text-center text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded">
+              <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded">
                 Mostrando 10 de {detallesCompras.length} facturas. (El mapeo se aplica por RUT).
               </p>
             )}
@@ -489,18 +489,18 @@ export default function F29() {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-gray-850 dark:text-gray-200">
                 {detallesCierre.map((d, i) => (
                   <tr key={i} className="hover:bg-gray-100/55 dark:hover:bg-gray-800/50">
-                    <td className="p-2 font-mono text-gray-500">{d.cuentaCodigo}</td>
+                    <td className="p-2 font-data text-gray-500 dark:text-gray-400">{d.cuentaCodigo}</td>
                     <td className="p-2 font-medium">{d.cuentaNombre}</td>
-                    <td className="p-2 text-right font-semibold text-blue-600 dark:text-blue-400">{d.debe > 0 ? formatCurrency(d.debe) : ''}</td>
-                    <td className="p-2 text-right font-semibold text-emerald-600 dark:text-emerald-400">{d.haber > 0 ? formatCurrency(d.haber) : ''}</td>
+                    <td className="p-2 text-right font-data font-semibold text-blue-600 dark:text-blue-400">{d.debe > 0 ? formatCurrency(d.debe) : ''}</td>
+                    <td className="p-2 text-right font-data font-semibold text-emerald-600 dark:text-emerald-400">{d.haber > 0 ? formatCurrency(d.haber) : ''}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="border-t border-gray-200 dark:border-gray-700 font-bold">
                 <tr>
                   <td colSpan={2} className="p-2 text-right">Total:</td>
-                  <td className="p-2 text-right text-blue-700 dark:text-blue-400">{formatCurrency(totalDebeCierre)}</td>
-                  <td className="p-2 text-right text-emerald-700 dark:text-emerald-400">{formatCurrency(totalHaberCierre)}</td>
+                  <td className="p-2 text-right font-data text-blue-700 dark:text-blue-400">{formatCurrency(totalDebeCierre)}</td>
+                  <td className="p-2 text-right font-data text-emerald-700 dark:text-emerald-400">{formatCurrency(totalHaberCierre)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -523,8 +523,9 @@ export default function F29() {
         </Card>
       )}
 
-      {/* Vista F29 (Imprimible) */}
-      <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 print-border">
+      {/* Vista F29 (Imprimible) — mantiene fondo blanco/negro fijo: imita el
+          formulario oficial impreso del SII, en pantalla y al imprimir. */}
+      <div className="bg-white dark:bg-gray-100 p-8 rounded-xl shadow-sm border border-gray-200 print-border">
         <div className="text-center mb-8 border-b pb-4">
           <h2 className="text-3xl font-bold text-gray-900 tracking-wider">FORMULARIO 29</h2>
           <p className="text-sm text-gray-500 mt-2">Declaración Mensual y Pago Simultáneo de Impuestos</p>
@@ -537,12 +538,12 @@ export default function F29() {
             <div className="grid grid-cols-12 gap-4 border-b py-2">
               <div className="col-span-8 text-sm text-gray-700">Facturas Emitidas (Neto)</div>
               <div className="col-span-2 text-right text-xs font-mono text-gray-400 border border-gray-300 px-1 rounded">Cód. 503</div>
-              <div className="col-span-2 text-right font-medium">{formatCurrency(ventasNeto)}</div>
+              <div className="col-span-2 text-right font-data font-medium">{formatCurrency(ventasNeto)}</div>
             </div>
             <div className="grid grid-cols-12 gap-4 border-b py-2 bg-blue-50">
               <div className="col-span-8 text-sm font-bold text-gray-900">Total IVA Débito Fiscal</div>
               <div className="col-span-2 text-right text-xs font-mono text-blue-500 border border-blue-300 px-1 rounded bg-white">Cód. 538</div>
-              <div className="col-span-2 text-right font-bold text-blue-700">{formatCurrency(ventasIva)}</div>
+              <div className="col-span-2 text-right font-data font-bold text-blue-700">{formatCurrency(ventasIva)}</div>
             </div>
           </section>
 
@@ -552,12 +553,12 @@ export default function F29() {
             <div className="grid grid-cols-12 gap-4 border-b py-2">
               <div className="col-span-8 text-sm text-gray-700">Facturas Recibidas (Neto)</div>
               <div className="col-span-2 text-right text-xs font-mono text-gray-400 border border-gray-300 px-1 rounded">Cód. 514</div>
-              <div className="col-span-2 text-right font-medium">{formatCurrency(comprasNeto)}</div>
+              <div className="col-span-2 text-right font-data font-medium">{formatCurrency(comprasNeto)}</div>
             </div>
             <div className="grid grid-cols-12 gap-4 border-b py-2 bg-emerald-50">
               <div className="col-span-8 text-sm font-bold text-gray-900">Total IVA Crédito Fiscal</div>
               <div className="col-span-2 text-right text-xs font-mono text-emerald-500 border border-emerald-300 px-1 rounded bg-white">Cód. 537</div>
-              <div className="col-span-2 text-right font-bold text-emerald-700">{formatCurrency(comprasIva)}</div>
+              <div className="col-span-2 text-right font-data font-bold text-emerald-700">{formatCurrency(comprasIva)}</div>
             </div>
           </section>
 
@@ -569,22 +570,22 @@ export default function F29() {
                 Retención Boletas de Honorarios ({RETENCION_HONORARIOS.TASA_NORMA}%)
               </div>
               <div className="col-span-2 text-right text-xs font-mono text-gray-400 border border-gray-300 px-1 rounded">Cód. 151</div>
-              <div className="col-span-2 text-right font-medium">{formatCurrency(honorariosRetencion)}</div>
+              <div className="col-span-2 text-right font-data font-medium">{formatCurrency(honorariosRetencion)}</div>
             </div>
             <div className="grid grid-cols-12 gap-4 border-b py-2">
               <div className="col-span-4 text-sm text-gray-700 flex items-center gap-2">
                 PPM Neto Ventas (Tasa
-                <input 
-                  type="number" 
-                  value={tasaPpm} 
+                <input
+                  type="number"
+                  value={tasaPpm}
                   onChange={(e) => setTasaPpm(Number(e.target.value))}
                   className="w-16 px-1 border rounded no-print"
                   step="0.1"
                 />%)
               </div>
-              <div className="col-span-4 text-sm text-gray-500 text-right">Base: {formatCurrency(ventasNeto)}</div>
+              <div className="col-span-4 text-sm text-gray-500 text-right font-data">Base: {formatCurrency(ventasNeto)}</div>
               <div className="col-span-2 text-right text-xs font-mono text-gray-400 border border-gray-300 px-1 rounded">Cód. 62</div>
-              <div className="col-span-2 text-right font-medium">{formatCurrency(ppm)}</div>
+              <div className="col-span-2 text-right font-data font-medium">{formatCurrency(ppm)}</div>
             </div>
           </section>
 
@@ -595,7 +596,7 @@ export default function F29() {
                 TOTAL A PAGAR AL SII
               </div>
               <div className="col-span-2 text-right text-sm font-mono text-red-500 border border-red-300 px-1 rounded font-bold">Cód. 91</div>
-              <div className="col-span-2 text-right text-2xl font-black text-red-600">
+              <div className="col-span-2 text-right text-2xl font-data font-black text-red-600">
                 {formatCurrency(totalAPagar > 0 ? totalAPagar : 0)}
               </div>
             </div>
