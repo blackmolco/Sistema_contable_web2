@@ -41,8 +41,8 @@ export default function CentralizacionLibros() {
       const coincidePeriodo = fecha.getFullYear() === anio && fecha.getMonth() + 1 === mes;
       if (!coincidePeriodo) return false;
 
-      // Ventas: facturas y facturas exentas emitidas (estado emitido)
-      if (tipo === 'ventas')  return (d.tipo === 'factura' || d.tipo === 'factura_exenta') && d.estado !== 'pendiente';
+      // Ventas: facturas, facturas exentas y notas de crédito emitidas (estado emitido)
+      if (tipo === 'ventas')  return (d.tipo === 'factura' || d.tipo === 'factura_exenta' || d.tipo === 'nota_credito') && d.estado !== 'pendiente';
       // Boletas: boletas de cualquier tipo
       if (tipo === 'boletas') return d.tipo === 'boleta' || d.tipo === 'boleta_electronica' || d.tipo === 'boleta_exenta';
       // Compras: facturas de compra importadas del SII (estado pendiente) O facturas recibidas
@@ -51,9 +51,12 @@ export default function CentralizacionLibros() {
     });
   }, [state.documentos, mes, anio, tipo]);
 
-  const totalNeto  = docsPeriodo.reduce((s, d) => s + (d.neto ?? d.subtotal ?? 0), 0);
-  const totalIva   = docsPeriodo.reduce((s, d) => s + (d.iva ?? 0), 0);
-  const totalFinal = docsPeriodo.reduce((s, d) => s + (d.total ?? 0), 0);
+  // Las notas de crédito restan del período (anulan/rebajan un documento
+  // anterior) — sin este signo se sumaban como si fueran otra venta/compra más.
+  const signo = (d: typeof state.documentos[number]) => (d.tipo === 'nota_credito' ? -1 : 1);
+  const totalNeto  = docsPeriodo.reduce((s, d) => s + (d.neto ?? d.subtotal ?? 0) * signo(d), 0);
+  const totalIva   = docsPeriodo.reduce((s, d) => s + (d.iva ?? 0) * signo(d), 0);
+  const totalFinal = docsPeriodo.reduce((s, d) => s + (d.total ?? 0) * signo(d), 0);
 
   // ─── Paso 1 → Paso 2: agrupar por RUT y precargar cuentas guardadas ─────────
   const prepararAsignaciones = () => {
@@ -73,9 +76,9 @@ export default function CentralizacionLibros() {
     docsPeriodo.forEach(d => {
       const rut  = d.rutCliente ?? d.receptor?.rut ?? 'SIN-RUT';
       const razon = d.razonSocialCliente ?? d.receptor?.razonSocial ?? rut;
-      const neto  = d.neto ?? d.subtotal ?? 0;
-      const iva   = d.iva ?? 0;
-      const total = d.total ?? 0;
+      const neto  = (d.neto ?? d.subtotal ?? 0) * signo(d);
+      const iva   = (d.iva ?? 0) * signo(d);
+      const total = (d.total ?? 0) * signo(d);
 
       const cuentaGuardada = state.rutCuentas[rut];
       if (!mapaRut.has(rut)) {

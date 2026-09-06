@@ -516,9 +516,13 @@ export default function SincronizacionSII() {
       });
   };
 
-  const totalPreview = filasPreview.reduce((s, f) => s + f.total, 0);
-  const netoPreview  = filasPreview.reduce((s, f) => s + f.neto,  0);
-  const ivaPreview   = filasPreview.reduce((s, f) => s + f.iva,   0);
+  // Las notas de crédito (código SII 61) restan del período: el RCV las trae
+  // como fila propia con montos positivos, pero anulan/rebajan un documento
+  // anterior — sin este signo el resumen sumaba la NC en vez de descontarla.
+  const signoPreview = (f: FilaRCV) => (f.tipoDoc === '61' ? -1 : 1);
+  const totalPreview = filasPreview.reduce((s, f) => s + f.total * signoPreview(f), 0);
+  const netoPreview  = filasPreview.reduce((s, f) => s + f.neto  * signoPreview(f), 0);
+  const ivaPreview   = filasPreview.reduce((s, f) => s + f.iva   * signoPreview(f), 0);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
