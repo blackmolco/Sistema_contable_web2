@@ -244,6 +244,9 @@ export async function fetchAsientos(): Promise<AsientoContable[]> {
       cuentaNombre: (d.cuentaNombre as string) || '',
       debe: d.debe as number,
       haber: d.haber as number,
+      rutAuxiliar: (d.rutAuxiliar as string) || undefined,
+      nombreAuxiliar: (d.nombreAuxiliar as string) || undefined,
+      documentoId: (d.documentoId as string) || undefined,
     }));
     const totalDebe = detalles.reduce((s, d) => s + d.debe, 0);
     const totalHaber = detalles.reduce((s, d) => s + d.haber, 0);
@@ -274,6 +277,9 @@ export async function saveAsiento(asiento: AsientoContable): Promise<void> {
     cuentaNombre: d.cuentaNombre || null,
     debe: isFinite(d.debe) ? d.debe : 0,
     haber: isFinite(d.haber) ? d.haber : 0,
+    rutAuxiliar: d.rutAuxiliar || null,
+    nombreAuxiliar: d.nombreAuxiliar || null,
+    documentoId: d.documentoId || null,
   })).filter(d => d.debe >= 0 && d.haber >= 0);
   if (detalles.length === 0) return;
   await apiFetch('/api/asientos', {

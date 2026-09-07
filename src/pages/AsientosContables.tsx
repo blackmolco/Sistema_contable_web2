@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, Search, Edit2, Trash2, CheckCircle, AlertCircle, Bookmark, BookmarkPlus, Copy } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Card, Badge } from '../components/ui/Cards';
@@ -34,7 +34,13 @@ export default function AsientosContables() {
     cuentaId: '',
     debe: 0,
     haber: 0,
+    rutAuxiliar: '',
+    nombreAuxiliar: '',
+    documentoId: '',
   });
+  // Id de la Entidad elegida en el SearchSelect (distinto del rut/nombre que
+  // ya viajan en nuevaLinea, porque el SearchSelect trabaja con ids).
+  const [entidadElegidaId, setEntidadElegidaId] = useState('');
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showPlantillasModal, setShowPlantillasModal] = useState(false);
@@ -60,6 +66,101 @@ export default function AsientosContables() {
     ...cuentasDisponibles.map((c) => ({ value: c.id, label: `${c.codigo} - ${c.nombre}` })),
   ];
 
+  const cuentaNuevaLinea = state.cuentas.find((c) => c.id === nuevaLinea.cuentaId);
+
+  // Entidades que calzan con el tipo de auxiliar de la cuenta elegida
+  // (Clientes -> tipo cliente, Proveedores -> proveedor, Honorarios -> honorario).
+  const entidadesParaAuxiliar = useMemo(() => {
+    if (!cuentaNuevaLinea?.tipoAuxiliar) return [];
+    return (state.entidades ?? []).filter(
+      (e) => e.tipo === cuentaNuevaLinea.tipoAuxiliar || e.tipo === 'ambos'
+    );
+  }, [state.entidades, cuentaNuevaLinea?.tipoAuxiliar]);
+
+  const entidadesOptions = [
+    { value: '', label: 'Buscar por RUT o nombre...' },
+    ...entidadesParaAuxiliar.map((e) => ({ value: e.id, label: `${e.rut} — ${e.razonSocial}` })),
+  ];
+
+  // Etiqueta legible por documentoId (factura/boleta/honorario), para mostrar
+  // el pendiente por documento sin exponer el id crudo.
+  const etiquetaPorDocumentoId = useMemo(() => {
+    const mapa = new Map<string, { label: string; total: number }>();
+    (state.documentos ?? []).forEach((d) => {
+      if (d.id) mapa.set(d.id, { label: `${d.tipo} N° ${d.numero}`, total: d.total });
+    });
+    (state.honorarios ?? []).forEach((h) => {
+      mapa.set(h.id, { label: `Honorarios ${h.periodo}`, total: h.montoLiquido });
+    });
+    return mapa;
+  }, [state.documentos, state.honorarios]);
+
+  // Saldo pendiente por (rutAuxiliar, documentoId): recorre TODAS las líneas
+  // que ya tocaron una cuenta de control, sin importar el año — la factura
+  // pudo emitirse en un período y el pago llegar en otro. deudora acumula
+  // debe-haber, acreedora al revés (mismo criterio que Balance 8 Columnas).
+  const saldosPorDocumento = useMemo(() => {
+    const mapa = new Map<string, number>();
+    (state.asientos ?? []).forEach((asiento) => {
+      asiento.detalles.forEach((d) => {
+        if (!d.rutAuxiliar || !d.documentoId) return;
+        const cuentaDet = state.cuentas.find((c) => c.id === d.cuentaId);
+        const signo = (cuentaDet?.naturaleza ?? 'deudora') === 'deudora' ? 1 : -1;
+        const key = `${d.rutAuxiliar}|${d.documentoId}`;
+        mapa.set(key, (mapa.get(key) ?? 0) + (d.debe - d.haber) * signo);
+      });
+    });
+    return mapa;
+  }, [state.asientos, state.cuentas]);
+
+  const documentosPendientesDelRut = useMemo(() => {
+    if (!nuevaLinea.rutAuxiliar) return [];
+    const resultado: { documentoId: string; label: string; saldo: number }[] = [];
+    saldosPorDocumento.forEach((saldo, key) => {
+      const [rut, documentoId] = key.split('|');
+      if (rut !== nuevaLinea.rutAuxiliar || Math.abs(saldo) < 1) return;
+      const info = etiquetaPorDocumentoId.get(documentoId);
+      resultado.push({ documentoId, label: info?.label ?? documentoId, saldo });
+    });
+    return resultado;
+  }, [nuevaLinea.rutAuxiliar, saldosPorDocumento, etiquetaPorDocumentoId]);
+
+  const documentosPendientesOptions = [
+    { value: '', label: documentosPendientesDelRut.length === 0 ? 'Sin documentos pendientes' : 'Seleccionar documento...' },
+    ...documentosPendientesDelRut.map((d) => ({ value: d.documentoId, label: `${d.label} — pendiente ${formatCurrency(Math.abs(d.saldo))}` })),
+  ];
+
+  const seleccionarEntidadAuxiliar = (entidadId: string) => {
+    setEntidadElegidaId(entidadId);
+    const entidad = entidadesParaAuxiliar.find((e) => e.id === entidadId);
+    setNuevaLinea((prev) => ({
+      ...prev,
+      rutAuxiliar: entidad?.rut ?? '',
+      nombreAuxiliar: entidad?.razonSocial ?? '',
+      documentoId: '',
+    }));
+  };
+
+  const seleccionarDocumentoAuxiliar = (documentoId: string) => {
+    const doc = documentosPendientesDelRut.find((d) => d.documentoId === documentoId);
+    setNuevaLinea((prev) => {
+      if (!doc) return { ...prev, documentoId: '' };
+      const monto = Math.abs(doc.saldo);
+      // saldo>0 = pendiente en el sentido normal de la cuenta (deudora sigue
+      // debiendo / acreedora sigue debiendose). Para cerrarlo hay que ir al
+      // lado contrario al que la aumenta segun su naturaleza — invertido si
+      // el saldo es negativo (sobrepago o nota de credito que dejo a favor).
+      const esAcreedora = cuentaNuevaLinea?.naturaleza === 'acreedora';
+      const enDebe = (doc.saldo > 0) === esAcreedora;
+      return {
+        ...prev,
+        documentoId: doc.documentoId,
+        debe: enDebe ? monto : 0,
+        haber: enDebe ? 0 : monto,
+      };
+    });
+  };
+
   const abrirModalNuevo = () => {
     setEditingAsiento(null);
     setFormData({
@@ -67,7 +168,8 @@ export default function AsientosContables() {
       glosa: '',
       detalles: [],
     });
-    setNuevaLinea({ cuentaId: '', debe: 0, haber: 0 });
+    setNuevaLinea({ cuentaId: '', debe: 0, haber: 0, rutAuxiliar: '', nombreAuxiliar: '', documentoId: '' });
+    setEntidadElegidaId('');
     setFormErrors({});
     setShowModal(true);
   };
@@ -79,6 +181,8 @@ export default function AsientosContables() {
       glosa: asiento.glosa,
       detalles: [...asiento.detalles],
     });
+    setNuevaLinea({ cuentaId: '', debe: 0, haber: 0, rutAuxiliar: '', nombreAuxiliar: '', documentoId: '' });
+    setEntidadElegidaId('');
     setFormErrors({});
     setShowModal(true);
   };
@@ -100,16 +204,27 @@ export default function AsientosContables() {
     const cuenta = state.cuentas.find((c) => c.id === nuevaLinea.cuentaId);
     if (!cuenta) return;
 
+    if (cuenta.requiereAuxiliar && !nuevaLinea.rutAuxiliar) {
+      showToast('error', 'Error', `Seleccione el ${cuenta.tipoAuxiliar === 'proveedor' ? 'proveedor' : cuenta.tipoAuxiliar === 'honorario' ? 'prestador' : 'cliente'} de esta línea`);
+      return;
+    }
+
     const linea: DetalleAsiento = {
       cuentaId: cuenta.id,
       cuentaCodigo: cuenta.codigo,
       cuentaNombre: cuenta.nombre,
       debe: nuevaLinea.debe,
       haber: nuevaLinea.haber,
+      ...(cuenta.requiereAuxiliar ? {
+        rutAuxiliar: nuevaLinea.rutAuxiliar,
+        nombreAuxiliar: nuevaLinea.nombreAuxiliar,
+        documentoId: nuevaLinea.documentoId || undefined,
+      } : {}),
     };
 
     setFormData({ ...formData, detalles: [...formData.detalles, linea] });
-    setNuevaLinea({ cuentaId: '', debe: 0, haber: 0 });
+    setNuevaLinea({ cuentaId: '', debe: 0, haber: 0, rutAuxiliar: '', nombreAuxiliar: '', documentoId: '' });
+    setEntidadElegidaId('');
   };
 
   const eliminarLinea = (index: number) => {
@@ -444,6 +559,11 @@ export default function AsientosContables() {
                       <td className="px-3 py-2">
                         <span className="font-data text-xs text-gray-400 dark:text-gray-500 mr-2">{detalle.cuentaCodigo}</span>
                         <span className="text-gray-800 dark:text-gray-200">{detalle.cuentaNombre}</span>
+                        {detalle.nombreAuxiliar && (
+                          <span className="block text-xs text-primary dark:text-blue-400 mt-0.5">
+                            {detalle.rutAuxiliar} — {detalle.nombreAuxiliar}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-right font-data text-gray-900 dark:text-gray-100">
                         {detalle.debe > 0 ? formatCurrency(detalle.debe) : ''}
@@ -476,12 +596,15 @@ export default function AsientosContables() {
             </div>
 
             {/* Agregar línea */}
-            <div className="p-3 bg-gray-50/50 dark:bg-gray-800/40 border-t border-gray-200 dark:border-gray-700 rounded-b-lg">
+            <div className="p-3 bg-gray-50/50 dark:bg-gray-800/40 border-t border-gray-200 dark:border-gray-700 rounded-b-lg space-y-2">
               <div className="grid grid-cols-4 gap-2 items-end">
                 <div className="col-span-2">
                   <SearchSelect
                     value={nuevaLinea.cuentaId}
-                    onChange={(v) => setNuevaLinea({ ...nuevaLinea, cuentaId: v })}
+                    onChange={(v) => {
+                      setNuevaLinea({ ...nuevaLinea, cuentaId: v, rutAuxiliar: '', nombreAuxiliar: '', documentoId: '' });
+                      setEntidadElegidaId('');
+                    }}
                     options={cuentasOptions}
                     placeholder="Seleccionar cuenta..."
                   />
@@ -499,6 +622,26 @@ export default function AsientosContables() {
                   className="text-right"
                 />
               </div>
+
+              {/* Cuentas de control (Clientes/Proveedores/Honorarios): piden
+                  RUT y, si tiene documentos pendientes, cuál se está
+                  pagando/cobrando — eso alimenta la cuenta corriente. */}
+              {cuentaNuevaLinea?.requiereAuxiliar && (
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-dashed border-gray-300 dark:border-gray-600">
+                  <SearchSelect
+                    value={entidadElegidaId}
+                    onChange={seleccionarEntidadAuxiliar}
+                    options={entidadesOptions}
+                    placeholder="RUT / nombre..."
+                  />
+                  <SearchSelect
+                    value={nuevaLinea.documentoId}
+                    onChange={seleccionarDocumentoAuxiliar}
+                    options={documentosPendientesOptions}
+                    placeholder="Documento (opcional)..."
+                  />
+                </div>
+              )}
               <div className="mt-2 flex justify-end">
                 <Button size="sm" variant="secondary" onClick={agregarLinea}>
                   + Agregar línea

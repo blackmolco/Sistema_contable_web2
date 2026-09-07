@@ -49,6 +49,9 @@ const detalleAsientoSchema = z.object({
     debe: z.number().min(0).default(0),
     haber: z.number().min(0).default(0),
     glosa: z.string().max(500).optional().nullable(),
+    rutAuxiliar: z.string().max(20).optional().nullable(),
+    nombreAuxiliar: z.string().max(200).optional().nullable(),
+    documentoId: z.string().max(100).optional().nullable(),
 });
 
 const asientoSchema = z.object({
