@@ -63,6 +63,46 @@ function norm(s: string) {
     .replace(/[^a-z0-9]/g, ''); // quitar puntos, espacios, guiones, etc.
 }
 
+// ─── Decodificar bytes del CSV (SII exporta a veces en Latin-1, a veces en UTF-8) ─
+// No hay un encoding fijo: varía según tipo de reporte/fecha de exportación del
+// portal SII. Probamos UTF-8 estricto primero — un archivo Latin-1 real casi
+// siempre produce secuencias de bytes inválidas en UTF-8 apenas aparecen 2+
+// caracteres con tilde/ñ seguidos, así que falla y caemos a Latin-1. (Un único
+// caracter acentuado aislado en Latin-1 puro es siempre 1 byte válido y no
+// dispara la excepción — la heurística no es perfecta, pero cubre el caso real
+// que corrompió los RCV de sept-2026.)
+function decodificarCSV(buffer: ArrayBuffer): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+  } catch {
+    return new TextDecoder('iso-8859-1').decode(buffer);
+  }
+}
+
+// ─── Revertir mojibake residual ──────────────────────────────────────────────
+// Defensa adicional: si el archivo era realmente UTF-8 pero tenía un solo
+// byte inválido en otro lugar (p.ej. otra fila con un caracter suelto de
+// Windows-1252), el chequeo estricto de decodificarCSV() falla igual y TODO
+// el archivo queda decodificado como Latin-1 → "Ã³" en vez de "ó" (patrón
+// clásico: cada caracter UTF-8 de 2 bytes se parte en 'Ã' + un caracter de
+// continuación). Reintentamos línea por línea (no el archivo completo) para
+// que el byte inválido de una sola fila no le impida arreglarse a las demás.
+function arreglarLineaMojibake(linea: string): string {
+  if (!/\u00c3[\u0080-\u00bf]/.test(linea)) return linea;
+  const codigos = Array.from(linea, c => c.charCodeAt(0));
+  if (codigos.some(c => c > 0xFF)) return linea; // no es Latin-1 puro, no tocar
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(codigos));
+  } catch {
+    return linea; // esta línea no era mojibake reversible, dejarla como está
+  }
+}
+
+function arreglarMojibake(texto: string): string {
+  if (!/\u00c3[\u0080-\u00bf]/.test(texto)) return texto;
+  return texto.split('\n').map(arreglarLineaMojibake).join('\n');
+}
+
 // ─── Detectar separador ────────────────────────────────────────────────────────
 function detectarSeparador(linea: string): string {
   const semicolons = (linea.match(/;/g) || []).length;
@@ -281,7 +321,8 @@ export default function SincronizacionSII() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const texto = ev.target?.result as string;
+      const buffer = ev.target?.result as ArrayBuffer;
+      const texto = arreglarMojibake(decodificarCSV(buffer));
       const { filas, debug } = parsearCSVSII(texto, tipoArchivo);
       setDebugInfo(debug);
       if (filas.length === 0) {
@@ -294,8 +335,9 @@ export default function SincronizacionSII() {
       showToast('success', 'Archivo leído',
         `${filas.length} registros | Total: ${formatCurrency(totalSum)} | ${debug}`);
     };
-    // SII exporta en ISO-8859-1 (Latin-1) — si falla, probar UTF-8
-    reader.readAsText(file, 'ISO-8859-1');
+    // Leemos como bytes crudos (no readAsText con encoding fijo) porque el SII
+    // exporta a veces en Latin-1 y a veces en UTF-8 — decodificarCSV() detecta cuál es.
+    reader.readAsArrayBuffer(file);
     e.target.value = '';
   };
 
