@@ -29,6 +29,7 @@ import {
   Star,
   UserCog,
   FilePlus2,
+  Wallet,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme, PRESETS, CATEGORY_COLORS } from '../../context/ThemeContext';
@@ -80,6 +81,7 @@ const menuCategories = [
   {
     title: 'Clientes y Cobros',
     items: [
+      { path: '/cuenta-corriente',     icon: Wallet,       label: 'Cuenta Corriente' },
       { path: '/clientes-proveedores', icon: Users,        label: 'Clientes/Proveedores' },
       { path: '/cuentas-cobrar',       icon: CreditCard,   label: 'Cuentas por Cobrar' },
       { path: '/cuentas-pagar',        icon: HandCoins,    label: 'Cuentas por Pagar' },
