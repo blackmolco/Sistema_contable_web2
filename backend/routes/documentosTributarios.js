@@ -105,10 +105,10 @@ router.post('/', authenticateToken, writeLimiter, validate(docTributarioSchema),
                 update: data,
             });
         } catch (upsertErr) {
-            // P2002: unique constraint on (tipo, folio, empresaId) — document already exists with different id
+            // P2002: unique constraint on (tipo, folio, tipoTransaccion, empresaId) — document already exists with different id
             if (upsertErr.code === 'P2002') {
                 const existing = await prisma.documentoTributario.findFirst({
-                    where: { tipo: data.tipo, folio: data.folio, empresaId: data.empresaId ?? null },
+                    where: { tipo: data.tipo, folio: data.folio, tipoTransaccion: data.tipoTransaccion, empresaId: data.empresaId ?? null },
                 });
                 if (existing) {
                     doc = await prisma.documentoTributario.update({ where: { id: existing.id }, data });

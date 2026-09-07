@@ -229,7 +229,7 @@ model DocumentoTributario {
   @@index([fechaEmision])
   @@index([estado])
   @@index([folio])
-  @@unique([tipo, folio, empresaId])
+  @@unique([tipo, folio, tipoTransaccion, empresaId])
 }
 
 model LibroCompra {
