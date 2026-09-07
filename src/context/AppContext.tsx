@@ -10,12 +10,13 @@ import { ContabilidadProvider, useContabilidad } from './ContabilidadContext';
 import { RemuneracionesProvider, useRemuneraciones } from './RemuneracionesContext';
 import { FacturacionProvider, useFacturacion } from './FacturacionContext';
 import { ClientesProvider, useClientes } from './ClientesContext';
+import { EntidadesProvider, useEntidades } from './EntidadesContext';
 import { AuditProvider, useAudit } from './AuditContext';
 import { useAppStore } from '../stores/appStore';
 import { storageKey } from '../utils/empresaStorage';
 
 // Re-exportar hooks especializados para acceso directo
-export { useContabilidad, useRemuneraciones, useFacturacion, useClientes, useAudit };
+export { useContabilidad, useRemuneraciones, useFacturacion, useClientes, useEntidades, useAudit };
 
 const STORAGE_KEY = storageKey('scc_app');
 const LEGACY_KEY = 'sistemaContableChile';
@@ -199,9 +200,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         <RemuneracionesProvider>
           <FacturacionProvider>
             <ClientesProvider>
-              <UIProvider>
-                {children}
-              </UIProvider>
+              <EntidadesProvider>
+                <UIProvider>
+                  {children}
+                </UIProvider>
+              </EntidadesProvider>
             </ClientesProvider>
           </FacturacionProvider>
         </RemuneracionesProvider>
@@ -215,6 +218,7 @@ type AppAction =
   | Parameters<ReturnType<typeof useContabilidad>['dispatch']>[0]
   | Parameters<ReturnType<typeof useRemuneraciones>['dispatch']>[0]
   | Parameters<ReturnType<typeof useFacturacion>['dispatch']>[0]
+  | Parameters<ReturnType<typeof useEntidades>['dispatch']>[0]
   | UIAction
   | { type: 'LOAD_STATE'; payload: Record<string, unknown> }
   | { type: 'TOGGLE_SIDEBAR' };
@@ -243,11 +247,16 @@ const CLIENTES_ACTIONS = new Set([
   'ADD_NOTA', 'UPDATE_NOTA', 'DELETE_NOTA',
 ]);
 
+const ENTIDADES_ACTIONS = new Set([
+  'ADD_ENTIDAD', 'UPDATE_ENTIDAD', 'DELETE_ENTIDAD',
+]);
+
 export function useApp() {
   const { state: contabilidad, dispatch: dContabilidad } = useContabilidad();
   const { state: remuneraciones, dispatch: dRemuneraciones } = useRemuneraciones();
   const { state: facturacion, dispatch: dFacturacion } = useFacturacion();
   const { state: clientesState, dispatch: dClientes } = useClientes();
+  const { state: entidadesState, dispatch: dEntidades } = useEntidades();
   const { state: ui, dispatch: dUI } = useUI();
 
   // Usar appStore de Zustand para sidebar y toasts (fuente única de verdad)
@@ -277,6 +286,7 @@ export function useApp() {
     cuentasPagar: clientesState.cuentasPagar,
     notasCredito: clientesState.notas,
     numeroNota: clientesState.numeroNota,
+    entidades: entidadesState.entidades,
     configuracion: ui.configuracion,
     archivos: ui.archivos,
     categorias: ui.categorias,
@@ -297,6 +307,8 @@ export function useApp() {
       dFacturacion(action as Parameters<typeof dFacturacion>[0]);
     } else if (CLIENTES_ACTIONS.has(t)) {
       dClientes(action as Parameters<typeof dClientes>[0]);
+    } else if (ENTIDADES_ACTIONS.has(t)) {
+      dEntidades(action as Parameters<typeof dEntidades>[0]);
     } else {
       dUI(action as UIAction);
     }
