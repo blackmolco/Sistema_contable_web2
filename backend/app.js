@@ -132,7 +132,9 @@ const documentosRouter = require('./routes/documentos');
 
 app.use('/api/auth',                   require('./routes/auth'));
 app.use('/api/cuentas',                require('./routes/cuentas'));
+app.use('/api/entidades',              require('./routes/entidades'));
 app.use('/api/asientos',               require('./routes/asientos'));
+app.use('/api/ingreso-documentos',     require('./routes/ingresoDocumentos'));
 app.use('/api/trabajadores',           trabajadoresRouter);
 // Alias de compatibilidad: el frontend usa /api/liquidaciones directamente
 app.use('/api/liquidaciones',          trabajadoresRouter);

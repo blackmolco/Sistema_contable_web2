@@ -260,7 +260,9 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     padreId: "1-02-001",
     permiteMovimiento: true,
     refSII: "DJ1887",
-    descripcion: "Cuentas por cobrar clientes"
+    descripcion: "Cuentas por cobrar clientes",
+    requiereAuxiliar: true,
+    tipoAuxiliar: "cliente"
   },
   {
     id: "1-02-001-0002",
@@ -554,7 +556,9 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     padreId: "2-01-001",
     permiteMovimiento: true,
     refSII: "DJ1879",
-    descripcion: "Cuentas por pagar proveedores"
+    descripcion: "Cuentas por pagar proveedores",
+    requiereAuxiliar: true,
+    tipoAuxiliar: "proveedor"
   },
   {
     id: "2-01-001-0002",
@@ -575,7 +579,9 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     naturaleza: "acreedora",
     nivel: 3,
     padreId: "2-01-001",
-    permiteMovimiento: true
+    permiteMovimiento: true,
+    requiereAuxiliar: true,
+    tipoAuxiliar: "honorario"
   },
   {
     id: "2-01-002-0001",

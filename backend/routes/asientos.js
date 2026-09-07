@@ -53,7 +53,11 @@ const detalleAsientoSchema = z.object({
 
 const asientoSchema = z.object({
     id: z.string().min(1).optional(),
-    numero: z.number().int().positive(),
+    // numero es opcional: al crear, el servidor lo asigna de forma atomica
+    // (Empresa.ultimoNumeroAsiento) para que nunca choque bajo concurrencia
+    // (dos pestanas, o un import masivo del SII). Solo se respeta el valor
+    // del cliente al EDITAR un asiento que ya existe.
+    numero: z.number().int().positive().optional(),
     fecha: z.string().datetime().or(z.string().date()),
     glosa: z.string().min(2).max(1000),
     estado: z.enum(['pendiente', 'contabilizado', 'anulado']).default('pendiente'),
@@ -94,33 +98,67 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, writeLimiter, validate(asientoSchema), async (req, res) => {
     try {
         const { id, detalles, ...asientoData } = req.body;
-        const asientoId = id || require('crypto').randomUUID();
         const totalDebe = detalles.reduce((sum, d) => sum + d.debe, 0);
         const totalHaber = detalles.reduce((sum, d) => sum + d.haber, 0);
         if (Math.abs(totalDebe - totalHaber) > 0.01) {
             return res.status(400).json({ error: 'El asiento no esta cuadrado', totalDebe, totalHaber, diferencia: totalDebe - totalHaber });
         }
-        // Delete existing detalles if upserting
-        await prisma.detalleAsiento.deleteMany({ where: { asientoId } });
-        const asiento = await prisma.asientoContable.upsert({
-            where: { id: asientoId },
-            create: {
-                id: asientoId,
-                ...asientoData,
-                fecha: new Date(asientoData.fecha),
-                usuarioId: req.usuario.id,
-                detalles: { create: detalles.map(d => ({ ...d })) },
-            },
-            update: {
-                ...asientoData,
-                fecha: new Date(asientoData.fecha),
-                detalles: { create: detalles.map(d => ({ ...d })) },
-            },
-            include: { detalles: true },
-        });
-        await auditLog(req.usuario.id, 'CREAR', 'AsientoContable', asiento.id, { numero: asiento.numero, totalDebe, totalHaber }, req.ip, req.headers['user-agent']);
+        const empresaId = asientoData.empresaId ?? null;
+        const existente = id ? await prisma.asientoContable.findUnique({ where: { id }, select: { id: true } }) : null;
+
+        const asiento = await prisma.$transaction(async (tx) => {
+            const asientoId = existente ? existente.id : (id || require('crypto').randomUUID());
+            await tx.detalleAsiento.deleteMany({ where: { asientoId } });
+
+            if (existente) {
+                // Editar: se respeta el numero existente (no se reasigna).
+                return tx.asientoContable.update({
+                    where: { id: asientoId },
+                    data: {
+                        ...asientoData,
+                        numero: asientoData.numero ?? undefined,
+                        fecha: new Date(asientoData.fecha),
+                        detalles: { create: detalles.map(d => ({ ...d })) },
+                    },
+                    include: { detalles: true },
+                });
+            }
+
+            // Crear: el numero SIEMPRE lo asigna el servidor, atomico por
+            // empresa. El UPDATE sobre la fila de Empresa se serializa a
+            // nivel de fila en Postgres — dos transacciones concurrentes no
+            // pueden llevarse el mismo numero (a diferencia de leer un max()
+            // y sumarle 1, que sí puede chocar bajo concurrencia).
+            let numero = asientoData.numero;
+            if (empresaId) {
+                const empresa = await tx.empresa.update({
+                    where: { id: empresaId },
+                    data: { ultimoNumeroAsiento: { increment: 1 } },
+                });
+                numero = empresa.ultimoNumeroAsiento;
+            } else if (!numero) {
+                numero = 1;
+            }
+
+            return tx.asientoContable.create({
+                data: {
+                    id: asientoId,
+                    ...asientoData,
+                    numero,
+                    fecha: new Date(asientoData.fecha),
+                    usuarioId: req.usuario.id,
+                    detalles: { create: detalles.map(d => ({ ...d })) },
+                },
+                include: { detalles: true },
+            });
+        }, { timeout: 15000 });
+
+        await auditLog(req.usuario.id, existente ? 'ACTUALIZAR' : 'CREAR', 'AsientoContable', asiento.id, { numero: asiento.numero, totalDebe, totalHaber }, req.ip, req.headers['user-agent']);
         res.status(201).json(asiento);
     } catch (err) {
+        if (err.code === 'P2002') {
+            return res.status(409).json({ error: 'Numero de asiento duplicado, reintente' });
+        }
         logger.error({ err }, 'Error creando asiento');
         res.status(500).json({ error: 'Error al crear asiento' });
     }

@@ -3,6 +3,7 @@
 // ============ Plan de Cuentas ============
 export type TipoCuenta = 'activo' | 'pasivo' | 'patrimonio' | 'ingreso' | 'gasto';
 export type NaturalezaCuenta = 'deudora' | 'acreedora';
+export type TipoAuxiliar = 'cliente' | 'proveedor' | 'honorario';
 
 export interface Cuenta {
   id: string;
@@ -15,6 +16,11 @@ export interface Cuenta {
   padreId?: string;
   descripcion?: string;
   refSII?: string;
+  // Cuentas de control (Clientes, Proveedores, Honorarios por pagar): al
+  // usarlas en un asiento, piden RUT y documento pendiente en vez de un
+  // monto libre — así se alimenta la cuenta corriente por RUT.
+  requiereAuxiliar?: boolean;
+  tipoAuxiliar?: TipoAuxiliar;
 }
 
 // ============ Asientos Contables ============
@@ -25,6 +31,11 @@ export interface DetalleAsiento {
   cuentaNombre: string;
   debe: number;
   haber: number;
+  // Solo se llenan en la línea que toca una cuenta con requiereAuxiliar:
+  // así se arma la cuenta corriente por RUT (ver Cuenta.requiereAuxiliar).
+  rutAuxiliar?: string;
+  nombreAuxiliar?: string;
+  documentoId?: string;
 }
 
 export interface AsientoContable {
@@ -201,6 +212,7 @@ export interface DocumentoTributario {
   neto?: number;
   rutCliente?: string;
   razonSocialCliente?: string;
+  asientoId?: string;   // asiento generado automáticamente al guardar el documento
 }
 
 // ============ Libros ============
@@ -290,6 +302,7 @@ export interface Honorario {
   montoLiquido: number;
   fechaPago: string;
   estado: 'pendiente' | 'pagado';
+  asientoId?: string;
 }
 
 // ============ Dashboard ============
@@ -410,7 +423,28 @@ export interface ArchivoVersion {
   tamano: number;
 }
 
-// ============ Clientes y Proveedores ============
+// ============ Entidades (clientes / proveedores / prestadores) ============
+// Reemplaza a ClienteProveedor/CuentaCobrar/CuentaPagar de abajo: aquella
+// familia de tipos vivía solo en localStorage, sin respaldo en el backend.
+// Entidad sí se sincroniza (ver services/apiSync.ts) y es la contraparte
+// que se auxiliar-etiqueta en DetalleAsiento.rutAuxiliar.
+export type TipoEntidad = 'cliente' | 'proveedor' | 'honorario' | 'ambos';
+
+export interface Entidad {
+  id: string;
+  rut: string;
+  razonSocial: string;
+  giro?: string;
+  direccion?: string;
+  comuna?: string;
+  ciudad?: string;
+  email?: string;
+  tipo: TipoEntidad;
+  cuentaDefaultId?: string;
+  activo: boolean;
+}
+
+// ============ Clientes y Proveedores (legado, ver Entidad arriba) ============
 export type TipoClienteProveedor = 'cliente' | 'proveedor' | 'ambos';
 
 export interface ClienteProveedor {

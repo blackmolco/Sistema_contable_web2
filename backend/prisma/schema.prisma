@@ -11,35 +11,35 @@ datasource db {
 // ============ AUTENTICACIÓN Y USUARIOS ============
 
 model Usuario {
-  id            String   @id @default(uuid())
-  email         String   @unique
+  id            String    @id @default(uuid())
+  email         String    @unique
   nombre        String
   rut           String
-  rol           String   @default("contador")
+  rol           String    @default("contador")
   passwordHash  String
-  activo        Boolean  @default(true)
+  activo        Boolean   @default(true)
   ultimoAcceso  DateTime?
-  fechaCreacion DateTime @default(now())
+  fechaCreacion DateTime  @default(now())
   empresaId     String?
 
-  empresa       Empresa?        @relation(fields: [empresaId], references: [id])
-  sesiones      Sesion[]
-  asientos      AsientoContable[] @relation("AsientoUsuario")
-  auditLogs     AuditLog[]
-  documentos    Documento[]     @relation("DocumentoUsuario")
+  empresa    Empresa?          @relation(fields: [empresaId], references: [id])
+  sesiones   Sesion[]
+  asientos   AsientoContable[] @relation("AsientoUsuario")
+  auditLogs  AuditLog[]
+  documentos Documento[]       @relation("DocumentoUsuario")
 }
 
 model Sesion {
-  id             String   @id @default(uuid())
-  usuarioId      String
-  token          String   @unique
-  refreshToken   String?  @unique
-  fechaInicio    DateTime @default(now())
+  id              String   @id @default(uuid())
+  usuarioId       String
+  token           String   @unique
+  refreshToken    String?  @unique
+  fechaInicio     DateTime @default(now())
   fechaExpiracion DateTime
-  ipOrigen      String?
-  userAgent     String?
+  ipOrigen        String?
+  userAgent       String?
 
-  usuario        Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([refreshToken])
@@ -49,44 +49,47 @@ model Sesion {
 // ============ MULTI-EMPRESA ============
 
 model Empresa {
-  id                String   @id @default(uuid())
-  rut               String   @unique
-  razonSocial       String
-  nombreFantasia    String?
-  giro              String?
-  direccion         String?
-  comuna            String?
-  ciudad            String?
-  telefono          String?
-  email             String?
-  representanteLegal String?
-  rutRepresentante  String?
-  logo              String?
-  configuracion     String?  @default("{}")
-  activo            Boolean  @default(true)
-  fechaCreacion     DateTime @default(now())
+  id                  String   @id @default(uuid())
+  rut                 String   @unique
+  razonSocial         String
+  nombreFantasia      String?
+  giro                String?
+  direccion           String?
+  comuna              String?
+  ciudad              String?
+  telefono            String?
+  email               String?
+  representanteLegal  String?
+  rutRepresentante    String?
+  logo                String?
+  configuracion       String?  @default("{}")
+  activo              Boolean  @default(true)
+  fechaCreacion       DateTime @default(now())
+  ultimoNumeroAsiento Int      @default(0)
 
-  usuarios          Usuario[]
+  usuarios Usuario[]
 }
 
 // ============ CONTABILIDAD ============
 
 model Cuenta {
-  id            String   @id @default(uuid())
-  codigo        String
-  nombre        String
-  tipo          String
-  naturaleza    String   @default("deudora")
-  nivel         Int      @default(1)
-  padreId       String?
-  afectaIva     Boolean  @default(false)
-  descripcion   String?
-  refSII        String?
-  permiteMovimiento Boolean @default(true)
-  activo        Boolean  @default(true)
-  empresaId     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                String   @id @default(uuid())
+  codigo            String
+  nombre            String
+  tipo              String
+  naturaleza        String   @default("deudora")
+  nivel             Int      @default(1)
+  padreId           String?
+  afectaIva         Boolean  @default(false)
+  descripcion       String?
+  refSII            String?
+  permiteMovimiento Boolean  @default(true)
+  activo            Boolean  @default(true)
+  requiereAuxiliar  Boolean  @default(false)
+  tipoAuxiliar      String?
+  empresaId         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@unique([codigo, empresaId], name: "codigo_empresaId")
   @@index([empresaId])
@@ -94,113 +97,118 @@ model Cuenta {
 }
 
 model AsientoContable {
-  id            String   @id @default(uuid())
-  numero        Int
-  fecha         DateTime
-  glosa         String
-  estado        String   @default("pendiente")
-  tipo          String?
-  usuarioId     String?
-  empresaId     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(uuid())
+  numero    Int
+  fecha     DateTime
+  glosa     String
+  estado    String   @default("pendiente")
+  tipo      String?
+  usuarioId String?
+  empresaId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  usuario       Usuario?        @relation("AsientoUsuario", fields: [usuarioId], references: [id])
-  detalles      DetalleAsiento[]
+  usuario  Usuario?         @relation("AsientoUsuario", fields: [usuarioId], references: [id])
+  detalles DetalleAsiento[]
 
-  @@unique([numero, empresaId, fecha])
+  @@unique([numero, empresaId])
   @@index([empresaId])
   @@index([fecha])
   @@index([estado])
 }
 
 model DetalleAsiento {
-  id            String   @id @default(uuid())
-  asientoId     String
-  cuentaId      String?
-  cuentaCodigo  String?
-  cuentaNombre  String?
-  debe          Float    @default(0)
-  haber         Float    @default(0)
-  glosa         String?
+  id             String  @id @default(uuid())
+  asientoId      String
+  cuentaId       String?
+  cuentaCodigo   String?
+  cuentaNombre   String?
+  debe           Float   @default(0)
+  haber          Float   @default(0)
+  glosa          String?
+  rutAuxiliar    String?
+  nombreAuxiliar String?
+  documentoId    String?
 
-  asiento       AsientoContable @relation(fields: [asientoId], references: [id], onDelete: Cascade)
+  asiento AsientoContable @relation(fields: [asientoId], references: [id], onDelete: Cascade)
 
   @@index([asientoId])
+  @@index([rutAuxiliar])
+  @@index([documentoId])
 }
 
 // ============ REMUNERACIONES ============
 
 model Trabajador {
-  id                String   @id @default(uuid())
-  rut               String
-  nombres           String
-  apellidos         String
-  email             String?
-  fechaNacimiento   DateTime?
-  cargo             String?
-  departamento      String?
-  fechaIngreso      DateTime
-  fechaTermino      DateTime?
-  tipoContrato      String
-  sueldoBase        Float
-  colacion          Float    @default(0)
-  movilizacion      Float    @default(0)
-  bonificacion      Float    @default(0)
-  afp               String
-  isapre            String?
-  saludPactado      Float    @default(7)
-  afc               Float    @default(0)
-  cargasFamiliares  Int      @default(0)
-  estado            String   @default("activo")
-  empresaId         String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String    @id @default(uuid())
+  rut              String
+  nombres          String
+  apellidos        String
+  email            String?
+  fechaNacimiento  DateTime?
+  cargo            String?
+  departamento     String?
+  fechaIngreso     DateTime
+  fechaTermino     DateTime?
+  tipoContrato     String
+  sueldoBase       Float
+  colacion         Float     @default(0)
+  movilizacion     Float     @default(0)
+  bonificacion     Float     @default(0)
+  afp              String
+  isapre           String?
+  saludPactado     Float     @default(7)
+  afc              Float     @default(0)
+  cargasFamiliares Int       @default(0)
+  estado           String    @default("activo")
+  empresaId        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  liquidaciones     LiquidacionSueldo[]
-  documentos        Documento[]       @relation("DocumentoTrabajador")
+  liquidaciones LiquidacionSueldo[]
+  documentos    Documento[]         @relation("DocumentoTrabajador")
 
   @@index([empresaId])
   @@index([rut])
 }
 
 model LiquidacionSueldo {
-  id                String   @id @default(uuid())
-  trabajadorId      String
-  periodo           String
-  sueldoBase        Float
-  bonos             Float    @default(0)
-  horasExtras       Float    @default(0)
-  montoHorasExtras  Float    @default(0)
-  gratificacion     Float    @default(0)
-  totalImponible    Float
-  colacion          Float    @default(0)
-  movilizacion      Float    @default(0)
-  descuentoAFP      Float
-  descuentoSalud    Float
-  descuentoAFC      Float    @default(0)
-  descuentoImpuesto Float
-  otrosDescuentos   Float    @default(0)
-  totalDescuentos   Float
-  asignacionFamiliar Float   @default(0)
-  sueldoLiquido     Float
-  estado            String   @default("calculada")
-  fechaPago         DateTime?
-  ufValor           Float?
-  utmValor          Float?
-  createdAt         DateTime @default(now())
+  id                 String    @id @default(uuid())
+  trabajadorId       String
+  periodo            String
+  sueldoBase         Float
+  bonos              Float     @default(0)
+  horasExtras        Float     @default(0)
+  montoHorasExtras   Float     @default(0)
+  gratificacion      Float     @default(0)
+  totalImponible     Float
+  colacion           Float     @default(0)
+  movilizacion       Float     @default(0)
+  descuentoAFP       Float
+  descuentoSalud     Float
+  descuentoAFC       Float     @default(0)
+  descuentoImpuesto  Float
+  otrosDescuentos    Float     @default(0)
+  totalDescuentos    Float
+  asignacionFamiliar Float     @default(0)
+  sueldoLiquido      Float
+  estado             String    @default("calculada")
+  fechaPago          DateTime?
+  ufValor            Float?
+  utmValor           Float?
+  createdAt          DateTime  @default(now())
 
-  trabajador        Trabajador  @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
+  trabajador Trabajador @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
 
+  @@unique([trabajadorId, periodo])
   @@index([trabajadorId])
   @@index([periodo])
-  @@unique([trabajadorId, periodo])
 }
 
 // ============ FACTURACIÓN Y DOCUMENTOS TRIBUTARIOS ============
 
 model DocumentoTributario {
-  id                  String   @id @default(uuid())
+  id                  String    @id @default(uuid())
   tipo                String
   folio               Int
   rutEmisor           String
@@ -213,40 +221,42 @@ model DocumentoTributario {
   fechaVencimiento    DateTime?
   montoNeto           Float
   iva                 Float
-  montoExento         Float   @default(0)
+  montoExento         Float     @default(0)
   montoTotal          Float
-  estado              String  @default("emitido")
+  estado              String    @default("emitido")
   tipoTransaccion     String
   glosa               String?
   numeroAutorizacion  String?
   fechaRecepcionSII   DateTime?
+  asientoId           String?
   empresaId           String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
+  @@unique([tipo, folio, tipoTransaccion, empresaId])
   @@index([empresaId])
   @@index([tipo])
   @@index([fechaEmision])
   @@index([estado])
   @@index([folio])
-  @@unique([tipo, folio, tipoTransaccion, empresaId])
+  @@index([asientoId])
 }
 
 model LibroCompra {
-  id              String   @id @default(uuid())
-  periodo         String
-  tipoDocumento   String
-  numeroDocumento String
-  fecha           DateTime
-  rutProveedor    String
-  razonSocial     String
-  montoNeto       Float
-  montoExento     Float
-  iva             Float
-  ivaNoRecuperable Float  @default(0)
-  montoTotal      Float
-  empresaId       String?
-  createdAt       DateTime @default(now())
+  id               String   @id @default(uuid())
+  periodo          String
+  tipoDocumento    String
+  numeroDocumento  String
+  fecha            DateTime
+  rutProveedor     String
+  razonSocial      String
+  montoNeto        Float
+  montoExento      Float
+  iva              Float
+  ivaNoRecuperable Float    @default(0)
+  montoTotal       Float
+  empresaId        String?
+  createdAt        DateTime @default(now())
 
   @@index([empresaId])
   @@index([periodo])
@@ -272,7 +282,7 @@ model LibroVenta {
 }
 
 model Honorario {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   rut          String
   nombre       String
   direccion    String?
@@ -281,31 +291,54 @@ model Honorario {
   retencion    Float
   montoLiquido Float
   fechaPago    DateTime?
-  estado       String   @default("pendiente")
+  estado       String    @default("pendiente")
+  asientoId    String?
   empresaId    String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   @@index([empresaId])
   @@index([periodo])
 }
 
+// ============ ENTIDADES (CLIENTES / PROVEEDORES / PRESTADORES) ============
+
+model Entidad {
+  id              String   @id @default(uuid())
+  rut             String
+  razonSocial     String
+  giro            String?
+  direccion       String?
+  comuna          String?
+  ciudad          String?
+  email           String?
+  tipo            String   @default("ambos")
+  cuentaDefaultId String?
+  activo          Boolean  @default(true)
+  empresaId       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([rut, empresaId])
+  @@index([empresaId])
+}
+
 // ============ ACTIVOS FIJOS ============
 
 model ActivoFijo {
-  id              String   @id @default(uuid())
-  codigo          String
-  descripcion     String
-  categoria       String
-  fechaAdquisicion DateTime
-  valorAdquisicion Float
-  vidaUtilMeses   Int
-  depreciacionMensual Float
-  depreciacionAcumulada Float @default(0)
-  valorNeto       Float
-  ubicacion       String?
-  estado          String   @default("activo")
-  empresaId       String?
-  createdAt       DateTime @default(now())
+  id                    String   @id @default(uuid())
+  codigo                String
+  descripcion           String
+  categoria             String
+  fechaAdquisicion      DateTime
+  valorAdquisicion      Float
+  vidaUtilMeses         Int
+  depreciacionMensual   Float
+  depreciacionAcumulada Float    @default(0)
+  valorNeto             Float
+  ubicacion             String?
+  estado                String   @default("activo")
+  empresaId             String?
+  createdAt             DateTime @default(now())
 
   @@index([empresaId])
 }
@@ -331,27 +364,27 @@ model TesoreriaMovimiento {
 // ============ DOCUMENTOS Y ARCHIVOS ============
 
 model Documento {
-  id            String   @id @default(uuid())
-  nombre        String
-  tipo          String
-  categoria     String
-  empresaId     String?
-  trabajadorId  String?
-  asientoId     String?
-  usuarioId     String?
-  ruta          String
-  tamano        Int
-  mimeType      String
-  etiquetas     String?
-  descripcion   String?
-  fechaDoc      DateTime?
-  fechaSubida   DateTime @default(now())
-  version       Int      @default(1)
-  activo        Boolean  @default(true)
+  id           String    @id @default(uuid())
+  nombre       String
+  tipo         String
+  categoria    String
+  empresaId    String?
+  trabajadorId String?
+  asientoId    String?
+  usuarioId    String?
+  ruta         String
+  tamano       Int
+  mimeType     String
+  etiquetas    String?
+  descripcion  String?
+  fechaDoc     DateTime?
+  fechaSubida  DateTime  @default(now())
+  version      Int       @default(1)
+  activo       Boolean   @default(true)
 
-  trabajador    Trabajador?     @relation("DocumentoTrabajador", fields: [trabajadorId], references: [id])
-  usuario       Usuario?        @relation("DocumentoUsuario", fields: [usuarioId], references: [id])
-  versiones     ArchivoVersion[]
+  trabajador Trabajador?      @relation("DocumentoTrabajador", fields: [trabajadorId], references: [id])
+  usuario    Usuario?         @relation("DocumentoUsuario", fields: [usuarioId], references: [id])
+  versiones  ArchivoVersion[]
 
   @@index([empresaId])
   @@index([trabajadorId])
@@ -366,13 +399,13 @@ model ArchivoVersion {
   fecha       DateTime @default(now())
   tamano      Int
 
-  documento   Documento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  documento Documento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
 
   @@index([documentoId])
 }
 
 model CategoriaDocumento {
-  id    Int    @id @default(autoincrement())
+  id     Int    @id @default(autoincrement())
   nombre String @unique
   color  String
   icono  String
@@ -381,31 +414,31 @@ model CategoriaDocumento {
 // ============ CONFIGURACIÓN Y NORMATIVA ============
 
 model ConfiguracionNormativa {
-  id          String   @id @default(uuid())
-  clave       String   @unique
-  valor       String
-  descripcion String?
+  id           String    @id @default(uuid())
+  clave        String    @unique
+  valor        String
+  descripcion  String?
   vigenteDesde DateTime
   vigenteHasta DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([clave])
   @@index([vigenteDesde])
 }
 
 model TablaSII {
-  id        String   @id @default(uuid())
-  tipo      String
-  codigo    String
+  id          String   @id @default(uuid())
+  tipo        String
+  codigo      String
   descripcion String
-  valor     String?
-  vigente   Boolean  @default(true)
-  createdAt DateTime @default(now())
+  valor       String?
+  vigente     Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
+  @@unique([tipo, codigo], name: "tipo_codigo")
   @@index([tipo])
   @@index([codigo])
-  @@unique([tipo, codigo], name: "tipo_codigo")
 }
 
 // ============ AUDITORÍA ============
@@ -421,7 +454,7 @@ model AuditLog {
   userAgent String?
   fecha     DateTime @default(now())
 
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
 
   @@index([usuarioId])
   @@index([entidad])
@@ -430,11 +463,11 @@ model AuditLog {
 }
 
 model Backup {
-  id          String   @id @default(uuid())
-  fecha       DateTime @default(now())
-  tipo        String
-  tamano      Int
-  ruta        String
-  estado      String   @default("completado")
-  creadoPor   String?
+  id        String   @id @default(uuid())
+  fecha     DateTime @default(now())
+  tipo      String
+  tamano    Int
+  ruta      String
+  estado    String   @default("completado")
+  creadoPor String?
 }

@@ -3,7 +3,7 @@
 
 import { apiFetch } from './httpClient';
 import { getToken } from './apiAuth';
-import { Cuenta, AsientoContable, Trabajador, DocumentoTributario, Honorario } from '../types';
+import { Cuenta, AsientoContable, Trabajador, DocumentoTributario, Honorario, Entidad } from '../types';
 import type { Empresa } from '../stores/appStore';
 
 export function isAuthenticated(): boolean {
@@ -106,6 +106,8 @@ export async function fetchCuentas(): Promise<Cuenta[]> {
     padreId: (r.padreId as string) || undefined,
     descripcion: (r.descripcion as string) || undefined,
     refSII: (r.refSII as string) || undefined,
+    requiereAuxiliar: (r.requiereAuxiliar as boolean) ?? false,
+    tipoAuxiliar: (r.tipoAuxiliar as Cuenta['tipoAuxiliar']) || undefined,
   }));
 }
 
@@ -125,6 +127,8 @@ export async function saveCuenta(cuenta: Cuenta): Promise<void> {
       descripcion: cuenta.descripcion || null,
       refSII: cuenta.refSII || null,
       afectaIva: false,
+      requiereAuxiliar: cuenta.requiereAuxiliar ?? false,
+      tipoAuxiliar: cuenta.tipoAuxiliar || null,
       empresaId: getEmpresaActivaId(),
     }),
   });
@@ -143,12 +147,76 @@ export async function updateCuenta(cuenta: Cuenta): Promise<void> {
       padreId: cuenta.padreId || null,
       descripcion: cuenta.descripcion || null,
       refSII: cuenta.refSII || null,
+      requiereAuxiliar: cuenta.requiereAuxiliar ?? false,
+      tipoAuxiliar: cuenta.tipoAuxiliar || null,
     }),
   });
 }
 
 export async function deleteCuenta(id: string): Promise<void> {
   await apiFetch(`/api/cuentas/${id}`, { method: 'DELETE' });
+}
+
+// ============ ENTIDADES (clientes / proveedores / prestadores) ============
+
+export async function fetchEntidades(): Promise<Entidad[]> {
+  const empresaId = getEmpresaActivaId();
+  const params = empresaId ? { empresaId } : {};
+  const rows = await fetchAll<Record<string, unknown>>('/api/entidades', params);
+  return rows.map(r => ({
+    id: r.id as string,
+    rut: r.rut as string,
+    razonSocial: r.razonSocial as string,
+    giro: (r.giro as string) || undefined,
+    direccion: (r.direccion as string) || undefined,
+    comuna: (r.comuna as string) || undefined,
+    ciudad: (r.ciudad as string) || undefined,
+    email: (r.email as string) || undefined,
+    tipo: (r.tipo as Entidad['tipo']) || 'ambos',
+    cuentaDefaultId: (r.cuentaDefaultId as string) || undefined,
+    activo: (r.activo as boolean) ?? true,
+  }));
+}
+
+export async function saveEntidad(entidad: Entidad): Promise<void> {
+  if (!isAuthenticated()) return;
+  await apiFetch('/api/entidades', {
+    method: 'POST',
+    body: JSON.stringify({
+      id: entidad.id,
+      rut: entidad.rut,
+      razonSocial: entidad.razonSocial,
+      giro: entidad.giro || null,
+      direccion: entidad.direccion || null,
+      comuna: entidad.comuna || null,
+      ciudad: entidad.ciudad || null,
+      email: entidad.email || null,
+      tipo: entidad.tipo,
+      cuentaDefaultId: entidad.cuentaDefaultId || null,
+      empresaId: getEmpresaActivaId(),
+    }),
+  });
+}
+
+export async function updateEntidad(entidad: Entidad): Promise<void> {
+  await apiFetch(`/api/entidades/${entidad.id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      rut: entidad.rut,
+      razonSocial: entidad.razonSocial,
+      giro: entidad.giro || null,
+      direccion: entidad.direccion || null,
+      comuna: entidad.comuna || null,
+      ciudad: entidad.ciudad || null,
+      email: entidad.email || null,
+      tipo: entidad.tipo,
+      cuentaDefaultId: entidad.cuentaDefaultId || null,
+    }),
+  });
+}
+
+export async function deleteEntidad(id: string): Promise<void> {
+  await apiFetch(`/api/entidades/${id}`, { method: 'DELETE' });
 }
 
 // ============ ASIENTOS ============
@@ -388,7 +456,46 @@ export async function fetchDocumentos(): Promise<DocumentoTributario[]> {
     neto: r.montoNeto as number,
     estado: (r.estado as DocumentoTributario['estado']) || 'emitido',
     libro: r.tipoTransaccion === 'compra' ? 'compras' : 'ventas',
+    asientoId: (r.asientoId as string) || undefined,
   }));
+}
+
+// ============ INGRESO DE DOCUMENTOS (con asiento automático) ============
+
+export interface IngresoDocumentoPayload {
+  tipoDocumento: 'factura' | 'factura_exenta' | 'boleta' | 'boleta_exenta' | 'nota_credito' | 'nota_debito' | 'honorario';
+  tipoTransaccion?: 'venta' | 'compra';
+  folio?: number;
+  fecha: string; // YYYY-MM-DD
+  periodo?: string; // YYYY-MM, solo honorarios
+  entidad: { rut: string; razonSocial: string; giro?: string; direccion?: string; comuna?: string; ciudad?: string; email?: string };
+  neto?: number;
+  exento?: number;
+  iva?: number;
+  total?: number;
+  cuentaGastoId?: string;
+  montoBruto?: number;
+  retencion?: number;
+  montoLiquido?: number;
+}
+
+export interface IngresoDocumentoResultado {
+  entidad: Entidad;
+  documento: DocumentoTributario | Honorario;
+  asiento: AsientoContable;
+}
+
+/**
+ * Crea, en una sola transacción del servidor, la Entidad + el documento
+ * (o la boleta de honorarios) + su asiento contable automático. A
+ * diferencia del resto de esta app, esto NO es fire-and-forget: hay que
+ * esperar la respuesta antes de considerar el documento guardado.
+ */
+export async function ingresoDocumento(payload: IngresoDocumentoPayload): Promise<IngresoDocumentoResultado> {
+  return apiFetch<IngresoDocumentoResultado>('/api/ingreso-documentos', {
+    method: 'POST',
+    body: JSON.stringify({ ...payload, empresaId: getEmpresaActivaId() }),
+  });
 }
 
 const BACKEND_TIPO_ENUM = ['factura', 'factura_exenta', 'boleta', 'nota_credito', 'nota_debito', 'guia_despacho', 'compra'] as const;
