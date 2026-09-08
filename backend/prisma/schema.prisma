@@ -267,7 +267,6 @@ model LibroCompra {
 
   @@index([empresaId])
   @@index([periodo])
-  @@index([importacionId])
 }
 
 model LibroVenta {
@@ -310,6 +309,7 @@ model Honorario {
   @@unique([empresaId, claveImportacion])
   @@index([empresaId])
   @@index([periodo])
+  @@index([importacionId])
 }
 
 // Historial de cada carga manual o automática proveniente del SII. Mantiene
