@@ -64,10 +64,11 @@ export default function BalanceOchoColumnas() {
       // Redondear solo al final. Redondear la apertura y el movimiento por
       // separado podía crear diferencias de $1 al totalizar muchas cuentas.
       const aperturaNeta = m.anteriorDebe - m.anteriorHaber;
-      const sumasDebe = redondear(Math.max(aperturaNeta, 0) + m.periodoDebe);
-      const sumasHaber = redondear(Math.max(-aperturaNeta, 0) + m.periodoHaber);
-      const saldoDeudor = Math.max(redondear(sumasDebe - sumasHaber), 0);
-      const saldoAcreedor = Math.max(redondear(sumasHaber - sumasDebe), 0);
+      const sumasDebe = Math.max(aperturaNeta, 0) + m.periodoDebe;
+      const sumasHaber = Math.max(-aperturaNeta, 0) + m.periodoHaber;
+      const saldoNeto = sumasDebe - sumasHaber;
+      const saldoDeudor = Math.max(saldoNeto, 0);
+      const saldoAcreedor = Math.max(-saldoNeto, 0);
       const esResultado = m.tipo === 'ingreso' || m.tipo === 'gasto';
       return {
         codigo, nombre: m.nombre, tipo: m.tipo, sumasDebe, sumasHaber, saldoDeudor, saldoAcreedor,
@@ -78,7 +79,7 @@ export default function BalanceOchoColumnas() {
       };
     }).filter(f => f.sumasDebe || f.sumasHaber);
 
-    const resultadoAnterior = redondear(resultadoAnteriorHaber - resultadoAnteriorDebe);
+    const resultadoAnterior = resultadoAnteriorHaber - resultadoAnteriorDebe;
     if (resultadoAnterior !== 0) {
       // El resultado de ejercicios anteriores pertenece a Utilidades
       // Acumuladas; no debe aparecer como una cuenta técnica 9-...
@@ -94,7 +95,7 @@ export default function BalanceOchoColumnas() {
       };
       const sumasDebe = base.sumasDebe + agregarDebe;
       const sumasHaber = base.sumasHaber + agregarHaber;
-      const saldoNeto = redondear(sumasDebe - sumasHaber);
+      const saldoNeto = sumasDebe - sumasHaber;
       const actualizada: FilaBalance8 = {
         ...base,
         sumasDebe,
