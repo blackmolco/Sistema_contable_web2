@@ -47,22 +47,26 @@ export default function F29() {
   // así que se reutiliza la misma clasificación compra/venta de esa pantalla.
   const datosDelSistema = useMemo(() => {
     const matchPeriodo = (fecha: string) => {
-      const d = new Date(fecha);
-      return d.getMonth() + 1 === mesAuto && d.getFullYear() === anioAuto;
+      // Las fechas contables representan un día calendario chileno. Usar
+      // YYYY-MM evita que el huso horario mueva documentos del último día al
+      // mes siguiente cuando el navegador trabaja en UTC.
+      const periodo = String(fecha || '').slice(0, 7);
+      return periodo === `${anioAuto}-${String(mesAuto).padStart(2, '0')}`;
     };
     const esCompra = (d: typeof state.documentos[number]) =>
       d.libro === 'compras' ||
-      d.tipo === 'factura_compra' ||
-      (d.libro !== 'ventas' && d.estado === 'pendiente');
+      d.tipo === 'factura_compra';
     const esVenta = (d: typeof state.documentos[number]) =>
       d.libro === 'ventas' ||
-      (d.libro !== 'compras' && d.tipo !== 'factura_compra' && d.estado === 'emitido');
+      (d.libro !== 'compras' && d.tipo !== 'factura_compra');
 
     const docsDelPeriodo = (state.documentos ?? []).filter(d => matchPeriodo(d.fecha));
     const ventas  = docsDelPeriodo.filter(esVenta);
     const compras = docsDelPeriodo.filter(esCompra);
-    // Las notas de crédito restan del libro correspondiente.
-    const signo = (d: typeof state.documentos[number]) => (d.tipo === 'nota_credito' ? -1 : 1);
+    // Las notas de crédito restan y las notas de débito suman en el libro
+    // correspondiente. Nunca se usa el estado del documento para decidir si
+    // es compra o venta: ese dato ya está en `libro`.
+    const signo = (d: typeof state.documentos[number]) => d.tipo === 'nota_credito' ? -1 : 1;
     const sumaNeto = (docs: typeof state.documentos) => docs.reduce((s, d) => s + (d.neto ?? d.subtotal ?? 0) * signo(d), 0);
     const sumaIva  = (docs: typeof state.documentos) => docs.reduce((s, d) => s + (d.iva ?? 0) * signo(d), 0);
 

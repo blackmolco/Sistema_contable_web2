@@ -6,7 +6,7 @@ import { Card, Badge } from '../components/ui/Cards';
 import { Button, Input, MontoInput, Select, SearchSelect } from '../components/ui/FormElements';
 import { Modal } from '../components/ui/Modal';
 import { formatCurrency, formatDate } from '../utils/calculos';
-import { Entidad } from '../types';
+import { Entidad, TipoAuxiliar } from '../types';
 import { aplicarPagoCobro } from '../services/apiSync';
 
 type FiltroTipo = 'todos' | 'cliente' | 'proveedor' | 'honorario';
@@ -51,6 +51,25 @@ export default function CuentaCorriente() {
     return mapa;
   }, [state.documentos, state.honorarios]);
 
+  // Compatibilidad con asientos antiguos: antes de activar el ingreso
+  // transaccional algunos asientos guardaban documentoId, pero no rutAuxiliar
+  // ni nombreAuxiliar. El documento es suficiente para reconstruir el
+  // auxiliar y evita que desaparezca de la cuenta corriente.
+  const auxiliarPorDocumento = useMemo(() => {
+    const mapa = new Map<string, { rut: string; nombre: string; tipoAuxiliar: TipoAuxiliar }>();
+    (state.documentos ?? []).forEach((d) => mapa.set(d.id, {
+      rut: d.receptor?.rut || '',
+      nombre: d.receptor?.razonSocial || d.receptor?.rut || 'Sin nombre',
+      tipoAuxiliar: d.libro === 'compras' || d.tipo === 'factura_compra' ? 'proveedor' : 'cliente',
+    }));
+    (state.honorarios ?? []).forEach((h) => mapa.set(h.id, {
+      rut: h.rut,
+      nombre: h.nombre,
+      tipoAuxiliar: 'honorario',
+    }));
+    return mapa;
+  }, [state.documentos, state.honorarios]);
+
   const entidadPorRut = useMemo(() => {
     const mapa = new Map<string, Entidad>();
     (state.entidades ?? []).forEach((e) => mapa.set(e.rut, e));
@@ -68,19 +87,24 @@ export default function CuentaCorriente() {
     }> = [];
     (state.asientos ?? []).forEach((asiento) => {
       asiento.detalles.forEach((d) => {
-        if (!d.rutAuxiliar) return;
+        const auxiliar = d.rutAuxiliar ? {
+          rut: d.rutAuxiliar,
+          nombre: d.nombreAuxiliar || d.rutAuxiliar,
+          tipoAuxiliar: undefined,
+        } : (d.documentoId ? auxiliarPorDocumento.get(d.documentoId) : undefined);
+        if (!auxiliar?.rut) return;
         const cuenta = state.cuentas.find((c) => c.id === d.cuentaId);
         lineas.push({
           asientoId: asiento.id, numero: asiento.numero, fecha: asiento.fecha, glosa: asiento.glosa,
-          rutAuxiliar: d.rutAuxiliar, nombreAuxiliar: d.nombreAuxiliar || d.rutAuxiliar,
+          rutAuxiliar: auxiliar.rut, nombreAuxiliar: auxiliar.nombre,
           documentoId: d.documentoId, debe: d.debe, haber: d.haber,
-          naturaleza: cuenta?.naturaleza ?? 'deudora', tipoAuxiliar: cuenta?.tipoAuxiliar,
+          naturaleza: cuenta?.naturaleza ?? 'deudora', tipoAuxiliar: cuenta?.tipoAuxiliar || auxiliar.tipoAuxiliar,
           cuentaControlId: d.cuentaId,
         });
       });
     });
     return lineas;
-  }, [state.asientos, state.cuentas]);
+  }, [state.asientos, state.cuentas, auxiliarPorDocumento]);
 
   // Agrupado por documento pendiente: una fila por (rut, documentoId).
   const documentosPendientes = useMemo(() => {

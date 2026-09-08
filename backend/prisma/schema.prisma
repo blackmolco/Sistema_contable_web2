@@ -306,6 +306,28 @@ model Honorario {
   @@index([periodo])
 }
 
+// Historial de cada carga manual o automática proveniente del SII. Mantiene
+// trazabilidad del lote aunque algunos registros hayan sido descartados por
+// duplicidad o error de validación.
+model ImportacionSII {
+  id              String   @id @default(uuid())
+  empresaId       String
+  tipo            String
+  periodo         String?
+  nombreArchivo   String?
+  totalRegistros  Int      @default(0)
+  nuevos          Int      @default(0)
+  duplicados      Int      @default(0)
+  errores         Int      @default(0)
+  estado          String   @default("procesando")
+  detalleErrores  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([empresaId, createdAt])
+  @@index([empresaId, periodo])
+}
+
 // ============ ENTIDADES (CLIENTES / PROVEEDORES / PRESTADORES) ============
 
 model Entidad {

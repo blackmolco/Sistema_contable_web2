@@ -10,7 +10,7 @@ import { SearchSelect } from '../components/ui/FormElements';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useApp } from '../context/AppContext';
 import { formatRUT, formatCurrency, generateId } from '../utils/calculos';
-import { ingresoDocumento, IngresoDocumentoPayload } from '../services/apiSync';
+import { fetchImportacionesSII, finalizarImportacionSII, ingresoDocumento, iniciarImportacionSII, ImportacionSII, IngresoDocumentoPayload } from '../services/apiSync';
 
 // ─── Tipo interno ──────────────────────────────────────────────────────────────
 interface FilaRCV {
@@ -327,18 +327,22 @@ export default function SincronizacionSII() {
   const [syncStep, setSyncStep]         = useState(0);   // 0 = inactivo, 1-5 = paso activo
   const [syncResult, setSyncResult]     = useState<{ compras: number; ventas: number; docs: Array<{rut:string;nombre:string;total:number;tipo:'venta'|'compra'}>; esReal?: boolean } | null>(null);
   const [backendStatus, setBackendStatus] = useState<'unknown'|'online'|'offline'>('unknown');
+  const [nombreArchivo, setNombreArchivo] = useState('');
+  const [historialImportaciones, setHistorialImportaciones] = useState<ImportacionSII[]>([]);
 
   // Verificar disponibilidad del backend al cargar
   useEffect(() => {
     fetch('/api/health', { signal: AbortSignal.timeout(3000) })
       .then(r => setBackendStatus(r.ok ? 'online' : 'offline'))
       .catch(() => setBackendStatus('offline'));
+    fetchImportacionesSII().then(setHistorialImportaciones).catch(() => setHistorialImportaciones([]));
   }, []);
 
   // ── Leer CSV ────────────────────────────────────────────────────────────────
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setNombreArchivo(file.name);
     const reader = new FileReader();
     reader.onload = (ev) => {
       const buffer = ev.target?.result as ArrayBuffer;
@@ -440,6 +444,21 @@ export default function SincronizacionSII() {
     }
     setImportProgress({ hecho: 0, total: filasNuevas.length });
 
+    // El historial es complementario: si el backend aún está desplegando la
+    // migración, la importación sigue funcionando y solo se omite el registro.
+    let importacionId: string | undefined;
+    try {
+      const lote = await iniciarImportacionSII({
+        tipo: tipoArchivo,
+        periodo: filasNuevas[0] ? fechaISO(filasNuevas[0]).slice(0, 7) : undefined,
+        nombreArchivo,
+        totalRegistros: filasPreview.length,
+      });
+      importacionId = lote.id;
+    } catch (error) {
+      console.warn('[SincronizacionSII] No se pudo abrir historial de lote:', error);
+    }
+
     const cuentaPorClasificarId = state.cuentas.find(c => c.codigo === CODIGO_CUENTA_POR_CLASIFICAR)?.id;
     let exitosos = 0;
     let sinCuentaAsignada = 0;
@@ -483,6 +502,21 @@ export default function SincronizacionSII() {
 
     setImportProgress(null);
     setIsImporting(false);
+
+    if (importacionId) {
+      try {
+        await finalizarImportacionSII(importacionId, {
+          nuevos: exitosos,
+          duplicados,
+          errores: errores.length,
+          estado: errores.length ? (exitosos ? 'con_errores' : 'fallida') : 'completada',
+          detalleErrores: errores.length ? errores.slice(0, 20).join('\n') : undefined,
+        });
+      } catch (error) {
+        console.warn('[SincronizacionSII] No se pudo cerrar historial de lote:', error);
+      }
+    }
+    fetchImportacionesSII().then(setHistorialImportaciones).catch(() => {});
 
     if (exitosos > 0) {
       // Fuerza a que Contabilidad/Facturación/Entidades vuelvan a pedir sus
@@ -709,6 +743,27 @@ export default function SincronizacionSII() {
           </button>
         ))}
       </div>
+
+      {historialImportaciones.length > 0 && (
+        <Card title="Historial reciente de cargas SII" className="no-print">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-gray-100 text-left text-xs uppercase text-gray-500">
+                <th className="px-2 py-2">Fecha</th><th className="px-2 py-2">Tipo</th><th className="px-2 py-2">Archivo</th>
+                <th className="px-2 py-2 text-right">Registros</th><th className="px-2 py-2 text-right">Nuevos</th><th className="px-2 py-2 text-right">Duplicados</th><th className="px-2 py-2">Estado</th>
+              </tr></thead>
+              <tbody>{historialImportaciones.slice(0, 8).map((lote) => (
+                <tr key={lote.id} className="border-b border-gray-50">
+                  <td className="px-2 py-2 text-gray-600">{new Date(lote.createdAt).toLocaleString('es-CL')}</td>
+                  <td className="px-2 py-2 capitalize">{lote.tipo}</td><td className="max-w-[220px] truncate px-2 py-2" title={lote.nombreArchivo}>{lote.nombreArchivo || 'Sin archivo'}</td>
+                  <td className="px-2 py-2 text-right font-data">{lote.totalRegistros}</td><td className="px-2 py-2 text-right font-data text-emerald-700">{lote.nuevos}</td><td className="px-2 py-2 text-right font-data text-amber-700">{lote.duplicados}</td>
+                  <td className="px-2 py-2"><Badge variant={lote.estado === 'completada' ? 'success' : lote.estado === 'con_errores' ? 'warning' : 'danger'}>{lote.estado.replace('_', ' ')}</Badge></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {/* ── TAB MANUAL ───────────────────────────────────────────────────────── */}
       {tab === 'manual' && (

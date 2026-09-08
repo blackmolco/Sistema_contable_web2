@@ -545,6 +545,43 @@ export async function ingresoDocumento(payload: IngresoDocumentoPayload): Promis
   });
 }
 
+// ============ HISTORIAL DE IMPORTACIONES SII ============
+
+export interface ImportacionSII {
+  id: string;
+  empresaId: string;
+  tipo: 'venta' | 'compra' | 'honorario' | 'automatico';
+  periodo?: string;
+  nombreArchivo?: string;
+  totalRegistros: number;
+  nuevos: number;
+  duplicados: number;
+  errores: number;
+  estado: 'procesando' | 'completada' | 'con_errores' | 'fallida';
+  detalleErrores?: string;
+  createdAt: string;
+}
+
+export async function iniciarImportacionSII(payload: {
+  tipo: ImportacionSII['tipo']; periodo?: string; nombreArchivo?: string; totalRegistros: number;
+}): Promise<ImportacionSII> {
+  return apiFetch<ImportacionSII>('/api/importaciones-sii', {
+    method: 'POST',
+    body: JSON.stringify({ ...payload, empresaId: getEmpresaActivaId() }),
+  });
+}
+
+export async function finalizarImportacionSII(id: string, resultado: Pick<ImportacionSII, 'nuevos' | 'duplicados' | 'errores' | 'estado'> & { detalleErrores?: string }): Promise<ImportacionSII> {
+  return apiFetch<ImportacionSII>(`/api/importaciones-sii/${id}`, {
+    method: 'PUT', body: JSON.stringify(resultado),
+  });
+}
+
+export async function fetchImportacionesSII(): Promise<ImportacionSII[]> {
+  const empresaId = getEmpresaActivaId();
+  return apiFetch<ImportacionSII[]>(`/api/importaciones-sii?empresaId=${encodeURIComponent(empresaId || '')}`);
+}
+
 const BACKEND_TIPO_ENUM = ['factura', 'factura_exenta', 'boleta', 'nota_credito', 'nota_debito', 'guia_despacho', 'compra'] as const;
 const BACKEND_ESTADO_ENUM = ['emitido', 'recibido', 'pendiente', 'vencido', 'pagado', 'anulado'] as const;
 
