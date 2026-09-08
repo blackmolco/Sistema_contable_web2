@@ -471,3 +471,19 @@ model Backup {
   estado    String   @default("completado")
   creadoPor String?
 }
+
+model PeriodoContable {
+  id               String    @id @default(uuid())
+  empresaId        String
+  anio             Int
+  mes              Int
+  estado           String    @default("abierto")
+  fechaCierre      DateTime?
+  usuarioCierreId  String?
+  motivoReapertura String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([empresaId, anio, mes])
+  @@index([empresaId, estado])
+}

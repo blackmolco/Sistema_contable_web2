@@ -28,6 +28,7 @@ import {
   FilePlus2,
   Wallet,
   ShieldCheck,
+  CalendarCheck2,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme, PRESETS, CATEGORY_COLORS } from '../../context/ThemeContext';
@@ -94,6 +95,7 @@ const menuCategories = [
     title: 'Herramientas y Cierres',
     items: [
       { path: '/cierre-tributario',   icon: FileSpreadsheet, label: 'Cierre Tributario' },
+      { path: '/periodos',            icon: CalendarCheck2, label: 'Períodos Contables' },
       { path: '/tablas-sii',          icon: Database,      label: 'Tablas SII' },
       { path: '/backup',              icon: Download,      label: 'Backup' },
       { path: '/control-integridad',  icon: ShieldCheck,   label: 'Control de Integridad' },

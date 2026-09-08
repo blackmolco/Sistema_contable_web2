@@ -5,6 +5,7 @@ const { prisma, logger, auditLog } = require('../shared');
 const { authenticateToken } = require('../middlewares/authenticate');
 const { validate } = require('../middlewares/validate');
 const { crearAsiento } = require('../services/generarAsiento');
+const { exigirPeriodoAbierto } = require('../services/periodos');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -31,6 +32,7 @@ router.post('/aplicar', authenticateToken, writeLimiter, validate(schema), async
   const { empresaId, fecha, cuentaMedioId, aplicaciones, glosa } = req.body;
   try {
     const asiento = await prisma.$transaction(async tx => {
+      await exigirPeriodoAbierto(tx, empresaId, fecha);
       const medio = await tx.cuenta.findFirst({ where: { id: cuentaMedioId, empresaId, activo: true, permiteMovimiento: true } });
       if (!medio) throw Object.assign(new Error('La cuenta de banco/caja no pertenece a la empresa'), { status: 400 });
 

@@ -5,6 +5,7 @@ const { validate } = require('../middlewares/validate');
 const { parsePagination, paginatedResponse } = require('../middlewares/pagination');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
+const { exigirPeriodoAbierto } = require('../services/periodos');
 
 const router = Router();
 
@@ -54,6 +55,7 @@ router.post('/:id/reversar', authenticateToken, writeLimiter, async (req, res) =
         if (motivo.length < 3) return res.status(400).json({ error: 'Indique el motivo del reverso' });
         const fecha = req.body?.fecha ? new Date(req.body.fecha) : new Date();
         const asiento = await prisma.$transaction(async tx => {
+            await exigirPeriodoAbierto(tx, original.empresaId, fecha);
             const empresa = await tx.empresa.update({ where: { id: original.empresaId }, data: { ultimoNumeroAsiento: { increment: 1 } } });
             return tx.asientoContable.create({
                 data: {
@@ -66,6 +68,7 @@ router.post('/:id/reversar', authenticateToken, writeLimiter, async (req, res) =
         await auditLog(req.usuario.id, 'REVERSAR', 'AsientoContable', original.id, { asientoReversoId: asiento.id, motivo }, req.ip, req.headers['user-agent']);
         res.status(201).json(asiento);
     } catch (err) {
+        if (err.status) return res.status(err.status).json({ error: err.message });
         logger.error({ err }, 'Error reversando asiento');
         res.status(500).json({ error: 'No se pudo reversar el asiento' });
     }
@@ -145,6 +148,7 @@ router.post('/', authenticateToken, writeLimiter, validate(asientoSchema), async
         }
 
         const asiento = await prisma.$transaction(async (tx) => {
+            await exigirPeriodoAbierto(tx, empresaId, asientoData.fecha);
             const asientoId = existente ? existente.id : (id || require('crypto').randomUUID());
             await tx.detalleAsiento.deleteMany({ where: { asientoId } });
 
@@ -194,6 +198,7 @@ router.post('/', authenticateToken, writeLimiter, validate(asientoSchema), async
         await auditLog(req.usuario.id, existente ? 'ACTUALIZAR' : 'CREAR', 'AsientoContable', asiento.id, { numero: asiento.numero, totalDebe, totalHaber }, req.ip, req.headers['user-agent']);
         res.status(201).json(asiento);
     } catch (err) {
+        if (err.status) return res.status(err.status).json({ error: err.message });
         if (err.code === 'P2002') {
             return res.status(409).json({ error: 'Numero de asiento duplicado, reintente' });
         }

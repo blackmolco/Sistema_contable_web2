@@ -10,6 +10,7 @@ const { validate } = require('../middlewares/validate');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
 const { lineasParaDocumento, lineasParaHonorario, crearAsiento } = require('../services/generarAsiento');
+const { exigirPeriodoAbierto } = require('../services/periodos');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -51,6 +52,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
     const empresaId = body.empresaId ?? null;
     try {
         const resultado = await prisma.$transaction(async (tx) => {
+            await exigirPeriodoAbierto(tx, empresaId, body.fecha);
             // 1) Upsert de la entidad por (rut, empresaId) — mismo patron que Cuenta.
             const entidadData = { ...body.entidad, empresaId };
             if (entidadData.email === '') entidadData.email = null;
@@ -175,8 +177,8 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
         await auditLog(req.usuario.id, 'CREAR', 'IngresoDocumento', resultado.asiento.id, { tipoDocumento: body.tipoDocumento, numeroAsiento: resultado.asiento.numero }, req.ip, req.headers['user-agent']);
         res.status(201).json(resultado);
     } catch (err) {
-        if (err.status === 400) {
-            return res.status(400).json({ error: err.message });
+        if (err.status) {
+            return res.status(err.status).json({ error: err.message });
         }
         if (err.code === 'P2002') {
             return res.status(409).json({ error: 'Ya existe un documento con ese folio para esta empresa' });
