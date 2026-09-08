@@ -79,7 +79,7 @@ async function lineasParaDocumento(tx, empresaId, { tipo, tipoTransaccion, neto 
     }
 
     // compra
-    const cuentaGasto = cuentaGastoId ? await tx.cuenta.findUnique({ where: { id: cuentaGastoId } }) : null;
+    const cuentaGasto = cuentaGastoId ? await tx.cuenta.findFirst({ where: { id: cuentaGastoId, empresaId, activo: true, permiteMovimiento: true } }) : null;
     const [cuentaProveedores, cuentaIvaCredito] = await Promise.all([
         buscarCuenta(tx, empresaId, CODIGOS.proveedores),
         buscarCuenta(tx, empresaId, CODIGOS.ivaCredito),

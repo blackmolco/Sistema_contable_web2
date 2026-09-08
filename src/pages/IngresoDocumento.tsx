@@ -45,11 +45,13 @@ export default function IngresoDocumento() {
   const opcion = OPCIONES_TIPO.find(o => o.value === tipoSel)!;
   const esHonorario = opcion.tipoDocumento === 'honorario';
   const esCompra = opcion.tipoTransaccion === 'compra';
+  const esNota = opcion.tipoDocumento === 'nota_credito' || opcion.tipoDocumento === 'nota_debito';
 
   const [folio, setFolio] = useState('');
   const [fecha, setFecha] = useState(hoy());
   const [fechaVencimiento, setFechaVencimiento] = useState(sumarDias(hoy(), 30));
   const [periodo, setPeriodo] = useState(hoy().slice(0, 7));
+  const [documentoReferenciaId, setDocumentoReferenciaId] = useState('');
 
   const [rutBusqueda, setRutBusqueda] = useState('');
   const [rut, setRut] = useState('');
@@ -82,6 +84,23 @@ export default function IngresoDocumento() {
       .map(c => ({ value: c.id, label: `${c.codigo} - ${c.nombre}` })),
   ], [state.cuentas]);
 
+  const documentosReferenciaOptions = useMemo(() => [
+    { value: '', label: 'Seleccionar documento original...' },
+    ...state.documentos
+      .filter(d => d.libro === (esCompra ? 'compras' : 'ventas') && d.tipo !== 'nota_credito' && d.tipo !== 'nota_debito' && d.estado !== 'anulado')
+      .map(d => ({ value: d.id, label: `${d.tipo} N° ${d.numero} — ${d.receptor?.rut || d.rutCliente || 'Sin RUT'} — ${d.receptor?.razonSocial || d.razonSocialCliente || ''} — ${formatCurrency(d.total)}` })),
+  ], [state.documentos, esCompra]);
+
+  const seleccionarDocumentoReferencia = (id: string) => {
+    setDocumentoReferenciaId(id);
+    const d = state.documentos.find(x => x.id === id);
+    if (!d) return;
+    setRut(d.receptor?.rut || d.rutCliente || '');
+    setRazonSocial(d.receptor?.razonSocial || d.razonSocialCliente || '');
+    setGiro(d.receptor?.giro || '');
+    setDireccion(d.receptor?.direccion || '');
+  };
+
   const seleccionarEntidad = (entidadId: string) => {
     setRutBusqueda(entidadId);
     const e = (state.entidades ?? []).find((x: Entidad) => x.id === entidadId);
@@ -101,6 +120,7 @@ export default function IngresoDocumento() {
     setGiro('');
     setDireccion('');
     setCuentaGastoId('');
+    setDocumentoReferenciaId('');
     setNeto(0);
     setExento(0);
     setIva(0);
@@ -118,6 +138,10 @@ export default function IngresoDocumento() {
         return;
       }
     } else {
+      if (esNota && !documentoReferenciaId) {
+        showToast('error', 'Falta información', 'Selecciona el documento original que modifica esta nota.');
+        return;
+      }
       if (!folio.trim()) {
         showToast('error', 'Falta información', 'Ingresa el folio del documento.');
         return;
@@ -139,6 +163,7 @@ export default function IngresoDocumento() {
         tipoTransaccion: opcion.tipoTransaccion,
         fecha,
         fechaVencimiento: esHonorario ? undefined : fechaVencimiento,
+        documentoReferenciaId: esNota ? documentoReferenciaId : undefined,
         entidad: { rut: rut.trim(), razonSocial: razonSocial.trim(), giro: giro || undefined, direccion: direccion || undefined },
         ...(esHonorario
           ? { periodo, montoBruto, retencion, montoLiquido }
@@ -183,6 +208,7 @@ export default function IngresoDocumento() {
 
       <Card title="2. Datos del documento">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {esNota && <div className="md:col-span-2"><SearchSelect label="Documento original" value={documentoReferenciaId} onChange={seleccionarDocumentoReferencia} options={documentosReferenciaOptions} placeholder="Buscar factura o boleta original..." /></div>}
           {esHonorario ? (
             <Input
               type="month"

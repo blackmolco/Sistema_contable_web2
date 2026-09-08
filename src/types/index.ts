@@ -214,6 +214,7 @@ export interface DocumentoTributario {
   rutCliente?: string;
   razonSocialCliente?: string;
   asientoId?: string;   // asiento generado automáticamente al guardar el documento
+  documentoReferenciaId?: string;
 }
 
 // ============ Libros ============

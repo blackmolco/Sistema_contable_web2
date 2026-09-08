@@ -36,6 +36,7 @@ const ingresoSchema = z.object({
     folio: z.number().int().positive().optional(),
     fecha: z.string().date(),
     fechaVencimiento: z.string().date().optional().nullable(),
+    documentoReferenciaId: z.string().min(1).optional().nullable(),
     periodo: z.string().regex(/^\d{4}-\d{2}$/).optional(),
     entidad: entidadInlineSchema,
     neto: z.number().min(0).default(0),
@@ -56,6 +57,26 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
     try {
         const resultado = await prisma.$transaction(async (tx) => {
             await exigirPeriodoAbierto(tx, empresaId, body.fecha);
+            const esNota = body.tipoDocumento === 'nota_credito' || body.tipoDocumento === 'nota_debito';
+            let documentoReferencia = null;
+            if (esNota) {
+                if (!body.documentoReferenciaId) throw Object.assign(new Error('Debe seleccionar el documento original de la nota'), { status: 400 });
+                documentoReferencia = await tx.documentoTributario.findFirst({
+                    where: { id: body.documentoReferenciaId, empresaId, tipoTransaccion: body.tipoTransaccion },
+                });
+                if (!documentoReferencia) throw Object.assign(new Error('El documento original no existe o pertenece a otra empresa'), { status: 404 });
+                if (documentoReferencia.rutReceptor !== body.entidad.rut) throw Object.assign(new Error('El RUT de la nota no coincide con el documento original'), { status: 409 });
+                if (body.tipoDocumento === 'nota_credito') {
+                    const movimientos = await tx.detalleAsiento.findMany({
+                        where: { documentoId: documentoReferencia.id, asiento: { empresaId, estado: { not: 'anulado' } }, cuenta: { requiereAuxiliar: true } },
+                        include: { cuenta: { select: { naturaleza: true } } },
+                    });
+                    const saldoDisponible = movimientos.reduce((s, d) => s + (d.cuenta?.naturaleza === 'acreedora' ? d.haber - d.debe : d.debe - d.haber), 0);
+                    if ((body.total || 0) > saldoDisponible + 0.5) {
+                        throw Object.assign(new Error(`La nota de crédito supera el saldo disponible del documento (${saldoDisponible})`), { status: 409 });
+                    }
+                }
+            }
             // 1) Upsert de la entidad por (rut, empresaId) — mismo patron que Cuenta.
             const entidadData = { ...body.entidad, empresaId };
             if (entidadData.email === '') entidadData.email = null;
@@ -146,6 +167,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                     montoTotal: body.total,
                     estado: body.tipoTransaccion === 'compra' ? 'pendiente' : 'emitido',
                     tipoTransaccion: body.tipoTransaccion,
+                    documentoReferenciaId: documentoReferencia?.id || null,
                     empresaId,
                 },
             });
@@ -159,7 +181,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                 total: body.total,
                 cuentaGastoId: body.cuentaGastoId,
                 entidad,
-                documentoId: documento.id,
+                documentoId: documentoReferencia?.id || documento.id,
             });
             const asiento = await crearAsiento(tx, {
                 empresaId,

@@ -491,6 +491,7 @@ export async function fetchDocumentos(): Promise<DocumentoTributario[]> {
     estado: (r.estado as DocumentoTributario['estado']) || 'emitido',
     libro: r.tipoTransaccion === 'compra' ? 'compras' : 'ventas',
     asientoId: (r.asientoId as string) || undefined,
+    documentoReferenciaId: (r.documentoReferenciaId as string) || undefined,
   }));
 }
 
@@ -502,6 +503,7 @@ export interface IngresoDocumentoPayload {
   folio?: number;
   fecha: string; // YYYY-MM-DD
   fechaVencimiento?: string;
+  documentoReferenciaId?: string;
   periodo?: string; // YYYY-MM, solo honorarios
   entidad: { rut: string; razonSocial: string; giro?: string; direccion?: string; comuna?: string; ciudad?: string; email?: string };
   neto?: number;
@@ -572,6 +574,7 @@ export async function saveDocumento(doc: DocumentoTributario, rutEmisor: string)
       estado,
       tipoTransaccion: doc.libro === 'compras' ? 'compra' : 'venta',
       glosa: null,
+      documentoReferenciaId: doc.documentoReferenciaId || null,
     }),
   });
 }

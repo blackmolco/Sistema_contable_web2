@@ -32,6 +32,7 @@ const docTributarioSchema = z.object({
     tipoTransaccion: z.enum(['venta', 'compra']),
     glosa: z.string().max(500).optional().nullable(),
     empresaId: z.string().min(1).optional().nullable(),
+    documentoReferenciaId: z.string().min(1).optional().nullable(),
 });
 
 const libroCompraSchema = z.object({
