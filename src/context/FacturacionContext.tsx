@@ -8,6 +8,7 @@ import {
   fetchDocumentos, saveDocumento, updateDocumento, deleteDocumento,
   fetchHonorarios, saveHonorario, updateHonorario, deleteHonorario,
 } from '../services/apiSync';
+import { reportSyncError } from '../services/syncEvents';
 
 const STORAGE_KEY = storageKey('scc_facturacion');
 
@@ -141,25 +142,25 @@ export function FacturacionProvider({ children }: { children: ReactNode }) {
 
     switch (action.type) {
       case 'ADD_DOCUMENTO':
-        saveDocumento(action.payload, rut).catch(() => {});
+        saveDocumento(action.payload, rut).catch(e => reportSyncError('crear documento', e));
         break;
       case 'BATCH_ADD_DOCUMENTOS':
-        action.payload.forEach(doc => saveDocumento(doc, rut).catch(() => {}));
+        action.payload.forEach(doc => saveDocumento(doc, rut).catch(e => reportSyncError(`crear documento ${doc.numero}`, e)));
         break;
       case 'UPDATE_DOCUMENTO':
-        updateDocumento(action.payload.id, action.payload.estado).catch(() => {});
+        updateDocumento(action.payload.id, action.payload.estado).catch(e => reportSyncError('actualizar documento', e));
         break;
       case 'DELETE_DOCUMENTO':
-        deleteDocumento(action.payload).catch(() => {});
+        deleteDocumento(action.payload).catch(e => reportSyncError('eliminar documento', e));
         break;
       case 'ADD_HONORARIO':
-        saveHonorario(action.payload).catch(() => {});
+        saveHonorario(action.payload).catch(e => reportSyncError('crear honorario', e));
         break;
       case 'UPDATE_HONORARIO':
-        updateHonorario(action.payload).catch(() => {});
+        updateHonorario(action.payload).catch(e => reportSyncError('actualizar honorario', e));
         break;
       case 'DELETE_HONORARIO':
-        deleteHonorario(action.payload).catch(() => {});
+        deleteHonorario(action.payload).catch(e => reportSyncError('eliminar honorario', e));
         break;
     }
   }, []);

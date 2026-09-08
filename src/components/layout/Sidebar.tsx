@@ -27,6 +27,7 @@ import {
   UserCog,
   FilePlus2,
   Wallet,
+  ShieldCheck,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme, PRESETS, CATEGORY_COLORS } from '../../context/ThemeContext';
@@ -95,6 +96,7 @@ const menuCategories = [
       { path: '/cierre-tributario',   icon: FileSpreadsheet, label: 'Cierre Tributario' },
       { path: '/tablas-sii',          icon: Database,      label: 'Tablas SII' },
       { path: '/backup',              icon: Download,      label: 'Backup' },
+      { path: '/control-integridad',  icon: ShieldCheck,   label: 'Control de Integridad' },
       { path: '/usuarios',             icon: UserCog,       label: 'Usuarios' },
     ]
   }

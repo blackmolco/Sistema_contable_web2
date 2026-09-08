@@ -222,12 +222,13 @@ export async function deleteEntidad(id: string): Promise<void> {
 // ============ ASIENTOS ============
 
 const estadoToBackend: Record<string, string> = {
+  // Compatibilidad de lectura/escritura con respaldos antiguos.
   aprobado: 'contabilizado',
   pendiente: 'pendiente',
   anulado: 'anulado',
 };
 const estadoFromBackend: Record<string, AsientoContable['estado']> = {
-  contabilizado: 'aprobado',
+  contabilizado: 'contabilizado',
   pendiente: 'pendiente',
   anulado: 'anulado',
 };

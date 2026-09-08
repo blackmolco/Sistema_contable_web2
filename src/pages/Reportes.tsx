@@ -47,7 +47,7 @@ export default function Reportes() {
   const datosGastos = useMemo(() => {
     const gastosPorCuenta: Record<string, number> = {};
     state.asientos.forEach(a => {
-      if (a.estado !== 'aprobado') return;
+      if (a.estado !== 'contabilizado') return;
       a.detalles?.forEach(det => {
         if (det.cuentaCodigo?.startsWith('6') && det.debe) {
           const nombre = det.cuentaNombre || det.cuentaCodigo;
@@ -75,7 +75,7 @@ export default function Reportes() {
     };
 
     state.asientos.forEach(a => {
-      if (a.estado !== 'aprobado') return;
+      if (a.estado !== 'contabilizado') return;
       a.detalles?.forEach(det => {
         if (det.cuentaCodigo?.startsWith('6') && det.debe) {
           if (det.cuentaNombre?.toLowerCase().includes('sueldo') || det.cuentaNombre?.toLowerCase().includes('carga')) {

@@ -171,7 +171,7 @@ export default function CentralizacionLibros() {
       detalles,
       totalDebe: totalFinal,
       totalHaber: totalNeto + totalIva,
-      estado: 'aprobado' as const,
+      estado: 'pendiente' as const,
     };
 
     dispatch({ type: 'ADD_ASIENTO', payload: asiento });
@@ -229,7 +229,7 @@ export default function CentralizacionLibros() {
       detalles,
       totalDebe: totalNeto + totalIva,
       totalHaber: totalFinal,
-      estado: 'aprobado' as const,
+      estado: 'pendiente' as const,
     };
 
     dispatch({ type: 'ADD_ASIENTO', payload: asiento });

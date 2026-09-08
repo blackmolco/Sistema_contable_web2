@@ -9,6 +9,7 @@ import {
 } from '../services/apiSync';
 import { useAppStore } from '../stores/appStore';
 import { useAuthStore } from '../stores/authStore';
+import { reportSyncError } from '../services/syncEvents';
 
 const STORAGE_KEY = storageKey('scc_contabilidad');
 
@@ -199,22 +200,25 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
 
     switch (action.type) {
       case 'ADD_CUENTA':
-        saveCuenta(action.payload).catch(() => {});
+        saveCuenta(action.payload).catch(e => reportSyncError('crear cuenta', e));
         break;
       case 'UPDATE_CUENTA':
-        updateCuenta(action.payload).catch(() => {});
+        updateCuenta(action.payload).catch(e => reportSyncError('actualizar cuenta', e));
         break;
       case 'DELETE_CUENTA':
-        deleteCuenta(action.payload).catch(() => {});
+        deleteCuenta(action.payload).catch(e => reportSyncError('eliminar cuenta', e));
         break;
       case 'ADD_ASIENTO':
-        saveAsiento(action.payload).catch((e) => console.error('[sync] saveAsiento FAILED:', e));
+        saveAsiento(action.payload).catch(e => reportSyncError('crear asiento', e));
         break;
       case 'UPDATE_ASIENTO':
-        updateAsientoEstado(action.payload.id, action.payload.estado).catch(() => {});
+        // UPDATE_ASIENTO puede cambiar fecha, glosa y líneas; enviar sólo el
+        // estado hacía que la pantalla pareciera guardar una edición que se
+        // perdía al recargar.
+        saveAsiento(action.payload).catch(e => reportSyncError('actualizar asiento', e));
         break;
       case 'DELETE_ASIENTO':
-        deleteAsiento(action.payload).catch(() => {});
+        deleteAsiento(action.payload).catch(e => reportSyncError('eliminar asiento', e));
         break;
     }
   }, []);

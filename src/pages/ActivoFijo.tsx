@@ -223,7 +223,7 @@ export default function ActivoFijo() {
       detalles: detallesAsiento,
       totalDebe: tDebe,
       totalHaber: tHaber,
-      estado: 'aprobado' as const,
+      estado: 'pendiente' as const,
       tipo: 'traspaso'
     };
 
@@ -298,7 +298,7 @@ export default function ActivoFijo() {
       detalles: detallesAsiento,
       totalDebe: tDebe,
       totalHaber: tHaber,
-      estado: 'aprobado' as const,
+      estado: 'pendiente' as const,
       tipo: 'traspaso'
     };
 

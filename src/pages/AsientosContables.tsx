@@ -265,7 +265,7 @@ export default function AsientosContables() {
       detalles: formData.detalles,
       totalDebe: totales.debe,
       totalHaber: totales.haber,
-      estado: 'aprobado',
+      estado: 'pendiente',
     };
 
     if (editingAsiento) {
@@ -431,16 +431,17 @@ export default function AsientosContables() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <Badge
-                      variant={asiento.estado === 'aprobado' ? 'success' : 'warning'}
+                      variant={asiento.estado === 'contabilizado' ? 'success' : asiento.estado === 'anulado' ? 'danger' : 'warning'}
                       dot
                     >
-                      {asiento.estado === 'aprobado' ? 'Aprobado' : 'Pendiente'}
+                      {asiento.estado === 'contabilizado' ? 'Contabilizado' : asiento.estado === 'anulado' ? 'Anulado' : 'Pendiente'}
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={() => abrirModalEditar(asiento)}
+                        disabled={asiento.estado !== 'pendiente'}
                         className="p-2 text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg
                           transition-[background-color,color] duration-150 active:scale-[0.95]"
                         title="Editar"
@@ -457,8 +458,22 @@ export default function AsientosContables() {
                       >
                         <Copy size={16} />
                       </button>
+                      {asiento.estado === 'pendiente' && (
+                        <button
+                          onClick={() => {
+                            dispatch({ type: 'UPDATE_ASIENTO', payload: { ...asiento, estado: 'contabilizado' } });
+                            showToast('success', 'Comprobante contabilizado', `Asiento #${asiento.numero}`);
+                          }}
+                          className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-[background-color,color] duration-150"
+                          title="Contabilizar y bloquear"
+                          aria-label={`Contabilizar asiento #${asiento.numero}`}
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                      )}
                       <button
                         onClick={() => setConfirmDeleteId(asiento.id)}
+                        disabled={asiento.estado !== 'pendiente'}
                         className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg
                           transition-[background-color,color] duration-150 active:scale-[0.95]"
                         title="Eliminar"

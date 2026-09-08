@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Upload, FileText, Printer, CheckCircle2, AlertCircle, Save, RefreshCw, Info } from 'lucide-react';
 import { Card } from '../components/ui/Cards';
 import { formatCurrency, generateId } from '../utils/calculos';
@@ -84,11 +84,21 @@ export default function F29() {
     showToast('success', 'Datos cargados',
       `Ventas: ${datosDelSistema.countVentas} docs | Compras: ${datosDelSistema.countCompras} docs`);
   };
+
+  // El borrador siempre refleja los libros de la empresa y período elegidos.
+  // No exige presionar un botón que pueda dejar montos antiguos en pantalla.
+  useEffect(() => {
+    setVentasNeto(datosDelSistema.ventasNeto);
+    setVentasIva(datosDelSistema.ventasIva);
+    setComprasNeto(datosDelSistema.comprasNeto);
+    setComprasIva(datosDelSistema.comprasIva);
+  }, [datosDelSistema]);
   // ─────────────────────────────────────────────────────────────────
 
-  const honorariosRetencion = useMemo(
-    () => state.honorarios.reduce((sum, h) => sum + (h.retencion || 0), 0),
-    [state.honorarios]
+  const honorariosRetencion = useMemo(() => state.honorarios
+    .filter(h => h.periodo === `${anioAuto}-${String(mesAuto).padStart(2, '0')}`)
+    .reduce((sum, h) => sum + (h.retencion || 0), 0),
+    [state.honorarios, mesAuto, anioAuto]
   );
 
   // PPM (1% por defecto)
@@ -157,7 +167,7 @@ export default function F29() {
       detalles: detallesCierre,
       totalDebe: totalDebeCierre,
       totalHaber: totalHaberCierre,
-      estado: 'aprobado' as const,
+      estado: 'pendiente' as const,
       tipo: 'traspaso'
     };
 
@@ -268,7 +278,7 @@ export default function F29() {
         detalles,
         totalDebe: comprasNeto + comprasIva,
         totalHaber: comprasNeto + comprasIva,
-        estado: 'aprobado',
+        estado: 'pendiente',
       },
     });
 
@@ -319,9 +329,9 @@ export default function F29() {
 
       <div className="flex items-center justify-between no-print">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Borrador F29 y Centralización</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Borrador F29</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Sube tu RCV. El sistema recordará a qué cuenta contable asignas cada RUT.
+            Calculado desde los libros cargados de la empresa activa.
           </p>
         </div>
         <button
@@ -337,7 +347,7 @@ export default function F29() {
       <div className="no-print flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
         <Info size={18} className="text-blue-600 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
-          <p className="text-sm font-semibold text-blue-800 mb-2">Cargar desde Libros del Sistema</p>
+          <p className="text-sm font-semibold text-blue-800 mb-2">Período del borrador</p>
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="text-xs text-blue-700 font-medium">Mes</label>
@@ -360,19 +370,15 @@ export default function F29() {
                 className="ml-2 w-20 text-sm border border-blue-300 rounded-lg px-2 py-1 bg-white"
               />
             </div>
-            <button
-              onClick={cargarDesistema}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:scale-[0.97] transition-[background-color,transform]"
-            >
-              <RefreshCw size={14} />
-              Cargar ({datosDelSistema.countVentas} ventas / {datosDelSistema.countCompras} compras)
-            </button>
+            <span className="px-3 py-1.5 bg-white border border-blue-200 text-blue-800 text-sm font-medium rounded-lg">
+              {datosDelSistema.countVentas} ventas · {datosDelSistema.countCompras} compras
+            </span>
           </div>
         </div>
       </div>
 
       {/* Zona de Carga de Archivos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
+      {false && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
         <Card title="Libro de Ventas (CSV SII)">
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors">
             <Upload className="mx-auto text-gray-400 mb-2" size={32} />
@@ -408,10 +414,10 @@ export default function F29() {
             </div>
           )}
         </Card>
-      </div>
+      </div>}
 
       {/* Mapeo Automático de Cuentas para Compras */}
-      {detallesCompras.length > 0 && (
+      {false && detallesCompras.length > 0 && (
         <Card title="Contabilización Inteligente de Compras" className="no-print">
           <p className="text-xs text-gray-500 mb-4">
             Selecciona a qué cuenta contable (Gasto/Activo) corresponde cada factura. ¡El sistema lo aprenderá para el próximo mes!

@@ -46,7 +46,7 @@ export interface AsientoContable {
   detalles: DetalleAsiento[];
   totalDebe: number;
   totalHaber: number;
-  estado: 'pendiente' | 'aprobado' | 'anulado';
+  estado: 'pendiente' | 'contabilizado' | 'anulado';
   tipo?: string;
 }
 

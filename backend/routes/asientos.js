@@ -107,7 +107,13 @@ router.post('/', authenticateToken, writeLimiter, validate(asientoSchema), async
             return res.status(400).json({ error: 'El asiento no esta cuadrado', totalDebe, totalHaber, diferencia: totalDebe - totalHaber });
         }
         const empresaId = asientoData.empresaId ?? null;
-        const existente = id ? await prisma.asientoContable.findUnique({ where: { id }, select: { id: true } }) : null;
+        const existente = id ? await prisma.asientoContable.findUnique({ where: { id }, select: { id: true, estado: true, empresaId: true } }) : null;
+        if (existente && existente.estado !== 'pendiente') {
+            return res.status(409).json({ error: 'Solo se pueden editar asientos pendientes. Use un asiento reverso para corregir un comprobante contabilizado.' });
+        }
+        if (existente && existente.empresaId !== empresaId) {
+            return res.status(403).json({ error: 'El asiento pertenece a otra empresa' });
+        }
 
         const asiento = await prisma.$transaction(async (tx) => {
             const asientoId = existente ? existente.id : (id || require('crypto').randomUUID());
@@ -170,6 +176,17 @@ router.post('/', authenticateToken, writeLimiter, validate(asientoSchema), async
 router.put('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
         const { estado } = req.body;
+        if (!['pendiente', 'contabilizado', 'anulado'].includes(estado)) {
+            return res.status(400).json({ error: 'Estado de asiento no valido' });
+        }
+        const actual = await prisma.asientoContable.findUnique({ where: { id: req.params.id } });
+        if (!actual) return res.status(404).json({ error: 'Asiento no encontrado' });
+        if (actual.estado === 'anulado') {
+            return res.status(409).json({ error: 'Un asiento anulado no puede modificarse' });
+        }
+        if (actual.estado === 'contabilizado' && estado !== 'contabilizado') {
+            return res.status(409).json({ error: 'Un asiento contabilizado debe corregirse mediante reverso' });
+        }
         const asiento = await prisma.asientoContable.update({
             where: { id: req.params.id },
             data: { estado },
@@ -185,6 +202,11 @@ router.put('/:id', authenticateToken, writeLimiter, async (req, res) => {
 
 router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
+        const actual = await prisma.asientoContable.findUnique({ where: { id: req.params.id }, select: { estado: true } });
+        if (!actual) return res.status(404).json({ error: 'Asiento no encontrado' });
+        if (actual.estado !== 'pendiente') {
+            return res.status(409).json({ error: 'Solo se pueden eliminar asientos pendientes' });
+        }
         await prisma.asientoContable.delete({ where: { id: req.params.id } });
         await auditLog(req.usuario.id, 'ELIMINAR', 'AsientoContable', req.params.id, {}, req.ip, req.headers['user-agent']);
         res.json({ message: 'Asiento eliminado' });
@@ -195,4 +217,3 @@ router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
 });
 
 module.exports = router;
-

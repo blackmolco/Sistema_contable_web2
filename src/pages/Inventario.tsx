@@ -95,7 +95,7 @@ export default function Inventario() {
       ],
       totalDebe: Math.round(costoTotal),
       totalHaber: Math.round(costoTotal),
-      estado: 'aprobado' as const
+      estado: 'pendiente' as const
     };
     dispatch({ type: 'ADD_ASIENTO', payload: nuevoAsiento });
     showToast('success', 'Centralizacion Exitosa', `Asiento de Costo de Venta por ${formatCurrency(costoTotal)} generado correctamente.`);

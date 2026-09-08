@@ -167,7 +167,7 @@ export default function ConciliacionBancaria() {
 
     const contables: TransaccionContable[] = [];
     appState.asientos
-      .filter(a => a.estado === 'aprobado')
+      .filter(a => a.estado === 'contabilizado')
       .sort((a, b) => a.fecha.localeCompare(b.fecha))
       .forEach((a, i) => {
         a.detalles?.forEach(det => {

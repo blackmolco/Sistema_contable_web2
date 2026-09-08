@@ -1,9 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
+import { SyncErrorDetail } from '../../services/syncEvents';
 
 export default function Toaster() {
-  const { toasts, removeToast } = useAppStore();
+  const { toasts, removeToast, addToast, addNotificacion } = useAppStore();
+
+  useEffect(() => {
+    const mostrarError = (event: Event) => {
+      const { operacion, mensaje } = (event as CustomEvent<SyncErrorDetail>).detail;
+      const texto = `No se guardó: ${operacion}. ${mensaje}`;
+      addToast({ type: 'error', message: texto, duration: 12000 });
+      addNotificacion({ tipo: 'error', titulo: 'Error de guardado', mensaje: texto, link: '/control-integridad', modulo: 'Sincronización' });
+    };
+    window.addEventListener('scc:sync-error', mostrarError);
+    return () => window.removeEventListener('scc:sync-error', mostrarError);
+  }, [addToast, addNotificacion]);
 
   const icons = {
     success: CheckCircle,

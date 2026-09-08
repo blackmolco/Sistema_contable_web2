@@ -35,7 +35,7 @@ export default function CierreTributario() {
 
   const saldosPorCuenta = useMemo(() => {
     const saldos: Record<string, { debe: number; haber: number }> = {};
-    state.asientos.filter(a => a.estado === 'aprobado').forEach(a => {
+    state.asientos.filter(a => a.estado === 'contabilizado').forEach(a => {
       a.detalles?.forEach(d => {
         if (!saldos[d.cuentaId]) saldos[d.cuentaId] = { debe: 0, haber: 0 };
         saldos[d.cuentaId].debe += d.debe;

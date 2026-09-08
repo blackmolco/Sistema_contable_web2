@@ -4,6 +4,7 @@ import { storageKey } from '../utils/empresaStorage';
 import { useAppStore } from '../stores/appStore';
 import { useAuthStore } from '../stores/authStore';
 import { isAuthenticated, fetchEntidades, saveEntidad, updateEntidad, deleteEntidad } from '../services/apiSync';
+import { reportSyncError } from '../services/syncEvents';
 
 const STORAGE_KEY = storageKey('scc_entidades');
 
@@ -92,13 +93,13 @@ export function EntidadesProvider({ children }: { children: ReactNode }) {
     if (!isAuthenticated()) return;
     switch (action.type) {
       case 'ADD_ENTIDAD':
-        saveEntidad(action.payload).catch(() => {});
+        saveEntidad(action.payload).catch(e => reportSyncError('crear entidad', e));
         break;
       case 'UPDATE_ENTIDAD':
-        updateEntidad(action.payload).catch(() => {});
+        updateEntidad(action.payload).catch(e => reportSyncError('actualizar entidad', e));
         break;
       case 'DELETE_ENTIDAD':
-        deleteEntidad(action.payload).catch(() => {});
+        deleteEntidad(action.payload).catch(e => reportSyncError('eliminar entidad', e));
         break;
     }
   }, []);

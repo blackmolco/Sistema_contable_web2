@@ -293,7 +293,7 @@ export default function Dashboard() {
 
   const totalGastos = useMemo(
     () => state.asientos
-      .filter((a) => a.estado === 'aprobado')
+      .filter((a) => a.estado === 'contabilizado')
       .reduce((sum, a) => sum + a.detalles
         .filter((d) => d.cuentaCodigo.startsWith('5'))
         .reduce((s, d) => s + d.debe, 0), 0),
@@ -854,11 +854,11 @@ export default function Dashboard() {
       <Card title="Acciones Rápidas">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <button
-            onClick={() => navigate('/facturacion')}
+            onClick={() => navigate('/ingreso-documento')}
             className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] text-center"
           >
             <FileText className="mx-auto text-blue-600 dark:text-blue-400 mb-2" size={24} />
-            <span className="text-sm font-medium text-blue-900 dark:text-blue-300">Nueva Factura</span>
+            <span className="text-sm font-medium text-blue-900 dark:text-blue-300">Ingresar Documento</span>
           </button>
           <button
             onClick={() => navigate('/asientos')}
@@ -868,18 +868,18 @@ export default function Dashboard() {
             <span className="text-sm font-medium text-emerald-900 dark:text-emerald-300">Nuevo Asiento</span>
           </button>
           <button
-            onClick={() => navigate('/reportes')}
+            onClick={() => navigate('/cuenta-corriente')}
             className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] text-center"
           >
             <Download className="mx-auto text-amber-600 dark:text-amber-400 mb-2" size={24} />
-            <span className="text-sm font-medium text-amber-900 dark:text-amber-300">Generar Reporte</span>
+            <span className="text-sm font-medium text-amber-900 dark:text-amber-300">Cuenta Corriente</span>
           </button>
           <button
-            onClick={() => navigate('/documentos')}
+            onClick={() => navigate('/control-integridad')}
             className="p-4 bg-teal-50 dark:bg-teal-900/20 rounded-xl hover:bg-teal-100 dark:hover:bg-teal-900/30 transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] text-center"
           >
             <FileText className="mx-auto text-teal-600 mb-2" size={24} />
-            <span className="text-sm font-medium text-teal-900">Documentos</span>
+            <span className="text-sm font-medium text-teal-900 dark:text-teal-300">Control de Integridad</span>
           </button>
         </div>
       </Card>
