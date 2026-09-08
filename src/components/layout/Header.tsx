@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, User, LogOut, Menu, ChevronDown, Moon, Sun, Settings, Building2, CalendarDays } from 'lucide-react';
+import { Search, User, LogOut, Menu, ChevronDown, Moon, Sun, Settings, Building2, CalendarDays, DatabaseZap, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAppStore } from '../../stores/appStore';
 import { ApiAuthService } from '../../services/apiAuth';
@@ -23,7 +23,22 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
   const usuario = ApiAuthService.getCurrentUser();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [importacionSII, setImportacionSII] = useState<{ estado: string; hecho: number; total: number; tipo?: string } | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const leerEstado = () => {
+      try {
+        const raw = localStorage.getItem('scc_importacion_sii_estado');
+        setImportacionSII(raw ? JSON.parse(raw) : null);
+      } catch { setImportacionSII(null); }
+    };
+    leerEstado();
+    window.addEventListener('scc:importacion-sii', leerEstado);
+    window.addEventListener('storage', leerEstado);
+    const timer = window.setInterval(leerEstado, 2000);
+    return () => { window.removeEventListener('scc:importacion-sii', leerEstado); window.removeEventListener('storage', leerEstado); window.clearInterval(timer); };
+  }, []);
 
   // Cerrar el menú al hacer clic fuera (antes quedaba "pegado" abierto)
   useEffect(() => {
@@ -104,6 +119,19 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
           >
             {darkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
+
+          {importacionSII && importacionSII.estado === 'procesando' && (
+            <div className="hidden items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs text-blue-800 lg:flex" title="La carga continúa en la pestaña del sistema">
+              <DatabaseZap size={15} className="animate-pulse" />
+              <span className="font-medium">SII {importacionSII.hecho}/{importacionSII.total}</span>
+            </div>
+          )}
+          {importacionSII && importacionSII.estado !== 'procesando' && (
+            <div className={`hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs lg:flex ${importacionSII.estado === 'completada' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`} title="Resultado de la última carga SII">
+              {importacionSII.estado === 'completada' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+              <span>Importación {importacionSII.estado === 'completada' ? 'completa' : 'con revisión'}</span>
+            </div>
+          )}
 
           <div className="relative" ref={userMenuRef}>
             <button

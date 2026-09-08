@@ -29,6 +29,14 @@ interface FilaRCV {
   montoLiquido?: number;
 }
 
+const IMPORT_STATUS_KEY = 'scc_importacion_sii_estado';
+
+function publicarEstadoImportacion(estado: Record<string, unknown> | null) {
+  if (estado) localStorage.setItem(IMPORT_STATUS_KEY, JSON.stringify(estado));
+  else localStorage.removeItem(IMPORT_STATUS_KEY);
+  window.dispatchEvent(new Event('scc:importacion-sii'));
+}
+
 // Mapeo SII código → tipo interno
 const TIPO_DOC_MAP: Record<string, string> = {
   '33': 'factura', '34': 'factura_exenta',
@@ -444,6 +452,7 @@ export default function SincronizacionSII() {
       return;
     }
     setImportProgress({ hecho: 0, total: filasNuevas.length });
+    publicarEstadoImportacion({ estado: 'procesando', hecho: 0, total: filasNuevas.length, tipo: tipoArchivo, actualizado: Date.now() });
 
     // El historial es complementario: si el backend aún está desplegando la
     // migración, la importación sigue funcionando y solo se omite el registro.
@@ -499,11 +508,16 @@ export default function SincronizacionSII() {
       } catch (err) {
         errores.push(`Folio ${fila.folio || '—'}: ${err instanceof Error ? err.message : 'error desconocido'}`);
       }
-      setImportProgress(prev => prev ? { ...prev, hecho: prev.hecho + 1 } : null);
+      setImportProgress(prev => {
+        const hecho = (prev?.hecho ?? 0) + 1;
+        publicarEstadoImportacion({ estado: 'procesando', hecho, total: filasNuevas.length, tipo: tipoArchivo, actualizado: Date.now() });
+        return prev ? { ...prev, hecho } : null;
+      });
     }
 
     setImportProgress(null);
     setIsImporting(false);
+    publicarEstadoImportacion({ estado: errores.length ? 'con_errores' : 'completada', hecho: filasNuevas.length, total: filasNuevas.length, tipo: tipoArchivo, actualizado: Date.now() });
 
     if (importacionId) {
       try {
