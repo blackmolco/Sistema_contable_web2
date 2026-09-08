@@ -1,6 +1,7 @@
 // Servicio de Backup Automatizado - Exportar/Importar datos localStorage
 
 import { generateId } from '../utils/calculos';
+import { getEmpresaActivaId } from '../utils/empresaStorage';
 
 export interface DatosBackup {
   version: string;
@@ -38,7 +39,20 @@ export interface HistorialBackup {
 }
 
 export class BackupService {
-  private static readonly STORAGE_KEYS = [
+  // Los módulos principales se guardan con sufijo de empresa. El backup
+  // anterior buscaba solo claves antiguas y podía generar un archivo sin
+  // las cuentas ni asientos de la empresa activa.
+  private static readonly STORAGE_BASES = [
+    'scc_app',
+    'scc_contabilidad',
+    'scc_facturacion',
+    'scc_clientes',
+    'scc_entidades',
+    'scc_audit',
+    'scc_remuneraciones',
+  ];
+
+  private static readonly STORAGE_KEYS_LEGACY = [
     'contable_usuarios',
     'contable_empresas',
     'contable_empresa_activa',
@@ -56,6 +70,20 @@ export class BackupService {
     'contable_sii_ultima_actualizacion',
   ];
 
+  private static getStorageKeys(): string[] {
+    const empresaId = getEmpresaActivaId();
+    return [
+      ...this.STORAGE_BASES.map(base => `${base}_${empresaId}`),
+      ...this.STORAGE_KEYS_LEGACY,
+    ];
+  }
+
+  private static claveDestino(key: string): string {
+    const empresaId = getEmpresaActivaId();
+    const base = this.STORAGE_BASES.find(nombre => key === nombre || key.startsWith(`${nombre}_`));
+    return base ? `${base}_${empresaId}` : key;
+  }
+
   private static readonly HISTORIAL_KEY = 'contable_backup_historial';
   private static readonly ULTIMO_BACKUP_KEY = 'contable_ultimo_backup';
 
@@ -63,7 +91,7 @@ export class BackupService {
   static crearBackup(): DatosBackup {
     const modulos: Record<string, ModuloBackup> = {};
 
-    this.STORAGE_KEYS.forEach(key => {
+    this.getStorageKeys().forEach(key => {
       try {
         const datos = localStorage.getItem(key);
         if (datos) {
@@ -80,7 +108,7 @@ export class BackupService {
     });
 
     // Obtener empresa activa si existe
-    const empresaActivaId = localStorage.getItem('contable_empresa_activa');
+    const empresaActivaId = getEmpresaActivaId();
     let empresa = undefined;
     if (empresaActivaId) {
       const empresasRaw = localStorage.getItem('contable_empresas');
@@ -196,7 +224,7 @@ export class BackupService {
           const modulosRestaurados: string[] = [];
           Object.entries(backup.modulos).forEach(([key, modulo]) => {
             try {
-              localStorage.setItem(key, JSON.stringify(modulo.datos));
+              localStorage.setItem(this.claveDestino(key), JSON.stringify(modulo.datos));
               modulosRestaurados.push(modulo.nombre);
             } catch (err) {
               console.warn(`Error al restaurar ${key}:`, err);
@@ -239,7 +267,7 @@ export class BackupService {
 
   // Limpiar todo el localStorage del sistema
   private static limpiarTodoLocalStorage(): void {
-    this.STORAGE_KEYS.forEach(key => {
+    this.getStorageKeys().forEach(key => {
       localStorage.removeItem(key);
     });
   }
