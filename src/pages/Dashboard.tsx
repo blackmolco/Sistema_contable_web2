@@ -156,15 +156,16 @@ export default function Dashboard() {
   const [periodoDashboard, setPeriodoDashboard] = useState(`${hoyDashboard.getFullYear()}-${String(hoyDashboard.getMonth() + 1).padStart(2, '0')}`);
   const [anioDashboard, mesDashboard] = periodoDashboard.split('-').map(Number);
   const periodoActual = getNombreMes(mesDashboard);
+  const periodoAnterior = new Date(anioDashboard, mesDashboard - 2, 1);
+  const periodoAnteriorKey = `${periodoAnterior.getFullYear()}-${String(periodoAnterior.getMonth() + 1).padStart(2, '0')}`;
   const { indicadores, loading: loadingIndicadores } = useIndicadores();
 
   const [tareas, setTareas] = useState<Tarea[]>(() => {
     const saved = localStorage.getItem('dashboard_tareas');
     return saved ? JSON.parse(saved) : [
-      { id: '1', titulo: 'Presentar F29', descripcion: 'Declaracion mensual de impuestos', prioridad: 'alta', fechaVencimiento: '2026-05-20', completada: false, modulo: 'f29' },
-      { id: '2', titulo: 'Pagar imposiciones', descripcion: 'Cotizaciones previsionales', prioridad: 'alta', fechaVencimiento: '2026-05-22', completada: false, modulo: 'remuneraciones' },
-      { id: '3', titulo: 'Actualizar libro de ventas', descripcion: 'Registrar facturas del mes', prioridad: 'media', fechaVencimiento: '2026-05-25', completada: false, modulo: 'libro-ventas' },
-      { id: '4', titulo: 'Conciliar banco', descripcion: 'Reconciliar saldo banco con libro mayor', prioridad: 'media', fechaVencimiento: '2026-05-30', completada: false, modulo: 'conciliacion' },
+      { id: '1', titulo: 'Revisar borrador F29', descripcion: `Validar IVA del periodo ${periodoDashboard}`, prioridad: 'alta', fechaVencimiento: '', completada: false, modulo: 'f29' },
+      { id: '2', titulo: 'Revisar documentos pendientes', descripcion: 'Confirmar facturas de compra y pagos', prioridad: 'alta', fechaVencimiento: '', completada: false, modulo: 'cuenta-corriente' },
+      { id: '3', titulo: 'Revisar libro de ventas', descripcion: `Verificar el periodo ${periodoDashboard}`, prioridad: 'media', fechaVencimiento: '', completada: false, modulo: 'libro-ventas' },
     ];
   });
 
@@ -291,9 +292,15 @@ export default function Dashboard() {
     return fecha === periodoDashboard && d.estado !== 'anulado';
   }), [state.documentos, periodoDashboard]);
   const esCompra = (d: typeof state.documentos[number]) => d.libro === 'compras' || d.tipo === 'factura_compra' || (d as typeof d & { tipoTransaccion?: string }).tipoTransaccion === 'compra';
-  const totalVentas = useMemo(() => documentosPeriodo.filter(d => !esCompra(d)).reduce((sum, d) => sum + (d.total || 0), 0), [documentosPeriodo]);
-  const totalCompras = useMemo(() => documentosPeriodo.filter(esCompra).reduce((sum, d) => sum + (d.total || 0), 0), [documentosPeriodo]);
-  const ivaNeto = useMemo(() => documentosPeriodo.reduce((sum, d) => sum + (esCompra(d) ? -(d.iva || 0) : (d.iva || 0)), 0), [documentosPeriodo]);
+  const signoDocumento = (d: typeof state.documentos[number]) => d.tipo === 'nota_credito' ? -1 : 1;
+  const totalVentas = useMemo(() => documentosPeriodo.filter(d => !esCompra(d)).reduce((sum, d) => sum + signoDocumento(d) * (d.total || 0), 0), [documentosPeriodo]);
+  const totalCompras = useMemo(() => documentosPeriodo.filter(esCompra).reduce((sum, d) => sum + signoDocumento(d) * (d.total || 0), 0), [documentosPeriodo]);
+  const ivaNeto = useMemo(() => documentosPeriodo.reduce((sum, d) => sum + signoDocumento(d) * (esCompra(d) ? -(d.iva || 0) : (d.iva || 0)), 0), [documentosPeriodo]);
+  const totalVentasAnterior = useMemo(() => state.documentos.filter(d => {
+    const fecha = String(d.fecha || d.fechaEmision || '').slice(0, 7);
+    return fecha === periodoAnteriorKey && d.estado !== 'anulado' && !esCompra(d);
+  }).reduce((sum, d) => sum + signoDocumento(d) * (d.total || 0), 0), [state.documentos, periodoAnteriorKey]);
+  const variacionVentas = totalVentasAnterior === 0 ? undefined : Math.round(((totalVentas - totalVentasAnterior) / Math.abs(totalVentasAnterior)) * 1000) / 10;
   const asientosDelMes = useMemo(() => state.asientos.filter(a => String(a.fecha).slice(0, 7) === periodoDashboard && a.estado !== 'anulado'), [state.asientos, periodoDashboard]);
 
   // ========== DATOS COMPUTADOS DESDE EL ESTADO REAL ==========
@@ -310,11 +317,11 @@ export default function Dashboard() {
       if (!agrupado[m]) agrupado[m] = { ventas: 0, compras: 0, gastos: 0, iva: 0, asientos: 0 };
       const total = d.total || d.montoTotal || 0;
       if (!esCompra(d)) {
-        agrupado[m].ventas += total;
-        agrupado[m].iva += d.iva || 0;
+        agrupado[m].ventas += signoDocumento(d) * total;
+        agrupado[m].iva += signoDocumento(d) * (d.iva || 0);
       } else {
-        agrupado[m].compras += total;
-        agrupado[m].iva -= d.iva || 0;
+        agrupado[m].compras += signoDocumento(d) * total;
+        agrupado[m].iva -= signoDocumento(d) * (d.iva || 0);
       }
     });
 
@@ -385,15 +392,15 @@ export default function Dashboard() {
       let ingreso = 0, gasto = 0;
       state.documentos.forEach(d => {
         const m = new Date(d.fecha || d.fechaEmision || '').getMonth();
-        if (mesesTrim.includes(m)) {
+        if (new Date(d.fecha || d.fechaEmision || '').getFullYear() === anioDashboard && mesesTrim.includes(m) && d.estado !== 'anulado') {
           const total = d.total || d.montoTotal || 0;
-          if (d.tipo === 'factura' || d.tipoTransaccion === 'venta') ingreso += total;
-          else gasto += total;
+          if (!esCompra(d)) ingreso += signoDocumento(d) * total;
+          else gasto += signoDocumento(d) * total;
         }
       });
       state.asientos.forEach(a => {
         const m = new Date(a.fecha).getMonth();
-        if (mesesTrim.includes(m)) {
+        if (new Date(a.fecha).getFullYear() === anioDashboard && mesesTrim.includes(m) && a.estado !== 'anulado') {
           a.detalles?.forEach(det => {
             if (det.cuentaCodigo?.startsWith('5')) gasto += det.debe || 0;
           });
@@ -405,7 +412,7 @@ export default function Dashboard() {
         gasto: gasto,
       };
     });
-  }, [state.documentos, state.asientos]);
+  }, [state.documentos, state.asientos, anioDashboard]);
 
   // ========== PREDICCIONES IA ==========
   const proyeccionIA = useMemo(() => {
@@ -413,7 +420,10 @@ export default function Dashboard() {
     return proyeccion.map((p, i) => ({
       dia: `Día ${p.dia || (i + 1)}`,
       proyectado: p.saldo,
-      prediccion: p.saldo * (1 + Math.random() * 0.05 - 0.02),
+      // La proyección se mantiene determinista mientras no existan datos
+      // suficientes para un modelo real; evita que el Dashboard cambie al
+      // refrescar sin que haya ocurrido una operación contable.
+      prediccion: p.saldo,
     }));
   }, []);
 
@@ -483,7 +493,7 @@ export default function Dashboard() {
               value={formatCurrency(totalVentas)}
               subtitle="Facturas emitidas"
               icon={TrendingUp}
-              trend={totalVentas > 0 ? { value: 12.5, label: 'vs mes anterior' } : undefined}
+              trend={variacionVentas === undefined ? undefined : { value: variacionVentas, label: 'vs mes anterior' }}
               variant="success"
               animateValue
               sparklineData={ventasSpark}

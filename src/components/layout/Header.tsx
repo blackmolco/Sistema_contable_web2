@@ -23,7 +23,7 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
   const usuario = ApiAuthService.getCurrentUser();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [importacionSII, setImportacionSII] = useState<{ estado: string; hecho: number; total: number; tipo?: string } | null>(null);
+  const [importacionSII, setImportacionSII] = useState<{ estado: string; hecho: number; total: number; tipo?: string; nombreArchivo?: string } | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -124,6 +124,7 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
             <div className="hidden items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs text-blue-800 lg:flex" title="La carga continúa en la pestaña del sistema">
               <DatabaseZap size={15} className="animate-pulse" />
               <span className="font-medium">SII {importacionSII.hecho}/{importacionSII.total}</span>
+              {importacionSII.nombreArchivo && <span className="hidden max-w-32 truncate text-[10px] text-blue-700 xl:inline" title={importacionSII.nombreArchivo}>{importacionSII.nombreArchivo}</span>}
             </div>
           )}
           {importacionSII && importacionSII.estado !== 'procesando' && (

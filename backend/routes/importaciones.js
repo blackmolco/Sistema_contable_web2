@@ -42,6 +42,12 @@ router.get('/', authenticateToken, async (req, res) => {
       if (procesados > 0 && antiguedadMinutos >= 5) {
         return prisma.importacionSII.update({ where: { id: row.id }, data: { estado: 'con_errores', nuevos: procesados, errores: Math.max(row.totalRegistros - procesados, 0), detalleErrores: 'El lote se reconcilió automáticamente después de una interrupción.' } });
       }
+      // Si el navegador se cerró antes de crear el primer registro, el lote
+      // no puede reconciliarse contando documentos. Evitamos que quede
+      // eternamente en "procesando" y lo dejamos disponible para revisión.
+      if (procesados === 0 && antiguedadMinutos >= 15) {
+        return prisma.importacionSII.update({ where: { id: row.id }, data: { estado: 'fallida', nuevos: 0, errores: row.totalRegistros, detalleErrores: 'La carga no recibió registros dentro del tiempo esperado. Puede reintentarse o revertirse.' } });
+      }
       return row;
     }));
     res.json(reconciliadas);

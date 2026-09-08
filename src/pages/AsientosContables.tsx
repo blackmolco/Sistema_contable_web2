@@ -304,7 +304,11 @@ export default function AsientosContables() {
     haber: formData.detalles.reduce((sum, d) => sum + d.haber, 0),
   };
 
-  const balanceado = Math.abs(totales.debe - totales.haber) < 1;
+  // El backend permite únicamente una tolerancia de centavos. Mantener la
+  // misma regla aquí evita que el usuario pueda guardar un comprobante con
+  // una diferencia de $1 o $0,50 para descubrir el error recién después.
+  const diferencia = Math.round((totales.debe - totales.haber) * 100) / 100;
+  const balanceado = Math.abs(diferencia) <= 0.01;
 
   const handleSubmit = async () => {
     const result = AsientoContableSchema.safeParse({
@@ -318,6 +322,15 @@ export default function AsientosContables() {
       setFormErrors(errors);
       const firstMsg = result.error.issues[0]?.message ?? 'Corrija los errores del formulario';
       showToast('error', 'Formulario inválido', firstMsg);
+      return;
+    }
+
+    if (formData.detalles.length < 2) {
+      showToast('error', 'Comprobante incompleto', 'Agregue al menos dos líneas contables.');
+      return;
+    }
+    if (!balanceado) {
+      showToast('error', 'Comprobante descuadrado', `La diferencia es ${formatCurrency(diferencia)}. Ajuste las líneas antes de guardar.`);
       return;
     }
 

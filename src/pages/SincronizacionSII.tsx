@@ -345,7 +345,29 @@ export default function SincronizacionSII() {
     fetch('/api/health', { signal: AbortSignal.timeout(3000) })
       .then(r => setBackendStatus(r.ok ? 'online' : 'offline'))
       .catch(() => setBackendStatus('offline'));
-    fetchImportacionesSII().then(setHistorialImportaciones).catch(() => setHistorialImportaciones([]));
+    fetchImportacionesSII().then((historial) => {
+      setHistorialImportaciones(historial);
+      // El encabezado se muestra en todas las páginas. Al volver a abrir el
+      // sistema reconciliamos su indicador con el estado real del servidor.
+      try {
+        const raw = localStorage.getItem(IMPORT_STATUS_KEY);
+        const local = raw ? JSON.parse(raw) as { importacionId?: string } : null;
+        const remoto = local?.importacionId
+          ? historial.find(lote => lote.id === local.importacionId)
+          : historial[0];
+        if (remoto && remoto.estado !== 'procesando') {
+          publicarEstadoImportacion({
+            importacionId: remoto.id,
+            estado: remoto.estado,
+            hecho: remoto.nuevos + remoto.duplicados + remoto.errores,
+            total: remoto.totalRegistros,
+            tipo: remoto.tipo,
+            nombreArchivo: remoto.nombreArchivo,
+            actualizado: Date.now(),
+          });
+        }
+      } catch { /* el historial sigue siendo útil aunque falle el indicador local */ }
+    }).catch(() => setHistorialImportaciones([]));
   }, []);
 
   // ── Leer CSV ────────────────────────────────────────────────────────────────
@@ -453,7 +475,7 @@ export default function SincronizacionSII() {
       return;
     }
     setImportProgress({ hecho: 0, total: filasNuevas.length });
-    publicarEstadoImportacion({ estado: 'procesando', hecho: 0, total: filasNuevas.length, tipo: tipoArchivo, actualizado: Date.now() });
+    publicarEstadoImportacion({ estado: 'procesando', hecho: 0, total: filasNuevas.length, tipo: tipoArchivo, nombreArchivo, actualizado: Date.now() });
 
     // El historial es complementario: si el backend aún está desplegando la
     // migración, la importación sigue funcionando y solo se omite el registro.
@@ -511,14 +533,14 @@ export default function SincronizacionSII() {
       }
       setImportProgress(prev => {
         const hecho = (prev?.hecho ?? 0) + 1;
-        publicarEstadoImportacion({ estado: 'procesando', hecho, total: filasNuevas.length, tipo: tipoArchivo, actualizado: Date.now() });
+        publicarEstadoImportacion({ importacionId, estado: 'procesando', hecho, total: filasNuevas.length, tipo: tipoArchivo, nombreArchivo, actualizado: Date.now() });
         return prev ? { ...prev, hecho } : null;
       });
     }
 
     setImportProgress(null);
     setIsImporting(false);
-    publicarEstadoImportacion({ estado: errores.length ? 'con_errores' : 'completada', hecho: filasNuevas.length, total: filasNuevas.length, tipo: tipoArchivo, actualizado: Date.now() });
+    publicarEstadoImportacion({ importacionId, estado: errores.length ? 'con_errores' : 'completada', hecho: exitosos, total: filasNuevas.length, tipo: tipoArchivo, nombreArchivo, actualizado: Date.now() });
 
     if (importacionId) {
       try {
