@@ -307,10 +307,28 @@
 }
 
 /* Evita que el contenido de tablas largas se pegue a los bordes. */
-.table-scroll {
-  @apply overflow-auto rounded-lg;
-  max-height: min(68vh, 720px);
-}
+  .table-scroll {
+    @apply overflow-auto rounded-lg;
+    max-height: min(68vh, 720px);
+  }
+
+  .ledger-table tbody tr,
+  .ledger-report-table tbody tr {
+    @apply transition-colors duration-150;
+  }
+  .ledger-table tbody tr:nth-child(even),
+  .ledger-report-table tbody tr:nth-child(even) {
+    background-color: rgb(249 250 251 / 0.72);
+  }
+  .ledger-table tbody tr:hover,
+  .ledger-report-table tbody tr:hover {
+    background-color: color-mix(in srgb, var(--brand-color) 5%, white);
+  }
+  .ledger-table td:not(:first-child),
+  .ledger-report-table td:last-child {
+    font-family: var(--font-mono-data);
+    font-variant-numeric: tabular-nums;
+  }
 
 /* Apply font-scale to root */
 html { font-size: calc(16px * var(--font-scale, 1)); }

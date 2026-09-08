@@ -100,14 +100,14 @@ export default function LibroDiario() {
       `}</style>
 
       {/* Header */}
-      <div className="flex items-center justify-between no-print">
+      <div className="page-header no-print">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-primary/10 rounded-lg">
             <Book className="text-primary" size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Libro Diario</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <p className="page-header-subtitle">
               Registro cronológico de todos los comprobantes contables
             </p>
           </div>
@@ -124,7 +124,7 @@ export default function LibroDiario() {
       </div>
 
       {/* Filtros */}
-      <Card className="no-print">
+      <Card className="filter-bar no-print">
         <div className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1">
             <Input

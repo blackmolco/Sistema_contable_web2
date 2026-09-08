@@ -193,9 +193,9 @@ export default function EstadosFinancieros() {
   if (!hasDatos) {
     return (
       <div className="space-y-6">
-        <div>
+        <div className="page-header">
           <h1 className="text-2xl font-bold text-gray-900">Estados Financieros</h1>
-          <p className="text-sm text-gray-500 mt-1">Balance General y Estado de Resultados</p>
+          <p className="page-header-subtitle">Balance General y Estado de Resultados</p>
         </div>
         <Card><div className="max-w-xs"><Input type="date" label="Fecha de corte" value={fechaCorte} onChange={e => setFechaCorte(e.target.value)} /></div></Card>
         <Card>
@@ -215,10 +215,10 @@ export default function EstadosFinancieros() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="page-header">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Estados Financieros</h1>
-          <p className="text-sm text-gray-500 mt-1">Balance General y Estado de Resultados</p>
+          <p className="page-header-subtitle">Balance General y Estado de Resultados</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {!equilibrado && (
@@ -274,7 +274,7 @@ export default function EstadosFinancieros() {
         </div>
       </div>
 
-      <Card padding="sm">
+      <Card padding="sm" className="filter-bar">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="w-full sm:w-64"><Input type="date" label="Fecha de corte" value={fechaCorte} onChange={e => setFechaCorte(e.target.value)} /></div>
           <p className="pb-2 text-sm text-gray-500">Balance acumulado al {fechaCorte}; resultados desde el 01-01-{fechaCorte.slice(0, 4)}.</p>
@@ -284,7 +284,7 @@ export default function EstadosFinancieros() {
       {/* ── Balance General ─────────────────────────────────────────────────── */}
       <Card title="Balance General" className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="ledger-report-table w-full">
             <tbody>
 
               {/* ACTIVOS */}
@@ -451,7 +451,7 @@ export default function EstadosFinancieros() {
       {/* ── Estado de Resultados ─────────────────────────────────────────────── */}
       <Card title="Estado de Resultados" className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="ledger-report-table w-full">
             <tbody>
 
               <tr className="bg-primary text-white">

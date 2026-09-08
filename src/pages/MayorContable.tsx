@@ -149,7 +149,7 @@ export default function MayorContable() {
       `}</style>
 
       {/* Header */}
-      <div className="flex items-center justify-between no-print">
+      <div className="page-header no-print">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-primary/10 rounded-lg">
             <BookOpen className="text-primary" size={24} />
@@ -234,7 +234,7 @@ export default function MayorContable() {
         {/* Panel Derecho: Filtros + Tabla */}
         <div className="lg:col-span-3 space-y-4">
           {/* Filtro de fechas */}
-          <Card className="no-print">
+      <Card className="filter-bar no-print">
             <div className="flex flex-wrap gap-4 items-end">
               <div className="flex-1 min-w-[160px]">
                 <Input
