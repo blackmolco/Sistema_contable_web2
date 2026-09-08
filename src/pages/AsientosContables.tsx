@@ -73,11 +73,18 @@ export default function AsientosContables() {
 
   const cerrarConsulta = () => {
     setAsientoConsultado(null);
-    if (asientoIdEnlace) {
-      const siguientes = new URLSearchParams(searchParams);
-      siguientes.delete('asientoId');
-      setSearchParams(siguientes, { replace: true });
-    }
+    const siguientes = new URLSearchParams(searchParams);
+    siguientes.delete('asientoId');
+    siguientes.delete('modo');
+    setSearchParams(siguientes, { replace: true });
+  };
+
+  const cerrarModalEdicion = () => {
+    setShowModal(false);
+    const siguientes = new URLSearchParams(searchParams);
+    siguientes.delete('asientoId');
+    siguientes.delete('modo');
+    setSearchParams(siguientes, { replace: true });
   };
 
   // Filtrar asientos
@@ -336,7 +343,7 @@ export default function AsientosContables() {
         setGuardandoCorreccion(true);
         await corregirAsiento(editingAsiento.id, nuevoAsiento, motivoCorreccion.trim());
         showToast('success', 'Comprobante corregido', 'Se generaron el reverso y el nuevo comprobante corregido.');
-        setShowModal(false); setMotivoCorreccion('');
+        cerrarModalEdicion(); setMotivoCorreccion('');
         window.dispatchEvent(new Event('scc:login'));
       } catch (e) {
         showToast('error', 'No se pudo corregir', e instanceof Error ? e.message : 'Error inesperado');
@@ -354,7 +361,7 @@ export default function AsientosContables() {
       showToast('success', 'Éxito', 'Asiento creado');
     }
 
-    setShowModal(false);
+    cerrarModalEdicion();
   };
 
   const handleConfirmDelete = () => {
@@ -635,13 +642,13 @@ export default function AsientosContables() {
       {/* Modal Asiento */}
       <Modal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={cerrarModalEdicion}
         title={editingAsiento ? `${editingAsiento.estado === 'contabilizado' ? 'Corregir' : 'Editar'} Asiento #${editingAsiento.numero}` : 'Nuevo Asiento'}
         size="full"
         closeOnBackdrop={false}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>
+            <Button variant="secondary" onClick={cerrarModalEdicion}>
               Cancelar
             </Button>
             <Button
