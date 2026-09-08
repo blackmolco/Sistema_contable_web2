@@ -28,7 +28,23 @@ router.get('/', authenticateToken, async (req, res) => {
     const rows = await prisma.importacionSII.findMany({
       where: { empresaId }, orderBy: { createdAt: 'desc' }, take: 100,
     });
-    res.json(rows);
+    const reconciliadas = await Promise.all(rows.map(async (row) => {
+      if (row.estado !== 'procesando') return row;
+      const [documentos, honorarios] = await Promise.all([
+        prisma.documentoTributario.count({ where: { empresaId, importacionId: row.id } }),
+        prisma.honorario.count({ where: { empresaId, importacionId: row.id } }),
+      ]);
+      const procesados = documentos + honorarios;
+      const antiguedadMinutos = (Date.now() - new Date(row.createdAt).getTime()) / 60000;
+      if (procesados >= row.totalRegistros && row.totalRegistros > 0) {
+        return prisma.importacionSII.update({ where: { id: row.id }, data: { estado: 'completada', nuevos: procesados, duplicados: row.duplicados || 0, errores: 0 } });
+      }
+      if (procesados > 0 && antiguedadMinutos >= 5) {
+        return prisma.importacionSII.update({ where: { id: row.id }, data: { estado: 'con_errores', nuevos: procesados, errores: Math.max(row.totalRegistros - procesados, 0), detalleErrores: 'El lote se reconcilió automáticamente después de una interrupción.' } });
+      }
+      return row;
+    }));
+    res.json(reconciliadas);
   } catch (err) {
     logger.error({ err }, 'Error listando importaciones SII');
     res.status(500).json({ error: 'No se pudo obtener el historial de importaciones' });
@@ -42,7 +58,7 @@ router.post('/', authenticateToken, async (req, res) => {
   if (!exigirAccesoEmpresa(req, res, empresaId)) return;
   try {
     const row = await prisma.importacionSII.create({ data: parsed.data });
-    await auditLog(req.usuario.id, 'INICIAR_IMPORTACION', 'ImportacionSII', row.id, parsed.data, req.ip, req.headers['user-agent']);
+    await auditLog(req.usuario.id, 'INICIAR_IMPORTACION', 'ImportacionSII', row.id, parsed.data, req.ip, req.headers['user-agent']).catch((auditError) => logger.warn({ auditError }, 'No se pudo registrar auditoría de inicio de importación'));
     res.status(201).json(row);
   } catch (err) {
     logger.error({ err }, 'Error creando importación SII');
@@ -58,7 +74,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (!actual) return res.status(404).json({ error: 'Importación no encontrada' });
     if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
     const row = await prisma.importacionSII.update({ where: { id: actual.id }, data: parsed.data });
-    await auditLog(req.usuario.id, 'FINALIZAR_IMPORTACION', 'ImportacionSII', row.id, parsed.data, req.ip, req.headers['user-agent']);
+    await auditLog(req.usuario.id, 'FINALIZAR_IMPORTACION', 'ImportacionSII', row.id, parsed.data, req.ip, req.headers['user-agent']).catch((auditError) => logger.warn({ auditError }, 'No se pudo registrar auditoría de cierre de importación'));
     res.json(row);
   } catch (err) {
     logger.error({ err }, 'Error actualizando importación SII');
@@ -78,7 +94,7 @@ router.post('/:id/cerrar', authenticateToken, async (req, res) => {
       where: { id: lote.id },
       data: { estado: 'fallida', detalleErrores: 'Carga interrumpida antes de finalizar. Revise los documentos importados o revierta el lote.' },
     });
-    await auditLog(req.usuario.id, 'CERRAR_IMPORTACION_INTERRUPTA', 'ImportacionSII', row.id, {}, req.ip, req.headers['user-agent']);
+    await auditLog(req.usuario.id, 'CERRAR_IMPORTACION_INTERRUPTA', 'ImportacionSII', row.id, {}, req.ip, req.headers['user-agent']).catch((auditError) => logger.warn({ auditError }, 'No se pudo registrar auditoría de cierre interrumpido'));
     res.json(row);
   } catch (err) {
     logger.error({ err }, 'Error cerrando importación interrumpida');
@@ -107,7 +123,7 @@ router.post('/:id/revertir', authenticateToken, async (req, res) => {
       await tx.importacionSII.update({ where: { id: lote.id }, data: { estado: 'revertida' } });
       return { eliminados: documentos.length + honorarios.length, asientosEliminados: asientoIds.length };
     }, { timeout: 15000 });
-    await auditLog(req.usuario.id, 'REVERTIR_IMPORTACION', 'ImportacionSII', lote.id, resultado, req.ip, req.headers['user-agent']);
+    await auditLog(req.usuario.id, 'REVERTIR_IMPORTACION', 'ImportacionSII', lote.id, resultado, req.ip, req.headers['user-agent']).catch((auditError) => logger.warn({ auditError }, 'No se pudo registrar auditoría de reversión'));
     res.json(resultado);
   } catch (err) {
     logger.error({ err }, 'Error revirtiendo importación SII');
