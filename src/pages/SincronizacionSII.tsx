@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Cards';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useApp } from '../context/AppContext';
 import { formatRUT, formatCurrency, generateId } from '../utils/calculos';
+import { ingresoDocumento, IngresoDocumentoPayload } from '../services/apiSync';
 
 // ─── Tipo interno ──────────────────────────────────────────────────────────────
 interface FilaRCV {
@@ -295,6 +296,7 @@ export default function SincronizacionSII() {
   const [tipoArchivo, setTipoArchivo] = useState<'venta' | 'compra'>('venta');
   const [filasPreview, setFilasPreview] = useState<FilaRCV[]>([]);
   const [isImporting, setIsImporting]   = useState(false);
+  const [importProgress, setImportProgress] = useState<{ hecho: number; total: number } | null>(null);
   const [debugInfo, setDebugInfo]       = useState<string>('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -341,56 +343,88 @@ export default function SincronizacionSII() {
     e.target.value = '';
   };
 
-  // ── Importar (batch para no congelar) ──────────────────────────────────────
-  const handleImport = () => {
+  // El código SII no siempre coincide 1:1 con lo que acepta el endpoint de
+  // ingreso (que ya sabe tratar venta/compra por separado vía tipoTransaccion,
+  // así que "factura_compra" no aporta nada más que "factura"+compra).
+  const MAPEO_TIPO_INGRESO: Record<string, IngresoDocumentoPayload['tipoDocumento']> = {
+    factura: 'factura', factura_exenta: 'factura_exenta', boleta: 'boleta',
+    boleta_exenta: 'boleta_exenta', nota_credito: 'nota_credito', nota_debito: 'nota_debito',
+    factura_compra: 'factura', guia_despacho: 'factura',
+  };
+
+  // Cuenta "cajón de sastre" para compras cuyo proveedor no tiene una cuenta
+  // de gasto ya asignada (ni en Entidad.cuentaDefaultId ni en el mapeo
+  // rutCuentas que ya usa Centralización de Libros) — se prioriza no
+  // bloquear la importación por esto; se puede reclasificar después.
+  const CODIGO_CUENTA_POR_CLASIFICAR = '5-03-004-0001';
+
+  // ── Importar (secuencial: cada fila crea su entidad + documento + asiento) ──
+  const handleImport = async () => {
     if (filasPreview.length === 0 || isImporting) return;
     setIsImporting(true);
+    setImportProgress({ hecho: 0, total: filasPreview.length });
 
-    // Usar requestIdleCallback o setTimeout(0) para no bloquear el hilo
-    requestAnimationFrame(() => {
-      try {
-        const docs = filasPreview.map(fila => ({
-          id: generateId(),
-          tipo: (TIPO_DOC_MAP[fila.tipoDoc] || (tipoArchivo === 'compra' ? 'factura_compra' : 'factura')) as any,
-          numero: fila.folio,
-          serie: '',
-          fecha: parseFecha(fila.fecha),
-          rutCliente: fila.rut,
-          razonSocialCliente: fila.razonSocial,
-          receptor: {
-            rut: fila.rut, razonSocial: fila.razonSocial,
-            giro: '', direccion: '', comuna: '', ciudad: '', contacto: '', email: '',
-          },
-          condicionesPago: tipoArchivo === 'venta' ? 'contado' : 'credito',
-          detalles: [],
-          subtotal: fila.neto,
-          neto: fila.neto,
-          descuentoGlobal: 0,
-          iva: fila.iva,
-          totalExento: fila.exento,
-          total: fila.total,
-          estado: tipoArchivo === 'venta' ? 'emitido' : 'pendiente' as any,
-          // Sin esto, saveDocumento() (apiSync.ts) no sabe si es venta o compra
-          // (usa doc.libro === 'compras' para decidir tipoTransaccion al guardar
-          // en el backend) y todo se guarda como 'venta' — las compras
-          // importadas desaparecían del Libro de Compras al recargar.
-          libro: tipoArchivo === 'venta' ? 'ventas' : 'compras',
-        }));
+    const cuentaPorClasificarId = state.cuentas.find(c => c.codigo === CODIGO_CUENTA_POR_CLASIFICAR)?.id;
+    let exitosos = 0;
+    let sinCuentaAsignada = 0;
+    const errores: string[] = [];
 
-        // Un solo dispatch → un solo re-render
-        dispatch({ type: 'BATCH_ADD_DOCUMENTOS', payload: docs });
+    for (const fila of filasPreview) {
+      const tipoInterno = TIPO_DOC_MAP[fila.tipoDoc] || 'factura';
+      const tipoDocumento = MAPEO_TIPO_INGRESO[tipoInterno] ?? 'factura';
+      const [d, m, y] = fila.fecha.split('/');
+      const fechaISO = (d && m && y) ? `${y}-${m}-${d}` : new Date().toISOString().slice(0, 10);
 
-        const totalImportado = filasPreview.reduce((s, f) => s + f.total, 0);
-        showToast('success', '¡Importación Completa!',
-          `${docs.length} documentos cargados — Total ${formatCurrency(totalImportado)}`);
-        setFilasPreview([]);
-      } catch (err) {
-        showToast('error', 'Error', 'Ocurrió un error al importar. Intenta de nuevo.');
-        console.error(err);
-      } finally {
-        setIsImporting(false);
+      let cuentaGastoId: string | undefined;
+      if (tipoArchivo === 'compra') {
+        const codigoGuardado = state.rutCuentas?.[fila.rut]?.cuentaCodigo;
+        cuentaGastoId = codigoGuardado ? state.cuentas.find(c => c.codigo === codigoGuardado)?.id : undefined;
+        if (!cuentaGastoId) {
+          cuentaGastoId = cuentaPorClasificarId;
+          sinCuentaAsignada++;
+        }
       }
-    });
+
+      try {
+        await ingresoDocumento({
+          tipoDocumento,
+          tipoTransaccion: tipoArchivo,
+          folio: fila.folio,
+          fecha: fechaISO,
+          entidad: { rut: fila.rut || 'SIN-RUT', razonSocial: fila.razonSocial?.trim() || fila.rut || 'Sin nombre' },
+          neto: fila.neto, exento: fila.exento, iva: fila.iva, total: fila.total,
+          cuentaGastoId,
+        });
+        exitosos++;
+      } catch (err) {
+        errores.push(`Folio ${fila.folio || '—'}: ${err instanceof Error ? err.message : 'error desconocido'}`);
+      }
+      setImportProgress(prev => prev ? { ...prev, hecho: prev.hecho + 1 } : null);
+    }
+
+    setImportProgress(null);
+    setIsImporting(false);
+
+    if (exitosos > 0) {
+      // Fuerza a que Contabilidad/Facturación/Entidades vuelvan a pedir sus
+      // datos al servidor — igual que hace Login.tsx tras iniciar sesión —
+      // porque el estado local no sabe que se crearon documentos/asientos/
+      // entidades nuevas (se ingresaron uno por uno vía la API, sin dispatch).
+      window.dispatchEvent(new Event('scc:login'));
+      setFilasPreview([]);
+    }
+
+    if (errores.length === 0) {
+      showToast('success', '¡Importación Completa!', `${exitosos} documentos cargados con su asiento contable.`);
+    } else {
+      showToast(exitosos > 0 ? 'warning' : 'error', 'Importación con errores',
+        `${exitosos} de ${filasPreview.length} documentos cargados. Primer error: ${errores[0]}`);
+      console.error('[SincronizacionSII] Errores de importación:', errores);
+    }
+    if (sinCuentaAsignada > 0) {
+      showToast('warning', 'Cuentas por clasificar',
+        `${sinCuentaAsignada} compra(s) quedaron en "Otros Gastos No Operacionales" por no tener cuenta asignada — reclasifícalas en Asientos Contables.`);
+    }
   };
 
   // ── Verificar si el backend está disponible ──────────────────────────────────
@@ -717,10 +751,21 @@ export default function SincronizacionSII() {
                   <button onClick={handleImport} disabled={isImporting}
                     className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                     {isImporting
-                      ? <><CloudCog className="animate-spin" size={18}/> Procesando {filasPreview.length} documentos...</>
+                      ? <><CloudCog className="animate-spin" size={18}/> Procesando {importProgress ? `${importProgress.hecho}/${importProgress.total}` : '...'}</>
                       : <><Download size={18}/> Confirmar e Importar {filasPreview.length} documentos</>
                     }
                   </button>
+                  {isImporting && importProgress && (
+                    <div className="mt-2 h-1.5 w-full bg-blue-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600 transition-[width] duration-150"
+                        style={{ width: `${Math.round((importProgress.hecho / importProgress.total) * 100)}%` }}
+                      />
+                    </div>
+                  )}
+                  <p className="text-[11px] text-gray-400 mt-1 text-center">
+                    Cada documento genera su asiento contable — puede tardar unos segundos por documento.
+                  </p>
                 </div>
               )}
             </Card>
