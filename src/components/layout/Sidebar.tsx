@@ -29,6 +29,7 @@ import {
   Wallet,
   ShieldCheck,
   CalendarCheck2,
+  ClipboardCheck,
   Scale,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -45,6 +46,7 @@ const menuCategories = [
     title: 'Principal',
     items: [
       { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+      { path: '/centro-control', icon: ClipboardCheck, label: 'Centro de Control' },
       { path: '/alertas', icon: Bell, label: 'Alertas Tributarias' },
       { path: '/multi-empresa', icon: Building2, label: 'Multi-Empresa' },
     ]

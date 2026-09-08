@@ -12,6 +12,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { DensityProvider } from './components/ui/TableDensity';
 import { PageTransition } from './components/ui/PageTransition';
 import SessionExpiredModal from './components/SessionExpiredModal';
+import BackgroundActivityBanner from './components/layout/BackgroundActivityBanner';
 import { ConfirmDialogProvider } from './components/ui/ConfirmDialog';
 import { ShortcutsHelpModal } from './components/ui/ShortcutsHelpModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -33,6 +34,7 @@ function useBackendKeepalive() {
 
 // 🚀 Carga diferida (lazy loading) de páginas
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const CentroControl = lazy(() => import('./pages/CentroControl'));
 const PlanCuentas = lazy(() => import('./pages/PlanCuentas'));
 const AsientosContables = lazy(() => import('./pages/AsientosContables'));
 const Facturacion = lazy(() => import('./pages/Facturacion'));
@@ -243,6 +245,7 @@ function AppContent() {
         onToggleDarkMode={() => setDarkMode(!darkMode)}
         onLogout={handleLogout}
       />
+      <BackgroundActivityBanner />
 
       <main
         className="pt-16 min-h-screen transition-all duration-300"
@@ -258,6 +261,7 @@ function AppContent() {
               <PageTransition>
               <Routes>
               <Route path="/" element={<ErrorBoundary moduleName="Dashboard"><Dashboard /></ErrorBoundary>} />
+              <Route path="/centro-control" element={<ErrorBoundary moduleName="Centro de Control"><CentroControl /></ErrorBoundary>} />
               <Route path="/plan-cuentas" element={<ErrorBoundary moduleName="Plan de Cuentas"><PlanCuentas /></ErrorBoundary>} />
               <Route path="/asientos" element={<ErrorBoundary moduleName="Asientos Contables"><AsientosContables /></ErrorBoundary>} />
               <Route path="/facturacion" element={<ErrorBoundary moduleName="Facturación"><Facturacion /></ErrorBoundary>} />
