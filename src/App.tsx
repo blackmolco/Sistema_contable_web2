@@ -35,6 +35,7 @@ function useBackendKeepalive() {
 // 🚀 Carga diferida (lazy loading) de páginas
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const CentroControl = lazy(() => import('./pages/CentroControl'));
+const Papelera = lazy(() => import('./pages/Papelera'));
 const PlanCuentas = lazy(() => import('./pages/PlanCuentas'));
 const AsientosContables = lazy(() => import('./pages/AsientosContables'));
 const Facturacion = lazy(() => import('./pages/Facturacion'));
@@ -262,6 +263,7 @@ function AppContent() {
               <Routes>
               <Route path="/" element={<ErrorBoundary moduleName="Dashboard"><Dashboard /></ErrorBoundary>} />
               <Route path="/centro-control" element={<ErrorBoundary moduleName="Centro de Control"><CentroControl /></ErrorBoundary>} />
+              <Route path="/papelera" element={<ErrorBoundary moduleName="Papelera"><Papelera /></ErrorBoundary>} />
               <Route path="/plan-cuentas" element={<ErrorBoundary moduleName="Plan de Cuentas"><PlanCuentas /></ErrorBoundary>} />
               <Route path="/asientos" element={<ErrorBoundary moduleName="Asientos Contables"><AsientosContables /></ErrorBoundary>} />
               <Route path="/facturacion" element={<ErrorBoundary moduleName="Facturación"><Facturacion /></ErrorBoundary>} />

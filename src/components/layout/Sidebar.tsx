@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   CalendarCheck2,
   ClipboardCheck,
+  ArchiveRestore,
   Scale,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -93,6 +94,7 @@ const menuCategories = [
       { path: '/periodos',            icon: CalendarCheck2, label: 'Períodos Contables' },
       { path: '/tablas-sii',          icon: Database,      label: 'Tablas SII' },
       { path: '/backup',              icon: Download,      label: 'Backup' },
+      { path: '/papelera',            icon: ArchiveRestore, label: 'Papelera y Anulados' },
       { path: '/control-integridad',  icon: ShieldCheck,   label: 'Control de Integridad' },
       { path: '/usuarios',             icon: UserCog,       label: 'Usuarios' },
     ]
