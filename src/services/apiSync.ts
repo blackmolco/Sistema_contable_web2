@@ -469,6 +469,7 @@ export async function fetchDocumentos(): Promise<DocumentoTributario[]> {
     numero: r.folio as number,
     serie: '',
     fecha: (r.fechaEmision as string).substring(0, 10),
+    fechaVencimiento: r.fechaVencimiento ? (r.fechaVencimiento as string).substring(0, 10) : undefined,
     receptor: {
       rut: r.rutReceptor as string,
       razonSocial: r.razonSocialReceptor as string,
@@ -500,6 +501,7 @@ export interface IngresoDocumentoPayload {
   tipoTransaccion?: 'venta' | 'compra';
   folio?: number;
   fecha: string; // YYYY-MM-DD
+  fechaVencimiento?: string;
   periodo?: string; // YYYY-MM, solo honorarios
   entidad: { rut: string; razonSocial: string; giro?: string; direccion?: string; comuna?: string; ciudad?: string; email?: string };
   neto?: number;
@@ -562,6 +564,7 @@ export async function saveDocumento(doc: DocumentoTributario, rutEmisor: string)
       razonSocialReceptor: razonSocial && razonSocial.length >= 2 ? razonSocial.slice(0, 200) : 'Sin receptor',
       giroReceptor: doc.receptor?.giro || null,
       fechaEmision: toValidFecha(doc.fecha),
+      fechaVencimiento: doc.fechaVencimiento ? toValidFecha(doc.fechaVencimiento) : null,
       montoNeto: doc.subtotal || doc.neto || 0,
       iva: doc.iva || 0,
       montoExento: doc.totalExento || 0,

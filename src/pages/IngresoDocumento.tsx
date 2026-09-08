@@ -32,6 +32,11 @@ const OPCIONES_TIPO: OpcionTipo[] = [
 ];
 
 const hoy = () => new Date().toISOString().slice(0, 10);
+const sumarDias = (fecha: string, dias: number) => {
+  const d = new Date(`${fecha}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + dias);
+  return d.toISOString().slice(0, 10);
+};
 
 export default function IngresoDocumento() {
   const { state, dispatch, showToast } = useApp();
@@ -43,6 +48,7 @@ export default function IngresoDocumento() {
 
   const [folio, setFolio] = useState('');
   const [fecha, setFecha] = useState(hoy());
+  const [fechaVencimiento, setFechaVencimiento] = useState(sumarDias(hoy(), 30));
   const [periodo, setPeriodo] = useState(hoy().slice(0, 7));
 
   const [rutBusqueda, setRutBusqueda] = useState('');
@@ -132,6 +138,7 @@ export default function IngresoDocumento() {
         tipoDocumento: opcion.tipoDocumento,
         tipoTransaccion: opcion.tipoTransaccion,
         fecha,
+        fechaVencimiento: esHonorario ? undefined : fechaVencimiento,
         entidad: { rut: rut.trim(), razonSocial: razonSocial.trim(), giro: giro || undefined, direccion: direccion || undefined },
         ...(esHonorario
           ? { periodo, montoBruto, retencion, montoLiquido }
@@ -196,8 +203,9 @@ export default function IngresoDocumento() {
             type="date"
             label="Fecha"
             value={fecha}
-            onChange={e => setFecha(e.target.value)}
+            onChange={e => { setFecha(e.target.value); setFechaVencimiento(sumarDias(e.target.value, 30)); }}
           />
+          {!esHonorario && <Input type="date" label="Fecha de vencimiento" value={fechaVencimiento} min={fecha} onChange={e => setFechaVencimiento(e.target.value)} />}
         </div>
       </Card>
 

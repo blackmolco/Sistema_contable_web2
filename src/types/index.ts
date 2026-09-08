@@ -198,6 +198,7 @@ export interface DocumentoTributario {
   numero: number;
   serie: string;
   fecha: string;
+  fechaVencimiento?: string;
   receptor: Receptor;
   condicionesPago: string;
   detalles: LineaDetalle[];

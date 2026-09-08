@@ -17,6 +17,13 @@ const LABEL_TIPO: Record<Exclude<FiltroTipo, 'todos'>, string> = {
   honorario: 'Honorarios',
 };
 
+const vencimientoDocumento = (fecha: string, vencimiento?: string) => {
+  if (vencimiento) return vencimiento;
+  const d = new Date(`${fecha.slice(0, 10)}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 30);
+  return d.toISOString().slice(0, 10);
+};
+
 export default function CuentaCorriente() {
   const { state, showToast } = useApp();
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
@@ -32,9 +39,9 @@ export default function CuentaCorriente() {
   // Etiqueta legible por documentoId + monto original del documento
   // (factura/boleta/honorario), tal como se guardó al emitirse.
   const documentoPorId = useMemo(() => {
-    const mapa = new Map<string, { label: string; total: number; fecha: string }>();
+    const mapa = new Map<string, { label: string; total: number; fecha: string; vencimiento?: string }>();
     (state.documentos ?? []).forEach((d) => {
-      if (d.id) mapa.set(d.id, { label: `${d.tipo} N° ${d.numero}`, total: d.total, fecha: d.fecha });
+      if (d.id) mapa.set(d.id, { label: `${d.tipo} N° ${d.numero}`, total: d.total, fecha: d.fecha, vencimiento: d.fechaVencimiento });
     });
     (state.honorarios ?? []).forEach((h) => {
       mapa.set(h.id, { label: `Honorarios ${h.periodo}`, total: h.montoLiquido, fecha: h.fechaPago || '' });
@@ -112,6 +119,26 @@ export default function CuentaCorriente() {
     });
     return totales;
   }, [documentosPendientes]);
+
+  const antiguedad = useMemo(() => {
+    const tramos = { vigente: 0, dias30: 0, dias60: 0, dias90: 0, mas90: 0 };
+    const hoyUtc = new Date();
+    const inicioHoy = Date.UTC(hoyUtc.getFullYear(), hoyUtc.getMonth(), hoyUtc.getDate());
+    documentosPendientes.forEach((f) => {
+      if (Math.abs(f.saldo) < 1 || !f.documentoId) return;
+      const info = documentoPorId.get(f.documentoId);
+      const fechaBase = info ? vencimientoDocumento(info.fecha, info.vencimiento) : undefined;
+      if (!fechaBase) return;
+      const dias = Math.floor((inicioHoy - Date.parse(`${fechaBase.slice(0, 10)}T00:00:00Z`)) / 86400000);
+      const monto = Math.abs(f.saldo);
+      if (dias <= 0) tramos.vigente += monto;
+      else if (dias <= 30) tramos.dias30 += monto;
+      else if (dias <= 60) tramos.dias60 += monto;
+      else if (dias <= 90) tramos.dias90 += monto;
+      else tramos.mas90 += monto;
+    });
+    return tramos;
+  }, [documentosPendientes, documentoPorId]);
 
   // Historial cronológico completo de un RUT (todas las líneas, no solo el
   // saldo agrupado) — para ver de dónde salió el saldo pendiente.
@@ -202,6 +229,16 @@ export default function CuentaCorriente() {
         </Card>
       </div>
 
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {[
+          ['Vigente', antiguedad.vigente, 'text-emerald-700 dark:text-emerald-400'],
+          ['Vencido 1–30 días', antiguedad.dias30, 'text-amber-600 dark:text-amber-400'],
+          ['31–60 días', antiguedad.dias60, 'text-orange-600 dark:text-orange-400'],
+          ['61–90 días', antiguedad.dias90, 'text-red-600 dark:text-red-400'],
+          ['Más de 90 días', antiguedad.mas90, 'text-red-800 dark:text-red-300'],
+        ].map(([label, valor, color]) => <Card key={String(label)} className="text-center"><p className="text-xs text-gray-500 dark:text-gray-400">{label}</p><p className={`mt-1 font-data text-base font-bold ${color}`}>{formatCurrency(Number(valor))}</p></Card>)}
+      </div>
+
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
           <Select
@@ -252,6 +289,7 @@ export default function CuentaCorriente() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">RUT</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Nombre</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Documento</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Vencimiento</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Saldo pendiente</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Estado</th><th className="px-4 py-3"></th>
               </tr>
@@ -259,7 +297,7 @@ export default function CuentaCorriente() {
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {filasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={8} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
                     No hay documentos {soloPendientes ? 'pendientes' : ''} para este filtro.
                   </td>
                 </tr>
@@ -271,15 +309,19 @@ export default function CuentaCorriente() {
                   const clave = aplicable ? claveAplicacion(aplicable) : '';
                   const seleccionActual = Object.values(seleccionados);
                   const mezclaNaturaleza = aplicable && seleccionActual.length > 0 && seleccionActual[0].naturaleza !== aplicable.naturaleza;
+                  const fechaVencimiento = info ? vencimientoDocumento(info.fecha, info.vencimiento) : undefined;
+                  const vencimientoEstimado = Boolean(info && !info.vencimiento);
+                  const vencido = pendiente && Boolean(fechaVencimiento) && Date.parse(`${fechaVencimiento!.slice(0, 10)}T23:59:59Z`) < Date.now();
                   return (
                     <tr key={i} className="odd:bg-gray-50/50 dark:odd:bg-gray-800/30 hover:bg-blue-50 dark:hover:bg-gray-700/50">
                       <td className="px-3 py-3 text-center">{aplicable && <input type="checkbox" aria-label={`Seleccionar ${info?.label ?? 'documento'}`} checked={Boolean(seleccionados[clave])} disabled={Boolean(mezclaNaturaleza)} title={mezclaNaturaleza ? 'Registre cobros y pagos en operaciones separadas' : undefined} onChange={() => alternarSeleccion(aplicable)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />}</td>
                       <td className="px-4 py-3 font-data text-gray-600 dark:text-gray-300">{f.rut}</td>
                       <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{f.nombre}</td>
                       <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{info?.label ?? 'Sin documento'}</td>
+                      <td className={`px-4 py-3 ${vencido ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'}`}>{fechaVencimiento ? `${vencimientoEstimado ? 'Est. ' : ''}${formatDate(fechaVencimiento)}` : 'Sin fecha'}</td>
                       <td className="px-4 py-3 text-right font-data font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(Math.abs(f.saldo))}</td>
                       <td className="px-4 py-3 text-center">
-                        <Badge variant={pendiente ? 'warning' : 'success'}>{pendiente ? 'Pendiente' : 'Pagado'}</Badge>
+                        <Badge variant={vencido ? 'danger' : pendiente ? 'warning' : 'success'}>{vencido ? 'Vencido' : pendiente ? 'Pendiente' : 'Pagado'}</Badge>
                       </td>
                       <td className="px-4 py-3 text-right">{aplicable && <Button size="sm" variant="secondary" onClick={() => abrirAplicaciones([aplicable])}>Aplicar pago/cobro</Button>}</td>
                     </tr>
