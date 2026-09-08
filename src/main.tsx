@@ -5,11 +5,7 @@ import { registerSW } from 'virtual:pwa-register'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import './index.css'
 import App from './App.tsx'
-import { initIDBSync } from './services/idbSync'
 import { queryClient } from './lib/queryClient'
-
-// Inicializar sincronización IndexedDB en background (no bloquea el render)
-initIDBSync();
 
 // El script auto-inyectado de vite-plugin-pwa (registerType:'autoUpdate')
 // activa la version nueva del service worker en segundo plano, pero NO

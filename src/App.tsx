@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, ComponentType, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
-import { useAuthStore } from './stores';
+import { useAuthStore } from './stores/authStore';
 import { useAppStore } from './stores/appStore';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import Login from './components/auth/Login';

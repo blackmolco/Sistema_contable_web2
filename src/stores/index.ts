@@ -1,15 +1,6 @@
 export { useAuthStore } from './authStore';
 export type { User } from './authStore';
 
-export { useContabilidadStore } from './contabilidadStore';
-export type { Cuenta, AsientoContable, DetalleAsiento } from './contabilidadStore';
-
-export { useFacturacionStore } from './facturacionStore';
-export type { DocumentoTributario, Honorario } from './facturacionStore';
-
-export { useRemuneracionesStore } from './remuneracionesStore';
-export type { Trabajador, LiquidacionSueldo } from './remuneracionesStore';
-
 export { useAppStore } from './appStore';
 export type { Empresa, Notificacion, Tarea } from './appStore';
 
@@ -320,4 +311,3 @@ export const useInventarioStore = create<InventarioState>()(
     }
   )
 );
-
