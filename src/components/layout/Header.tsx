@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, User, LogOut, Menu, ChevronDown, Moon, Sun, Settings } from 'lucide-react';
+import { Search, User, LogOut, Menu, ChevronDown, Moon, Sun, Settings, Building2, CalendarDays } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useAppStore } from '../../stores/appStore';
+import { ApiAuthService } from '../../services/apiAuth';
 import { formatRUT } from '../../utils/calculos';
 import GlobalSearch from '../ui/GlobalSearch';
 
@@ -17,6 +19,8 @@ interface HeaderProps {
 
 export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, isSearchOpen, darkMode, onToggleDarkMode, onLogout }: HeaderProps) {
   const { state } = useApp();
+  const empresaActiva = useAppStore((s) => s.empresaActiva);
+  const usuario = ApiAuthService.getCurrentUser();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -43,6 +47,10 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
     navigate('/configuracion');
   };
 
+  const periodoActual = new Intl.DateTimeFormat('es-CL', { month: 'short', year: 'numeric' })
+    .format(new Date())
+    .replace('.', '');
+
   return (
     <>
       <header className="h-16 glass border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between px-4 lg:px-6 fixed top-0 right-0 left-[220px] z-30 transition-all duration-300"
@@ -56,6 +64,25 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
           >
             <Menu size={20} />
           </button>
+
+          <div className="hidden xl:flex items-center gap-2" aria-label="Contexto de trabajo actual">
+            <div className="flex items-center gap-2 rounded-lg border border-primary/15 bg-primary/5 px-3 py-1.5">
+              <Building2 size={15} className="text-primary" />
+              <div className="min-w-0 max-w-52">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Empresa activa</p>
+                <p className="truncate text-xs font-semibold text-gray-900 dark:text-gray-100">
+                  {empresaActiva?.nombreFantasia || empresaActiva?.razonSocial || 'Sin empresa seleccionada'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200/70 bg-white/60 px-3 py-1.5 dark:border-gray-700 dark:bg-gray-800/60">
+              <CalendarDays size={15} className="text-primary" />
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Período actual</p>
+                <p className="text-xs font-semibold capitalize text-gray-900 dark:text-gray-100">{periodoActual}</p>
+              </div>
+            </div>
+          </div>
 
           <button
             onClick={onOpenSearch}
@@ -89,8 +116,8 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
                   <User size={16} className="text-white" />
                 </div>
                 <div className="text-left hidden lg:block">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{state.configuracion.nombreFantasia}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{formatRUT(state.configuracion.rut)}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{usuario?.nombre || 'Usuario'}</p>
+                  <p className="text-xs capitalize text-gray-500 dark:text-gray-400">{usuario?.rol || 'usuario'}</p>
                 </div>
                 <ChevronDown size={16} className="text-gray-400" />
               </div>
@@ -102,8 +129,13 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
             {showUserMenu && (
               <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2">
                 <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-                  <p className="font-medium text-gray-900 dark:text-gray-100">{state.configuracion.razonSocial}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{state.configuracion.email}</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{usuario?.nombre || 'Usuario'}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{usuario?.email || state.configuracion.email}</p>
+                  {empresaActiva && (
+                    <p className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                      {empresaActiva.razonSocial} · {formatRUT(empresaActiva.rut)}
+                    </p>
+                  )}
                 </div>
                 <div className="py-1">
                   <button
