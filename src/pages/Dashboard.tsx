@@ -727,17 +727,17 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Dashboard</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="page-header-subtitle">
             Resumen de {periodoActual} {anioDashboard}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className={`btn-modern flex items-center gap-2 ${
+            className={`btn-modern flex items-center gap-2 border ${
               showSettings
                 ? 'bg-primary text-white border-primary'
                 : 'border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
@@ -746,7 +746,8 @@ export default function Dashboard() {
             <Settings size={16} />
             <span className="text-sm">Personalizar</span>
           </button>
-          <select className="input-modern px-3 py-2 text-sm" value={periodoDashboard} onChange={e => setPeriodoDashboard(e.target.value)}>
+          <label className="sr-only" htmlFor="dashboard-periodo">Período del dashboard</label>
+          <select id="dashboard-periodo" className="input-modern min-w-44 px-3 py-2 text-sm" value={periodoDashboard} onChange={e => setPeriodoDashboard(e.target.value)}>
             {Array.from({ length: 12 }, (_, i) => {
               const value = `${anioDashboard}-${String(i + 1).padStart(2, '0')}`;
               return <option key={value} value={value}>{getNombreMes(i + 1)} {anioDashboard}</option>;
@@ -856,31 +857,31 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <button
             onClick={() => navigate('/ingreso-documento')}
-            className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] text-center"
+            className="quick-action"
           >
             <FileText className="mx-auto text-blue-600 dark:text-blue-400 mb-2" size={24} />
-            <span className="text-sm font-medium text-blue-900 dark:text-blue-300">Ingresar Documento</span>
+            <span className="quick-action-label">Ingresar Documento</span>
           </button>
           <button
             onClick={() => navigate('/asientos')}
-            className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] text-center"
+            className="quick-action"
           >
             <BarChart3 className="mx-auto text-emerald-600 dark:text-emerald-400 mb-2" size={24} />
-            <span className="text-sm font-medium text-emerald-900 dark:text-emerald-300">Nuevo Asiento</span>
+            <span className="quick-action-label">Nuevo Asiento</span>
           </button>
           <button
             onClick={() => navigate('/cuenta-corriente')}
-            className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] text-center"
+            className="quick-action"
           >
             <Download className="mx-auto text-amber-600 dark:text-amber-400 mb-2" size={24} />
-            <span className="text-sm font-medium text-amber-900 dark:text-amber-300">Cuenta Corriente</span>
+            <span className="quick-action-label">Cuenta Corriente</span>
           </button>
           <button
             onClick={() => navigate('/control-integridad')}
-            className="p-4 bg-teal-50 dark:bg-teal-900/20 rounded-xl hover:bg-teal-100 dark:hover:bg-teal-900/30 transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] text-center"
+            className="quick-action"
           >
             <FileText className="mx-auto text-teal-600 mb-2" size={24} />
-            <span className="text-sm font-medium text-teal-900 dark:text-teal-300">Control de Integridad</span>
+            <span className="quick-action-label">Control de Integridad</span>
           </button>
         </div>
       </Card>

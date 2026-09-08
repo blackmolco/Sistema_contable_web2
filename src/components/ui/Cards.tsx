@@ -147,7 +147,7 @@ export function KPICard({
     : (value || '$0');
 
   return (
-    <div className={`card-modern p-5 border-l-4 ${borderMap[variant]}`}>
+    <div className={`card-modern group p-5 border-l-4 ${borderMap[variant]}`}>
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1 truncate">{title}</p>
@@ -170,7 +170,7 @@ export function KPICard({
             </div>
           )}
         </div>
-        <div className={`icon-circle flex-shrink-0 ${iconColorMap[variant]} ${iconBgMap[variant]}`}>
+        <div className={`icon-circle flex-shrink-0 transition-transform duration-200 group-hover:scale-105 ${iconColorMap[variant]} ${iconBgMap[variant]}`}>
           <Icon size={20} />
         </div>
       </div>
