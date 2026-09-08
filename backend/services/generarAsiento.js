@@ -124,7 +124,11 @@ async function crearAsiento(tx, { empresaId, fecha, glosa, tipo, detalles, usuar
             fecha: new Date(fecha),
             glosa,
             tipo: tipo || null,
-            estado: 'aprobado',
+            // El backend solo reconoce pendiente/contabilizado/anulado (ver
+            // asientoSchema en routes/asientos.js) — 'aprobado' no es un
+            // valor valido ahi, así que el mapeo estadoFromBackend en
+            // apiSync.ts no lo reconocía y todo caía al default 'pendiente'.
+            estado: 'contabilizado',
             empresaId,
             usuarioId: usuarioId || null,
             detalles: { create: detalles },
