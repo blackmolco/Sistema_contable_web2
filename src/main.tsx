@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { registerSW } from 'virtual:pwa-register'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import './index.css'
 import App from './App.tsx'
@@ -9,6 +10,25 @@ import { queryClient } from './lib/queryClient'
 
 // Inicializar sincronización IndexedDB en background (no bloquea el render)
 initIDBSync();
+
+// El script auto-inyectado de vite-plugin-pwa (registerType:'autoUpdate')
+// activa la version nueva del service worker en segundo plano, pero NO
+// recarga la pestaña — el usuario se queda viendo el bundle viejo (con bugs
+// ya corregidos en el servidor) hasta cerrar y volver a abrir la pestaña,
+// sin importar cuantas veces presione recargar. Con registro manual se
+// fuerza la recarga apenas hay una version nueva lista.
+if ('serviceWorker' in navigator) {
+  const updateSW = registerSW({
+    immediate: true,
+    // updateSW(true) espera a que el worker nuevo tome el control
+    // (controllerchange) antes de recargar — a diferencia de un
+    // window.location.reload() a ciegas, no hay ventana en la que la
+    // recarga vuelva a caer sobre el shell viejo todavia activo.
+    onNeedRefresh() {
+      updateSW(true);
+    },
+  });
+}
 
 // Tras cada deploy, los archivos JS de la build anterior dejan de existir en
 // el servidor. Una pestaña que ya estaba abierta, al navegar a una pagina

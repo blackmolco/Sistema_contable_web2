@@ -8,6 +8,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registro manual (ver src/main.tsx): el script auto-inyectado no
+      // fuerza un reload cuando hay una version nueva — la pestaña se queda
+      // corriendo el JS viejo hasta cerrarla y abrirla de nuevo, aunque el
+      // usuario presione recargar muchas veces. Con registerSW() propio se
+      // detecta la nueva version y se recarga sola.
+      injectRegister: false,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'Valenzuela & Asociados - Sistema Contable',
@@ -27,6 +33,11 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Ya NO se cachean las respuestas de /api/* (era NetworkFirst con
+        // fallback a una copia de hasta 5 min): en un sistema contable, que
+        // el service worker le sirva a alguien datos financieros de hace
+        // minutos si la red tiene un hipo es un riesgo real, no una
+        // optimizacion — mejor un error visible que un saldo viejo silencioso.
         runtimeCaching: [
           {
             urlPattern: /^https?:\/\/api\.mindicador\.cl\/.*/i,
@@ -34,14 +45,6 @@ export default defineConfig({
             options: {
               cacheName: 'mindicador-cache',
               expiration: { maxEntries: 50, maxAgeSeconds: 86400 },
-            },
-          },
-          {
-            urlPattern: /^https?:\/\/.*\/api\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 300 },
             },
           },
         ],
