@@ -121,7 +121,9 @@ export default function BalanceOchoColumnas() {
   const diferenciaSaldos = redondear(totales.saldoDeudor - totales.saldoAcreedor);
   const resultado = redondear(totales.resultadoGanancia - totales.resultadoPerdida);
   const diferenciaFinal = redondear((totales.inventarioActivo + totales.resultadoPerdida) - (totales.inventarioPasivo + totales.resultadoGanancia));
-  const cuadrado = Math.abs(diferenciaSumas) <= 1 && Math.abs(diferenciaSaldos) <= 1 && Math.abs(diferenciaFinal) <= 1;
+  // Los importes se expresan en pesos enteros: una diferencia de $1 sigue
+  // siendo un descuadre y no debe mostrarse como "Balance cuadrado".
+  const cuadrado = diferenciaSumas === 0 && diferenciaSaldos === 0 && diferenciaFinal === 0;
   const valores = (f: FilaBalance8) => [f.sumasDebe, f.sumasHaber, f.saldoDeudor, f.saldoAcreedor, f.inventarioActivo, f.inventarioPasivo, f.resultadoPerdida, f.resultadoGanancia];
   const valoresTotales = [totales.sumasDebe, totales.sumasHaber, totales.saldoDeudor, totales.saldoAcreedor, totales.inventarioActivo, totales.inventarioPasivo, totales.resultadoPerdida, totales.resultadoGanancia];
 
