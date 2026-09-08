@@ -339,9 +339,10 @@ export default function SincronizacionSII() {
       if (tipoArchivo === 'compra') {
         const iniciales: Record<string, string> = {};
         filas.forEach(fila => {
+          const claveRut = fila.rut.replace(/[^0-9kK]/g, '').toUpperCase();
           const entidad = (state.entidades ?? []).find(e => e.rut.replace(/[^0-9kK]/g, '').toUpperCase() === fila.rut.replace(/[^0-9kK]/g, '').toUpperCase());
           const codigoGuardado = state.rutCuentas?.[fila.rut]?.cuentaCodigo;
-          iniciales[fila.rut] = entidad?.cuentaDefaultId || (codigoGuardado ? state.cuentas.find(c => c.codigo === codigoGuardado)?.id : '') || '';
+          iniciales[claveRut] = entidad?.cuentaDefaultId || (codigoGuardado ? state.cuentas.find(c => c.codigo === codigoGuardado)?.id : '') || '';
         });
         setCuentasPorRut(iniciales);
       } else {
@@ -390,7 +391,7 @@ export default function SincronizacionSII() {
 
   const filasNuevas = filasPreview.filter(f => !esDuplicada(f));
   const duplicadas = filasPreview.length - filasNuevas.length;
-  const proveedores = [...new Map(filasNuevas.map(f => [rutLimpio(f.rut), f])).values()];
+  const proveedores = [...new Map(filasNuevas.map(f => [rutLimpio(f.rut), f])).entries()].map(([clave, fila]) => ({ ...fila, claveRut: clave }));
   const opcionesCompra = [{ value: '', label: 'Seleccionar cuenta...' }, ...state.cuentas.filter(c => c.permiteMovimiento && !c.requiereAuxiliar && ['gasto', 'activo', 'pasivo'].includes(c.tipo)).map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }))];
   const opcionesVenta = [{ value: '', label: 'Seleccionar cuenta de ingreso...' }, ...state.cuentas.filter(c => c.permiteMovimiento && c.tipo === 'ingreso').map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }))];
 
@@ -405,7 +406,7 @@ export default function SincronizacionSII() {
     if (tipoArchivo === 'venta' && !cuentaIngresoId) {
       showToast('error', 'Falta cuenta contable', 'Seleccione la cuenta de ingreso para las ventas.'); return;
     }
-    const proveedoresSinCuenta = proveedores.filter(f => !cuentasPorRut[f.rut]);
+    const proveedoresSinCuenta = proveedores.filter(f => !cuentasPorRut[f.claveRut]);
     if (tipoArchivo === 'compra' && proveedoresSinCuenta.length > 0) {
       showToast('error', 'Faltan cuentas contables', `Asigne una cuenta a ${proveedoresSinCuenta.length} proveedor(es) antes de importar.`); return;
     }
@@ -423,8 +424,8 @@ export default function SincronizacionSII() {
 
       let cuentaGastoId: string | undefined;
       if (tipoArchivo === 'compra') {
-        cuentaGastoId = cuentasPorRut[fila.rut] || cuentaPorClasificarId;
-        if (!cuentasPorRut[fila.rut]) sinCuentaAsignada++;
+        cuentaGastoId = cuentasPorRut[rutLimpio(fila.rut)] || cuentaPorClasificarId;
+        if (!cuentasPorRut[rutLimpio(fila.rut)]) sinCuentaAsignada++;
       }
 
       try {
@@ -775,9 +776,10 @@ export default function SincronizacionSII() {
                       <p className="text-xs font-semibold text-gray-700">Cuenta de gasto, activo o pasivo por proveedor</p>
                       <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
                         {proveedores.map(proveedor => (
-                          <div key={rutLimpio(proveedor.rut)} className="rounded-lg border border-gray-200 p-2">
+                          <div key={proveedor.claveRut} className="rounded-lg border border-gray-200 p-2">
                             <p className="mb-1.5 truncate text-xs font-medium text-gray-700">{formatRUT(proveedor.rut)} · {proveedor.razonSocial}</p>
-                            <SearchSelect value={cuentasPorRut[proveedor.rut] || ''} onChange={cuentaId => setCuentasPorRut(actual => ({ ...actual, [proveedor.rut]: cuentaId }))} options={opcionesCompra} placeholder="Asignar cuenta contable..." />
+                            <SearchSelect value={cuentasPorRut[proveedor.claveRut] || ''} onChange={cuentaId => setCuentasPorRut(actual => ({ ...actual, [proveedor.claveRut]: cuentaId }))} options={opcionesCompra} placeholder="Asignar cuenta contable..." />
+                            {cuentasPorRut[proveedor.claveRut] && <p className="mt-1 text-[11px] text-emerald-600">Cuenta recordada o seleccionada para este proveedor</p>}
                           </div>
                         ))}
                       </div>
@@ -806,7 +808,7 @@ export default function SincronizacionSII() {
                         <span className="text-blue-600 font-mono font-bold w-10 flex-shrink-0">{TIPO_DOC_MAP[f.tipoDoc] ? f.tipoDoc : f.tipoDoc}</span>
                         <span className="text-gray-500 font-mono w-16 flex-shrink-0">{f.folio || '—'}</span>
                         <span className="text-gray-700 truncate flex-1">{f.razonSocial || f.rut || '(sin nombre)'}</span>
-                        <span className="w-20 flex-shrink-0 text-center"><Badge variant={esDuplicada(f) ? 'warning' : tipoArchivo === 'compra' && !cuentasPorRut[f.rut] ? 'danger' : 'success'}>{esDuplicada(f) ? 'Duplicado' : tipoArchivo === 'compra' && !cuentasPorRut[f.rut] ? 'Sin cuenta' : 'Nuevo'}</Badge></span>
+                        <span className="w-20 flex-shrink-0 text-center"><Badge variant={esDuplicada(f) ? 'warning' : tipoArchivo === 'compra' && !cuentasPorRut[rutLimpio(f.rut)] ? 'danger' : 'success'}>{esDuplicada(f) ? 'Duplicado' : tipoArchivo === 'compra' && !cuentasPorRut[rutLimpio(f.rut)] ? 'Sin cuenta' : 'Nuevo'}</Badge></span>
                         <span className="font-mono text-gray-800 flex-shrink-0">{formatCurrency(f.total)}</span>
                       </div>
                     ))}
