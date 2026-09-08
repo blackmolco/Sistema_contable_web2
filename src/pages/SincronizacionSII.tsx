@@ -5,7 +5,8 @@ import {
   Upload, FileText, Trash2, Info,
   Loader2, ShieldCheck, DatabaseZap, FileDown, CheckCheck,
 } from 'lucide-react';
-import { Card } from '../components/ui/Cards';
+import { Card, Badge } from '../components/ui/Cards';
+import { SearchSelect } from '../components/ui/FormElements';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useApp } from '../context/AppContext';
 import { formatRUT, formatCurrency, generateId } from '../utils/calculos';
@@ -298,6 +299,8 @@ export default function SincronizacionSII() {
   const [isImporting, setIsImporting]   = useState(false);
   const [importProgress, setImportProgress] = useState<{ hecho: number; total: number } | null>(null);
   const [debugInfo, setDebugInfo]       = useState<string>('');
+  const [cuentasPorRut, setCuentasPorRut] = useState<Record<string, string>>({});
+  const [cuentaIngresoId, setCuentaIngresoId] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Auto-sync state
@@ -333,6 +336,17 @@ export default function SincronizacionSII() {
         return;
       }
       setFilasPreview(filas);
+      if (tipoArchivo === 'compra') {
+        const iniciales: Record<string, string> = {};
+        filas.forEach(fila => {
+          const entidad = (state.entidades ?? []).find(e => e.rut.replace(/[^0-9kK]/g, '').toUpperCase() === fila.rut.replace(/[^0-9kK]/g, '').toUpperCase());
+          const codigoGuardado = state.rutCuentas?.[fila.rut]?.cuentaCodigo;
+          iniciales[fila.rut] = entidad?.cuentaDefaultId || (codigoGuardado ? state.cuentas.find(c => c.codigo === codigoGuardado)?.id : '') || '';
+        });
+        setCuentasPorRut(iniciales);
+      } else {
+        setCuentaIngresoId(state.cuentas.find(c => c.codigo === '4-01-001-0001')?.id || '');
+      }
       const totalSum = filas.reduce((s, f) => s + f.total, 0);
       showToast('success', 'Archivo leído',
         `${filas.length} registros | Total: ${formatCurrency(totalSum)} | ${debug}`);
@@ -358,31 +372,59 @@ export default function SincronizacionSII() {
   // bloquear la importación por esto; se puede reclasificar después.
   const CODIGO_CUENTA_POR_CLASIFICAR = '5-03-004-0001';
 
+  const fechaISO = (fila: FilaRCV) => {
+    const [d, m, y] = fila.fecha.split('/');
+    return d && m && y ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : fila.fecha.slice(0, 10);
+  };
+  const rutLimpio = (rutValor: string) => rutValor.replace(/[^0-9kK]/g, '').toUpperCase();
+  const claveFila = (fila: FilaRCV) => `${tipoArchivo}|${TIPO_DOC_MAP[fila.tipoDoc] || fila.tipoDoc}|${rutLimpio(fila.rut)}|${fechaISO(fila)}|${fila.folio}`;
+  const esDuplicada = (fila: FilaRCV) => {
+    const tipoInterno = MAPEO_TIPO_INGRESO[TIPO_DOC_MAP[fila.tipoDoc] || 'factura'] ?? 'factura';
+    const yaEstaEnSistema = (state.documentos ?? []).some(doc =>
+      doc.tipo === tipoInterno && doc.numero === fila.folio && doc.libro === (tipoArchivo === 'compra' ? 'compras' : 'ventas') &&
+      rutLimpio(doc.receptor?.rut ?? doc.rutCliente ?? '') === rutLimpio(fila.rut) && doc.fecha.slice(0, 10) === fechaISO(fila)
+    );
+    const primeraEnArchivo = filasPreview.findIndex(otra => claveFila(otra) === claveFila(fila));
+    return yaEstaEnSistema || primeraEnArchivo !== filasPreview.indexOf(fila);
+  };
+
+  const filasNuevas = filasPreview.filter(f => !esDuplicada(f));
+  const duplicadas = filasPreview.length - filasNuevas.length;
+  const proveedores = [...new Map(filasNuevas.map(f => [rutLimpio(f.rut), f])).values()];
+  const opcionesCompra = [{ value: '', label: 'Seleccionar cuenta...' }, ...state.cuentas.filter(c => c.permiteMovimiento && !c.requiereAuxiliar && ['gasto', 'activo', 'pasivo'].includes(c.tipo)).map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }))];
+  const opcionesVenta = [{ value: '', label: 'Seleccionar cuenta de ingreso...' }, ...state.cuentas.filter(c => c.permiteMovimiento && c.tipo === 'ingreso').map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }))];
+
   // ── Importar (secuencial: cada fila crea su entidad + documento + asiento) ──
   const handleImport = async () => {
     if (filasPreview.length === 0 || isImporting) return;
     setIsImporting(true);
-    setImportProgress({ hecho: 0, total: filasPreview.length });
+    if (filasNuevas.length === 0) {
+      showToast('warning', 'Sin documentos nuevos', 'Todos los documentos del archivo ya fueron cargados anteriormente.');
+      return;
+    }
+    if (tipoArchivo === 'venta' && !cuentaIngresoId) {
+      showToast('error', 'Falta cuenta contable', 'Seleccione la cuenta de ingreso para las ventas.'); return;
+    }
+    const proveedoresSinCuenta = proveedores.filter(f => !cuentasPorRut[f.rut]);
+    if (tipoArchivo === 'compra' && proveedoresSinCuenta.length > 0) {
+      showToast('error', 'Faltan cuentas contables', `Asigne una cuenta a ${proveedoresSinCuenta.length} proveedor(es) antes de importar.`); return;
+    }
+    setImportProgress({ hecho: 0, total: filasNuevas.length });
 
     const cuentaPorClasificarId = state.cuentas.find(c => c.codigo === CODIGO_CUENTA_POR_CLASIFICAR)?.id;
     let exitosos = 0;
     let sinCuentaAsignada = 0;
     const errores: string[] = [];
 
-    for (const fila of filasPreview) {
+    for (const fila of filasNuevas) {
       const tipoInterno = TIPO_DOC_MAP[fila.tipoDoc] || 'factura';
       const tipoDocumento = MAPEO_TIPO_INGRESO[tipoInterno] ?? 'factura';
-      const [d, m, y] = fila.fecha.split('/');
-      const fechaISO = (d && m && y) ? `${y}-${m}-${d}` : new Date().toISOString().slice(0, 10);
+      const fechaDocumento = fechaISO(fila);
 
       let cuentaGastoId: string | undefined;
       if (tipoArchivo === 'compra') {
-        const codigoGuardado = state.rutCuentas?.[fila.rut]?.cuentaCodigo;
-        cuentaGastoId = codigoGuardado ? state.cuentas.find(c => c.codigo === codigoGuardado)?.id : undefined;
-        if (!cuentaGastoId) {
-          cuentaGastoId = cuentaPorClasificarId;
-          sinCuentaAsignada++;
-        }
+        cuentaGastoId = cuentasPorRut[fila.rut] || cuentaPorClasificarId;
+        if (!cuentasPorRut[fila.rut]) sinCuentaAsignada++;
       }
 
       try {
@@ -390,10 +432,12 @@ export default function SincronizacionSII() {
           tipoDocumento,
           tipoTransaccion: tipoArchivo,
           folio: fila.folio,
-          fecha: fechaISO,
-          entidad: { rut: fila.rut || 'SIN-RUT', razonSocial: fila.razonSocial?.trim() || fila.rut || 'Sin nombre' },
+          fecha: fechaDocumento,
+          entidad: { rut: fila.rut || 'SIN-RUT', razonSocial: fila.razonSocial?.trim() || fila.rut || 'Sin nombre', cuentaDefaultId: tipoArchivo === 'compra' ? cuentaGastoId : undefined },
           neto: fila.neto, exento: fila.exento, iva: fila.iva, total: fila.total,
           cuentaGastoId,
+          cuentaIngresoId: tipoArchivo === 'venta' ? cuentaIngresoId : undefined,
+          origenImportacionSII: true,
         });
         exitosos++;
       } catch (err) {
@@ -418,7 +462,7 @@ export default function SincronizacionSII() {
       showToast('success', '¡Importación Completa!', `${exitosos} documentos cargados con su asiento contable.`);
     } else {
       showToast(exitosos > 0 ? 'warning' : 'error', 'Importación con errores',
-        `${exitosos} de ${filasPreview.length} documentos cargados. Primer error: ${errores[0]}`);
+        `${exitosos} de ${filasNuevas.length} documentos nuevos cargados. Primer error: ${errores[0]}`);
       console.error('[SincronizacionSII] Errores de importación:', errores);
     }
     if (sinCuentaAsignada > 0) {
@@ -602,7 +646,7 @@ export default function SincronizacionSII() {
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-3">
         <div className="p-3 bg-blue-100 rounded-lg">
           <CloudCog className="text-blue-700" size={24} />
@@ -719,6 +763,27 @@ export default function SincronizacionSII() {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-center"><p className="text-[10px] text-emerald-700">Documentos nuevos</p><p className="text-lg font-bold text-emerald-800">{filasNuevas.length}</p></div>
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-center"><p className="text-[10px] text-amber-700">Ya cargados</p><p className="text-lg font-bold text-amber-800">{duplicadas}</p></div>
+                  </div>
+
+                  {tipoArchivo === 'venta' ? (
+                    <SearchSelect label="Cuenta contable de las ventas" value={cuentaIngresoId} onChange={setCuentaIngresoId} options={opcionesVenta} placeholder="Buscar cuenta de ingreso..." />
+                  ) : proveedores.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-gray-700">Cuenta de gasto, activo o pasivo por proveedor</p>
+                      <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                        {proveedores.map(proveedor => (
+                          <div key={rutLimpio(proveedor.rut)} className="rounded-lg border border-gray-200 p-2">
+                            <p className="mb-1.5 truncate text-xs font-medium text-gray-700">{formatRUT(proveedor.rut)} · {proveedor.razonSocial}</p>
+                            <SearchSelect value={cuentasPorRut[proveedor.rut] || ''} onChange={cuentaId => setCuentasPorRut(actual => ({ ...actual, [proveedor.rut]: cuentaId }))} options={opcionesCompra} placeholder="Asignar cuenta contable..." />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-200">
                     <div>
                       <p className="font-bold text-emerald-800 text-sm">{filasPreview.length} documentos listos</p>
@@ -733,6 +798,7 @@ export default function SincronizacionSII() {
                       <span className="w-10 flex-shrink-0">DTE</span>
                       <span className="w-16 flex-shrink-0">Folio</span>
                       <span className="flex-1">RUT / Razón Social</span>
+                      <span className="w-20 flex-shrink-0 text-center">Estado</span>
                       <span className="flex-shrink-0 text-right">Total</span>
                     </div>
                     {filasPreview.slice(0, 10).map((f, i) => (
@@ -740,6 +806,7 @@ export default function SincronizacionSII() {
                         <span className="text-blue-600 font-mono font-bold w-10 flex-shrink-0">{TIPO_DOC_MAP[f.tipoDoc] ? f.tipoDoc : f.tipoDoc}</span>
                         <span className="text-gray-500 font-mono w-16 flex-shrink-0">{f.folio || '—'}</span>
                         <span className="text-gray-700 truncate flex-1">{f.razonSocial || f.rut || '(sin nombre)'}</span>
+                        <span className="w-20 flex-shrink-0 text-center"><Badge variant={esDuplicada(f) ? 'warning' : tipoArchivo === 'compra' && !cuentasPorRut[f.rut] ? 'danger' : 'success'}>{esDuplicada(f) ? 'Duplicado' : tipoArchivo === 'compra' && !cuentasPorRut[f.rut] ? 'Sin cuenta' : 'Nuevo'}</Badge></span>
                         <span className="font-mono text-gray-800 flex-shrink-0">{formatCurrency(f.total)}</span>
                       </div>
                     ))}
@@ -752,7 +819,7 @@ export default function SincronizacionSII() {
                     className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                     {isImporting
                       ? <><CloudCog className="animate-spin" size={18}/> Procesando {importProgress ? `${importProgress.hecho}/${importProgress.total}` : '...'}</>
-                      : <><Download size={18}/> Confirmar e Importar {filasPreview.length} documentos</>
+                      : <><Download size={18}/> Confirmar e Importar {filasNuevas.length} documentos nuevos</>
                     }
                   </button>
                   {isImporting && importProgress && (

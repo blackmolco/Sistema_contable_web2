@@ -230,11 +230,12 @@ model DocumentoTributario {
   fechaRecepcionSII   DateTime?
   asientoId           String?
   documentoReferenciaId String?
+  claveImportacion     String?
   empresaId           String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  @@unique([tipo, folio, tipoTransaccion, empresaId])
+  @@unique([empresaId, claveImportacion])
   @@index([empresaId])
   @@index([tipo])
   @@index([fechaEmision])

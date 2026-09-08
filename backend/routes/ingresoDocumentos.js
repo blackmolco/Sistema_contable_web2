@@ -28,6 +28,7 @@ const entidadInlineSchema = z.object({
     comuna: z.string().max(100).optional().nullable(),
     ciudad: z.string().max(100).optional().nullable(),
     email: z.string().email().max(200).optional().nullable().or(z.literal('')),
+    cuentaDefaultId: z.string().min(1).optional().nullable(),
 });
 
 const ingresoSchema = z.object({
@@ -44,6 +45,8 @@ const ingresoSchema = z.object({
     iva: z.number().min(0).default(0),
     total: z.number().positive().optional(),
     cuentaGastoId: z.string().min(1).optional().nullable(),
+    cuentaIngresoId: z.string().min(1).optional().nullable(),
+    origenImportacionSII: z.boolean().optional().default(false),
     montoBruto: z.number().min(0).optional(),
     retencion: z.number().min(0).optional(),
     montoLiquido: z.number().min(0).optional(),
@@ -59,8 +62,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
             await exigirPeriodoAbierto(tx, empresaId, body.fecha);
             const esNota = body.tipoDocumento === 'nota_credito' || body.tipoDocumento === 'nota_debito';
             let documentoReferencia = null;
-            if (esNota) {
-                if (!body.documentoReferenciaId) throw Object.assign(new Error('Debe seleccionar el documento original de la nota'), { status: 400 });
+            if (esNota && body.documentoReferenciaId) {
                 documentoReferencia = await tx.documentoTributario.findFirst({
                     where: { id: body.documentoReferenciaId, empresaId, tipoTransaccion: body.tipoTransaccion },
                 });
@@ -76,6 +78,8 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                         throw Object.assign(new Error(`La nota de crédito supera el saldo disponible del documento (${saldoDisponible})`), { status: 409 });
                     }
                 }
+            } else if (esNota && !body.origenImportacionSII) {
+                throw Object.assign(new Error('Debe seleccionar el documento original de la nota'), { status: 400 });
             }
             // 1) Upsert de la entidad por (rut, empresaId) — mismo patron que Cuenta.
             const entidadData = { ...body.entidad, empresaId };
@@ -140,6 +144,23 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                 throw Object.assign(new Error('Debe elegir la cuenta de gasto/activo para esta compra'), { status: 400 });
             }
 
+            const rutNormalizado = body.entidad.rut.replace(/[^0-9kK]/g, '').toUpperCase();
+            const claveImportacion = [body.tipoTransaccion, body.tipoDocumento, rutNormalizado, body.fecha, body.folio].join('|');
+            const candidatosDuplicados = await tx.documentoTributario.findMany({
+                where: {
+                    empresaId,
+                    tipo: body.tipoDocumento,
+                    tipoTransaccion: body.tipoTransaccion,
+                    folio: body.folio,
+                    fechaEmision: new Date(body.fecha),
+                },
+                select: { id: true, asientoId: true, rutReceptor: true },
+            });
+            const duplicado = candidatosDuplicados.find(d => d.rutReceptor.replace(/[^0-9kK]/g, '').toUpperCase() === rutNormalizado);
+            if (duplicado) {
+                throw Object.assign(new Error(`Documento duplicado: ya existe ${body.tipoDocumento} N° ${body.folio} del RUT ${body.entidad.rut} con fecha ${body.fecha}`), { status: 409 });
+            }
+
             // rutEmisor/rutReceptor siguen la misma convencion ya usada en toda
             // la app (SincronizacionSII, Facturacion, LibroVentas): rutEmisor
             // es siempre el RUT de la propia empresa y rutReceptor siempre el
@@ -168,6 +189,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                     estado: body.tipoTransaccion === 'compra' ? 'pendiente' : 'emitido',
                     tipoTransaccion: body.tipoTransaccion,
                     documentoReferenciaId: documentoReferencia?.id || null,
+                    claveImportacion,
                     empresaId,
                 },
             });
@@ -180,6 +202,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                 iva: body.iva,
                 total: body.total,
                 cuentaGastoId: body.cuentaGastoId,
+                cuentaIngresoId: body.cuentaIngresoId,
                 entidad,
                 documentoId: documentoReferencia?.id || documento.id,
             });
@@ -207,7 +230,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
             return res.status(err.status).json({ error: err.message });
         }
         if (err.code === 'P2002') {
-            return res.status(409).json({ error: 'Ya existe un documento con ese folio para esta empresa' });
+            return res.status(409).json({ error: 'Documento duplicado: ya existe el mismo RUT, tipo, folio y fecha para esta empresa' });
         }
         logger.error({ err }, 'Error en ingreso de documento');
         res.status(500).json({ error: err.message || 'Error al ingresar el documento' });

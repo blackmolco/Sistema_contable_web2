@@ -55,7 +55,7 @@ function reglaHonorario({ montoBruto, retencion, montoLiquido, cuentaGastoHonora
  * (venta/compra) y montos. `cuentaGastoId` es obligatorio solo para compras
  * (la cuenta de gasto/activo que el usuario eligió).
  */
-async function lineasParaDocumento(tx, empresaId, { tipo, tipoTransaccion, neto = 0, exento = 0, iva = 0, total, cuentaGastoId, entidad, documentoId }) {
+async function lineasParaDocumento(tx, empresaId, { tipo, tipoTransaccion, neto = 0, exento = 0, iva = 0, total, cuentaGastoId, cuentaIngresoId, entidad, documentoId }) {
     // total - iva (no neto+exento) para que el asiento siempre cuadre por
     // construcción. El RCV del SII trae documentos con un "otro impuesto"
     // (tabaco, combustible, alcohol — códigos 28/35) que se suma al Monto
@@ -69,7 +69,9 @@ async function lineasParaDocumento(tx, empresaId, { tipo, tipoTransaccion, neto 
     if (tipoTransaccion === 'venta') {
         const [cuentaClientes, cuentaVentas, cuentaIvaDebito] = await Promise.all([
             buscarCuenta(tx, empresaId, CODIGOS.clientes),
-            buscarCuenta(tx, empresaId, CODIGOS.ventas),
+            cuentaIngresoId
+                ? tx.cuenta.findFirst({ where: { id: cuentaIngresoId, empresaId, activo: true, permiteMovimiento: true, tipo: 'ingreso' } })
+                : buscarCuenta(tx, empresaId, CODIGOS.ventas),
             buscarCuenta(tx, empresaId, CODIGOS.ivaDebito),
         ]);
         if (!cuentaClientes) throw new Error(`Falta la cuenta ${CODIGOS.clientes} (Clientes) en el plan de cuentas`);

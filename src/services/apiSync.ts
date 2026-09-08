@@ -512,12 +512,14 @@ export interface IngresoDocumentoPayload {
   fechaVencimiento?: string;
   documentoReferenciaId?: string;
   periodo?: string; // YYYY-MM, solo honorarios
-  entidad: { rut: string; razonSocial: string; giro?: string; direccion?: string; comuna?: string; ciudad?: string; email?: string };
+  entidad: { rut: string; razonSocial: string; giro?: string; direccion?: string; comuna?: string; ciudad?: string; email?: string; cuentaDefaultId?: string };
   neto?: number;
   exento?: number;
   iva?: number;
   total?: number;
   cuentaGastoId?: string;
+  cuentaIngresoId?: string;
+  origenImportacionSII?: boolean;
   montoBruto?: number;
   retencion?: number;
   montoLiquido?: number;
