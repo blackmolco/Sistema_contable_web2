@@ -4,6 +4,7 @@ import {
   CloudCog, Download, CheckCircle,
   Upload, FileText, Trash2, Info,
   Loader2, ShieldCheck, DatabaseZap, FileDown, CheckCheck,
+  ShoppingBag, Receipt, FileBadge2,
 } from 'lucide-react';
 import { Card, Badge } from '../components/ui/Cards';
 import { SearchSelect } from '../components/ui/FormElements';
@@ -731,29 +732,37 @@ export default function SincronizacionSII() {
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center gap-3">
-        <div className="p-3 bg-blue-100 rounded-lg">
-          <CloudCog className="text-blue-700" size={24} />
+    <div className="space-y-6 max-w-[1500px] mx-auto">
+      <div className="page-header">
+        <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+          <CloudCog className="text-primary" size={25} />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Registro de Compras y Ventas — SII</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="page-header-subtitle">
             Importa el RCV descargado desde el portal SII o sincroniza con tu clave tributaria.
           </p>
         </div>
+        </div>
+        {backendStatus !== 'unknown' && (
+          <div className={`status-strip ${backendStatus === 'online' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+            <span className={`h-2 w-2 rounded-full ${backendStatus === 'online' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            {backendStatus === 'online' ? 'Servicio conectado' : 'Trabajando sin conexión al servicio'}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
         {[
           { key: 'manual', label: 'Importar CSV del SII', icon: <Upload size={15}/> },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
-            className={`px-5 py-2.5 font-medium text-sm rounded-t-lg border-b-2 transition-colors flex items-center gap-2 ${
+            className={`px-5 py-3 font-semibold text-sm rounded-t-lg border-b-2 transition-colors flex items-center gap-2 ${
               tab === t.key
-                ? 'border-blue-600 text-blue-700 bg-blue-50'
-                : 'border-transparent text-gray-500 hover:text-gray-800'
+                ? 'border-primary text-primary bg-primary/5'
+                : 'border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-800 dark:hover:bg-gray-900'
             }`}>
             {t.icon} {t.label}
           </button>
@@ -763,7 +772,7 @@ export default function SincronizacionSII() {
       {historialImportaciones.length > 0 && (
         <Card title="Historial reciente de cargas SII" className="no-print">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="table-modern w-full text-sm">
               <thead><tr className="border-b border-gray-100 text-left text-xs uppercase text-gray-500">
                 <th className="px-2 py-2">Fecha</th><th className="px-2 py-2">Tipo</th><th className="px-2 py-2">Archivo</th>
                 <th className="px-2 py-2 text-right">Registros</th><th className="px-2 py-2 text-right">Nuevos</th><th className="px-2 py-2 text-right">Duplicados</th><th className="px-2 py-2">Estado</th>
@@ -784,10 +793,10 @@ export default function SincronizacionSII() {
       {/* ── TAB MANUAL ───────────────────────────────────────────────────────── */}
       {tab === 'manual' && (
         <div className="space-y-5">
-          <Card className="border-blue-100 bg-blue-50/30">
+          <Card className="border-primary/15 bg-primary/[0.03]">
             <div className="flex items-start gap-3">
-              <Info className="text-blue-600 flex-shrink-0 mt-0.5" size={18} />
-              <div className="text-xs text-blue-900 space-y-1">
+              <Info className="text-primary flex-shrink-0 mt-0.5" size={18} />
+              <div className="text-xs text-gray-700 dark:text-gray-300 space-y-1">
                 <p className="font-semibold">¿Cómo obtener el CSV del SII?</p>
                 <ol className="list-decimal pl-4 space-y-1">
                   <li>Entra a <strong>sii.cl → Servicios Online → Registro de Compras y Ventas</strong></li>
@@ -799,31 +808,32 @@ export default function SincronizacionSII() {
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.75fr)] gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(320px,0.8fr)_minmax(0,2fr)] gap-6 items-start">
             {/* Panel izquierdo: tipo + subida */}
-            <Card className="lg:sticky lg:top-4">
-              <h3 className="font-semibold text-gray-900 mb-4">1. Tipo de Registro</h3>
+            <Card className="lg:sticky lg:top-20">
+              <h3 className="font-display text-xl font-bold text-gray-900 mb-4">1. Tipo de Registro</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                 {(['venta', 'compra', 'honorario'] as const).map(t => (
                   <button key={t} onClick={() => { setTipoArchivo(t); setFilasPreview([]); }}
                     className={`py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
                       tipoArchivo === t
                         ? t === 'venta'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          ? 'border-primary bg-primary/5 text-primary'
                           : t === 'compra'
                             ? 'border-amber-500 bg-amber-50 text-amber-700'
                             : 'border-violet-500 bg-violet-50 text-violet-700'
-                        : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
                     }`}>
-                    {t === 'venta' ? '📤 Libro de Ventas' : t === 'compra' ? '📥 Libro de Compras' : '🧾 Boletas de Honorarios'}
+                    {t === 'venta' ? <ShoppingBag size={17} /> : t === 'compra' ? <Receipt size={17} /> : <FileBadge2 size={17} />}
+                    <span>{t === 'venta' ? 'Libro de Ventas' : t === 'compra' ? 'Libro de Compras' : 'Boletas de Honorarios'}</span>
                   </button>
                 ))}
               </div>
 
-              <h3 className="font-semibold text-gray-900 mb-3">2. Subir Archivo CSV</h3>
+              <h3 className="font-display text-xl font-bold text-gray-900 mb-3">2. Subir Archivo CSV</h3>
               <div onClick={() => fileRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all">
-                <Upload className="mx-auto text-gray-400 mb-3" size={32} />
+                className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/[0.03] transition-all">
+                <Upload className="mx-auto text-gray-400 mb-3" size={34} />
                 <p className="text-sm font-medium text-gray-700">Haz clic para seleccionar archivo</p>
                 <p className="text-xs text-gray-400 mt-1">CSV exportado desde portal.sii.cl</p>
               </div>
@@ -833,7 +843,10 @@ export default function SincronizacionSII() {
             {/* Panel derecho: preview */}
             <Card className="min-h-[680px]">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">3. Vista Previa y Confirmación</h3>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary">Paso 3</p>
+                  <h3 className="font-display text-xl font-bold text-gray-900">Vista Previa y Confirmación</h3>
+                </div>
                 {filasPreview.length > 0 && (
                   <button onClick={() => setFilasPreview([])} className="text-xs text-red-500 hover:underline flex items-center gap-1">
                     <Trash2 size={12}/> Limpiar
@@ -857,17 +870,17 @@ export default function SincronizacionSII() {
 
                   {/* Totales del archivo */}
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="p-2 bg-gray-50 rounded-lg text-center">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center">
                       <p className="text-[10px] text-gray-500">Neto</p>
-                      <p className="text-xs font-bold text-gray-900">{formatCurrency(netoPreview)}</p>
+                      <p className="font-data text-sm font-bold text-gray-900">{formatCurrency(netoPreview)}</p>
                     </div>
-                    <div className="p-2 bg-gray-50 rounded-lg text-center">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center">
                       <p className="text-[10px] text-gray-500">IVA</p>
-                      <p className="text-xs font-bold text-gray-900">{formatCurrency(ivaPreview)}</p>
+                      <p className="font-data text-sm font-bold text-gray-900">{formatCurrency(ivaPreview)}</p>
                     </div>
-                    <div className="p-2 bg-blue-50 rounded-lg text-center">
+                    <div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-center">
                       <p className="text-[10px] text-blue-600">Total</p>
-                      <p className="text-xs font-bold text-blue-800">{formatCurrency(totalPreview)}</p>
+                      <p className="font-data text-sm font-bold text-primary">{formatCurrency(totalPreview)}</p>
                     </div>
                   </div>
 
@@ -893,7 +906,7 @@ export default function SincronizacionSII() {
                     </div>
                   ) : null}
 
-                  <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                  <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                     <div>
                       <p className="font-bold text-emerald-800 text-sm">{filasPreview.length} documentos listos</p>
                       <p className="text-xs text-emerald-600">Vista previa (primeras 10 filas):</p>
@@ -901,7 +914,7 @@ export default function SincronizacionSII() {
                     <CheckCircle className="text-emerald-500" size={24} />
                   </div>
 
-                  <div className="max-h-[300px] overflow-y-auto space-y-1 text-xs custom-scrollbar">
+                  <div className="table-scroll max-h-[330px] space-y-1 text-xs custom-scrollbar">
                     {/* Cabecera de tabla */}
                     <div className="flex items-center gap-2 py-1 border-b-2 border-gray-200 font-semibold text-gray-500 sticky top-0 bg-white">
                       <span className="w-10 flex-shrink-0">DTE</span>
@@ -912,7 +925,7 @@ export default function SincronizacionSII() {
                     </div>
                     {filasPreview.slice(0, 10).map((f, i) => (
                       <div key={i} className="flex items-center justify-between py-1 border-b border-gray-100 gap-2">
-                        <span className="text-blue-600 font-mono font-bold w-10 flex-shrink-0">{TIPO_DOC_MAP[f.tipoDoc] ? f.tipoDoc : f.tipoDoc}</span>
+                        <span className="font-data w-10 flex-shrink-0 font-bold text-primary">{f.tipoDoc}</span>
                         <span className="text-gray-500 font-mono w-16 flex-shrink-0">{f.folio || '—'}</span>
                         <span className="text-gray-700 truncate flex-1">{f.razonSocial || f.rut || '(sin nombre)'}</span>
                         <span className="w-20 flex-shrink-0 text-center"><Badge variant={esDuplicada(f) ? 'warning' : tipoArchivo !== 'venta' && !cuentasPorRut[rutLimpio(f.rut)] ? 'danger' : 'success'}>{esDuplicada(f) ? 'Duplicado' : tipoArchivo !== 'venta' && !cuentasPorRut[rutLimpio(f.rut)] ? 'Sin cuenta' : 'Nuevo'}</Badge></span>
@@ -925,7 +938,7 @@ export default function SincronizacionSII() {
                   </div>
 
                   <button onClick={handleImport} disabled={isImporting}
-                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                    className="btn-primary w-full py-3 text-base disabled:opacity-60 disabled:cursor-not-allowed">
                     {isImporting
                       ? <><CloudCog className="animate-spin" size={18}/> Procesando {importProgress ? `${importProgress.hecho}/${importProgress.total}` : '...'}</>
                       : <><Download size={18}/> Confirmar e Importar {filasNuevas.length} documentos nuevos</>
@@ -934,7 +947,7 @@ export default function SincronizacionSII() {
                   {isImporting && importProgress && (
                     <div className="mt-2 h-1.5 w-full bg-blue-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-blue-600 transition-[width] duration-150"
+                        className="h-full bg-primary transition-[width] duration-150"
                         style={{ width: `${Math.round((importProgress.hecho / importProgress.total) * 100)}%` }}
                       />
                     </div>
