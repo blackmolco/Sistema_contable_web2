@@ -24,10 +24,23 @@ export default function ControlIntegridad() {
       if (cantidad > 1) lista.push({ id: `numero-${numero}`, nivel: 'critico', categoria: 'Correlativo duplicado', detalle: `${cantidad} comprobantes utilizan el número ${numero}.`, referencia: `Asiento #${numero}`, destino: '/asientos', accion: 'Revisar asientos' });
     });
 
+    // Una corrección contabilizada conserva el asiento original y crea dos
+    // movimientos técnicos: reverso + comprobante corregido. El original y
+    // el reverso pueden conservar el descuadre histórico de un comprobante
+    // antiguo, pero no deben volver a aparecer como errores después de que
+    // existe una corrección formal.
+    const idsCorregidos = new Set(
+      state.asientos
+        .filter(a => a.tipo?.startsWith('correccion:'))
+        .map(a => a.tipo!.slice('correccion:'.length))
+    );
+
     state.asientos.forEach(asiento => {
+      const esReversoTecnico = asiento.tipo?.startsWith('reverso:') ?? false;
+      const yaTieneCorreccion = idsCorregidos.has(asiento.id);
       const debe = asiento.detalles.reduce((s, d) => s + Number(d.debe || 0), 0);
       const haber = asiento.detalles.reduce((s, d) => s + Number(d.haber || 0), 0);
-      if (Math.abs(debe - haber) >= 1) lista.push({ id: `descuadre-${asiento.id}`, nivel: 'critico', categoria: 'Asiento descuadrado', detalle: `Debe ${formatCurrency(debe)} · Haber ${formatCurrency(haber)} · Diferencia ${formatCurrency(Math.abs(debe - haber))}.`, referencia: `#${asiento.numero} · ${formatDate(asiento.fecha)}`, destino: `/asientos?asientoId=${encodeURIComponent(asiento.id)}&modo=editar`, accion: 'Abrir para corregir' });
+      if (!esReversoTecnico && !yaTieneCorreccion && Math.abs(debe - haber) >= 1) lista.push({ id: `descuadre-${asiento.id}`, nivel: 'critico', categoria: 'Asiento descuadrado', detalle: `Debe ${formatCurrency(debe)} · Haber ${formatCurrency(haber)} · Diferencia ${formatCurrency(Math.abs(debe - haber))}.`, referencia: `#${asiento.numero} · ${formatDate(asiento.fecha)}`, destino: `/asientos?asientoId=${encodeURIComponent(asiento.id)}&modo=editar`, accion: 'Abrir para corregir' });
       asiento.detalles.forEach((d, i) => {
         const cuenta = cuentaPorId.get(d.cuentaId);
         if (cuenta?.requiereAuxiliar && !d.rutAuxiliar) lista.push({ id: `aux-${asiento.id}-${i}`, nivel: 'critico', categoria: 'Auxiliar sin RUT', detalle: `${d.cuentaCodigo} ${d.cuentaNombre} exige cliente, proveedor o prestador.`, referencia: `Asiento #${asiento.numero}`, destino: `/asientos?asientoId=${encodeURIComponent(asiento.id)}&modo=editar`, accion: 'Completar auxiliar' });
