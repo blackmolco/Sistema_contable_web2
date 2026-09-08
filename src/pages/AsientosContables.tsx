@@ -30,6 +30,7 @@ export default function AsientosContables() {
   const [showModal, setShowModal] = useState(false);
   const [editingAsiento, setEditingAsiento] = useState<AsientoContable | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmAnularId, setConfirmAnularId] = useState<string | null>(null);
   const [reversoId, setReversoId] = useState<string | null>(null);
   const [motivoReverso, setMotivoReverso] = useState('');
   const [motivoCorreccion, setMotivoCorreccion] = useState('');
@@ -384,6 +385,15 @@ export default function AsientosContables() {
     setConfirmDeleteId(null);
   };
 
+  const handleConfirmAnular = () => {
+    if (!confirmAnularId) return;
+    const asiento = state.asientos.find(a => a.id === confirmAnularId);
+    if (!asiento) return;
+    dispatch({ type: 'UPDATE_ASIENTO', payload: { ...asiento, estado: 'anulado' } });
+    showToast('success', 'Comprobante anulado', `El asiento #${asiento.numero} quedó fuera de los informes activos y conserva su historial.`);
+    setConfirmAnularId(null);
+  };
+
   const confirmarReverso = async () => {
     if (!reversoId || motivoReverso.trim().length < 3) return;
     try {
@@ -599,14 +609,14 @@ export default function AsientosContables() {
                         <button onClick={() => setReversoId(asiento.id)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg" title="Generar reverso"><Undo2 size={16} /></button>
                       )}
                       <button
-                        onClick={() => setConfirmDeleteId(asiento.id)}
-                        disabled={asiento.estado !== 'pendiente'}
+                        onClick={() => asiento.estado === 'pendiente' ? setConfirmDeleteId(asiento.id) : setConfirmAnularId(asiento.id)}
+                        disabled={asiento.estado === 'anulado'}
                         className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg
                           transition-[background-color,color] duration-150 active:scale-[0.95]"
-                        title="Eliminar"
-                        aria-label={`Eliminar asiento #${asiento.numero}`}
+                        title={asiento.estado === 'pendiente' ? 'Eliminar comprobante' : asiento.estado === 'anulado' ? 'Comprobante anulado' : 'Anular comprobante contabilizado'}
+                        aria-label={`${asiento.estado === 'pendiente' ? 'Eliminar' : 'Anular'} asiento #${asiento.numero}`}
                       >
-                        <Trash2 size={16} />
+                        {asiento.estado === 'pendiente' ? <Trash2 size={16} /> : <AlertCircle size={16} />}
                       </button>
                     </div>
                   </td>
@@ -971,6 +981,17 @@ export default function AsientosContables() {
         confirmText="Sí, eliminar"
         cancelText="Cancelar"
         variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={!!confirmAnularId}
+        onClose={() => setConfirmAnularId(null)}
+        onConfirm={handleConfirmAnular}
+        title="Anular comprobante contabilizado"
+        message="El comprobante no se eliminará físicamente. Quedará anulado, fuera de los informes activos y con su trazabilidad conservada. ¿Confirmas?"
+        confirmText="Sí, anular"
+        cancelText="Cancelar"
+        variant="warning"
       />
     </div>
   );

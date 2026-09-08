@@ -5,7 +5,7 @@ const { validate } = require('../middlewares/validate');
 const { parsePagination, paginatedResponse } = require('../middlewares/pagination');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
-const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
+const { exigirAccesoEmpresa, esAdmin } = require('../middlewares/empresaAccess');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -150,7 +150,14 @@ router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
         const actual = await prisma.documentoTributario.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
         if (!actual) return res.status(404).json({ error: 'Documento no encontrado' });
-        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
+        // Registros antiguos creados antes de activar el aislamiento por empresa
+        // pueden tener empresaId nulo. El administrador puede limpiarlos sin
+        // abrir acceso a usuarios normales ni afectar otra empresa.
+        if (actual.empresaId) {
+            if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
+        } else if (!esAdmin(req.usuario)) {
+            return res.status(403).json({ error: 'Solo un administrador puede eliminar un documento sin empresa asociada' });
+        }
         await prisma.documentoTributario.delete({ where: { id: req.params.id } });
         await auditLog(req.usuario.id, 'ELIMINAR', 'DocumentoTributario', req.params.id, {}, req.ip, req.headers['user-agent']);
         res.json({ message: 'Documento eliminado' });
