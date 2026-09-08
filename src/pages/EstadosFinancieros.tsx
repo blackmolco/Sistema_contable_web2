@@ -72,6 +72,22 @@ export default function EstadosFinancieros() {
     return mapa;
   }, [state.asientos, state.cuentas, fechaCorte, inicioEjercicio]);
 
+  // Si el ejercicio anterior aún no tiene un asiento formal de cierre, su
+  // resultado debe presentarse como patrimonio acumulado. De lo contrario el
+  // Balance General queda descuadrado aunque los movimientos del año actual
+  // estén correctamente contabilizados.
+  const resultadoAcumuladoAnterior = useMemo(() => {
+    const tipos = new Map(state.cuentas.map(c => [c.codigo, c.tipo]));
+    return state.asientos
+      .filter(a => a.estado !== 'anulado' && a.fecha.slice(0, 10) < inicioEjercicio)
+      .reduce((total, asiento) => total + asiento.detalles.reduce((subtotal, detalle) => {
+        const tipo = tipos.get(detalle.cuentaCodigo);
+        if (tipo === 'ingreso') return subtotal + detalle.haber - detalle.debe;
+        if (tipo === 'gasto') return subtotal - detalle.debe + detalle.haber;
+        return subtotal;
+      }, 0), 0);
+  }, [state.asientos, state.cuentas, inicioEjercicio]);
+
   // 2. Saldo neto por cuenta (según su naturaleza)
   const filas = useMemo((): FilaCuenta[] => {
     const resultado: FilaCuenta[] = [];
@@ -91,8 +107,16 @@ export default function EstadosFinancieros() {
         saldo,
       });
     }
+    if (Math.abs(resultadoAcumuladoAnterior) >= 0.5) {
+      resultado.push({
+        codigo: '9-RESULTADO-ANTERIOR',
+        nombre: 'Resultado acumulado de ejercicios anteriores',
+        tipo: 'patrimonio',
+        saldo: resultadoAcumuladoAnterior,
+      });
+    }
     return resultado.sort((a, b) => a.codigo.localeCompare(b.codigo));
-  }, [state.cuentas, saldosPorCuenta]);
+  }, [state.cuentas, saldosPorCuenta, resultadoAcumuladoAnterior]);
 
   // 3. Agrupar por categoría contable
   const activosCorrientes   = useMemo(() => filas.filter(f => f.tipo === 'activo'     &&  esActivoCorriente(f.codigo)), [filas]);

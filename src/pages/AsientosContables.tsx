@@ -53,6 +53,7 @@ export default function AsientosContables() {
   // Id de la Entidad elegida en el SearchSelect (distinto del rut/nombre que
   // ya viajan en nuevaLinea, porque el SearchSelect trabaja con ids).
   const [entidadElegidaId, setEntidadElegidaId] = useState('');
+  const [indiceLineaEditando, setIndiceLineaEditando] = useState<number | null>(null);
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showPlantillasModal, setShowPlantillasModal] = useState(false);
@@ -199,6 +200,7 @@ export default function AsientosContables() {
     });
     setNuevaLinea({ cuentaId: '', debe: 0, haber: 0, rutAuxiliar: '', nombreAuxiliar: '', documentoId: '' });
     setEntidadElegidaId('');
+    setIndiceLineaEditando(null);
     setFormErrors({});
     setShowModal(true);
   };
@@ -212,6 +214,7 @@ export default function AsientosContables() {
     });
     setNuevaLinea({ cuentaId: '', debe: 0, haber: 0, rutAuxiliar: '', nombreAuxiliar: '', documentoId: '' });
     setEntidadElegidaId('');
+    setIndiceLineaEditando(null);
     setFormErrors({});
     setShowModal(true);
   };
@@ -251,15 +254,42 @@ export default function AsientosContables() {
       } : {}),
     };
 
-    setFormData({ ...formData, detalles: [...formData.detalles, linea] });
+    const nuevosDetalles = [...formData.detalles];
+    if (indiceLineaEditando === null) nuevosDetalles.push(linea);
+    else nuevosDetalles[indiceLineaEditando] = linea;
+    setFormData({ ...formData, detalles: nuevosDetalles });
     setNuevaLinea({ cuentaId: '', debe: 0, haber: 0, rutAuxiliar: '', nombreAuxiliar: '', documentoId: '' });
     setEntidadElegidaId('');
+    setIndiceLineaEditando(null);
+  };
+
+  const editarLinea = (index: number) => {
+    const detalle = formData.detalles[index];
+    if (!detalle) return;
+    const entidad = (state.entidades ?? []).find(e =>
+      e.rut.replace(/[^0-9kK]/g, '').toUpperCase() === (detalle.rutAuxiliar ?? '').replace(/[^0-9kK]/g, '').toUpperCase()
+    );
+    setNuevaLinea({
+      cuentaId: detalle.cuentaId,
+      debe: detalle.debe,
+      haber: detalle.haber,
+      rutAuxiliar: detalle.rutAuxiliar ?? '',
+      nombreAuxiliar: detalle.nombreAuxiliar ?? '',
+      documentoId: detalle.documentoId ?? '',
+    });
+    setEntidadElegidaId(entidad?.id ?? '');
+    setIndiceLineaEditando(index);
   };
 
   const eliminarLinea = (index: number) => {
     const nuevosDetalles = [...formData.detalles];
     nuevosDetalles.splice(index, 1);
     setFormData({ ...formData, detalles: nuevosDetalles });
+    if (indiceLineaEditando === index) {
+      setIndiceLineaEditando(null);
+      setNuevaLinea({ cuentaId: '', debe: 0, haber: 0, rutAuxiliar: '', nombreAuxiliar: '', documentoId: '' });
+      setEntidadElegidaId('');
+    }
   };
 
   const totales = {
@@ -705,6 +735,14 @@ export default function AsientosContables() {
                       </td>
                       <td className="px-3 py-2 text-center">
                         <button
+                          onClick={() => editarLinea(index)}
+                          className={`mr-1 rounded p-1 transition-[background-color,color] duration-150 ${indiceLineaEditando === index ? 'bg-primary/10 text-primary' : 'text-gray-400 hover:bg-primary/10 hover:text-primary'}`}
+                          title="Editar línea"
+                          aria-label={`Editar línea ${index + 1}`}
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
                           onClick={() => eliminarLinea(index)}
                           className="p-1 text-red-400 dark:text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded
                             transition-[background-color,color] duration-150 active:scale-[0.93]"
@@ -729,6 +767,12 @@ export default function AsientosContables() {
 
             {/* Agregar línea */}
             <div className="p-3 bg-gray-50/50 dark:bg-gray-800/40 border-t border-gray-200 dark:border-gray-700 rounded-b-lg space-y-2">
+              {indiceLineaEditando !== null && (
+                <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">
+                  <span>Editando línea {indiceLineaEditando + 1}. Modifica la cuenta o el monto y guarda los cambios.</span>
+                  <button type="button" onClick={() => { setIndiceLineaEditando(null); setNuevaLinea({ cuentaId: '', debe: 0, haber: 0, rutAuxiliar: '', nombreAuxiliar: '', documentoId: '' }); setEntidadElegidaId(''); }} className="font-semibold hover:underline">Cancelar</button>
+                </div>
+              )}
               <div className="grid grid-cols-4 gap-2 items-end">
                 <div className="col-span-2">
                   <SearchSelect
@@ -776,7 +820,7 @@ export default function AsientosContables() {
               )}
               <div className="mt-2 flex justify-end">
                 <Button size="sm" variant="secondary" onClick={agregarLinea}>
-                  + Agregar línea
+                  {indiceLineaEditando === null ? '+ Agregar línea' : 'Guardar cambios de línea'}
                 </Button>
               </div>
             </div>

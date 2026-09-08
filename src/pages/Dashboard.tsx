@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   TrendingUp,
   ShoppingCart,
-  Users,
   FileText,
   Sparkles,
   Settings,
@@ -153,7 +152,10 @@ const DraggableWidget = React.memo(function DraggableWidget({
 export default function Dashboard() {
   const navigate = useNavigate();
   const { state, showToast } = useApp();
-  const periodoActual = getNombreMes(new Date().getMonth() + 1);
+  const hoyDashboard = new Date();
+  const [periodoDashboard, setPeriodoDashboard] = useState(`${hoyDashboard.getFullYear()}-${String(hoyDashboard.getMonth() + 1).padStart(2, '0')}`);
+  const [anioDashboard, mesDashboard] = periodoDashboard.split('-').map(Number);
+  const periodoActual = getNombreMes(mesDashboard);
   const { indicadores, loading: loadingIndicadores } = useIndicadores();
 
   const [tareas, setTareas] = useState<Tarea[]>(() => {
@@ -284,51 +286,46 @@ export default function Dashboard() {
   }, []);
 
   // Calcular métricas (memoizadas)
-  const totalVentas = useMemo(
-    () => state.documentos
-      .filter((d) => d.tipo === 'factura' && d.estado === 'emitido')
-      .reduce((sum, d) => sum + d.total, 0),
-    [state.documentos]
-  );
-
-  const totalGastos = useMemo(
-    () => state.asientos
-      .filter((a) => a.estado === 'contabilizado')
-      .reduce((sum, a) => sum + a.detalles
-        .filter((d) => d.cuentaCodigo.startsWith('5'))
-        .reduce((s, d) => s + d.debe, 0), 0),
-    [state.asientos]
-  );
-
-  const totalTrabajadores = useMemo(() => state.trabajadores.length, [state.trabajadores]);
-  const documentosPendientes = useMemo(
-    () => state.documentos.filter((d) => d.estado === 'emitido').length,
-    [state.documentos]
-  );
+  const documentosPeriodo = useMemo(() => state.documentos.filter(d => {
+    const fecha = String(d.fecha || d.fechaEmision || '').slice(0, 7);
+    return fecha === periodoDashboard && d.estado !== 'anulado';
+  }), [state.documentos, periodoDashboard]);
+  const esCompra = (d: typeof state.documentos[number]) => d.libro === 'compras' || d.tipo === 'factura_compra' || (d as typeof d & { tipoTransaccion?: string }).tipoTransaccion === 'compra';
+  const totalVentas = useMemo(() => documentosPeriodo.filter(d => !esCompra(d)).reduce((sum, d) => sum + (d.total || 0), 0), [documentosPeriodo]);
+  const totalCompras = useMemo(() => documentosPeriodo.filter(esCompra).reduce((sum, d) => sum + (d.total || 0), 0), [documentosPeriodo]);
+  const ivaNeto = useMemo(() => documentosPeriodo.reduce((sum, d) => sum + (esCompra(d) ? -(d.iva || 0) : (d.iva || 0)), 0), [documentosPeriodo]);
+  const asientosDelMes = useMemo(() => state.asientos.filter(a => String(a.fecha).slice(0, 7) === periodoDashboard && a.estado !== 'anulado'), [state.asientos, periodoDashboard]);
 
   // ========== DATOS COMPUTADOS DESDE EL ESTADO REAL ==========
   const datosMensuales = useMemo(() => {
     const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    const agrupado: Record<number, { ventas: number; compras: number; gastos: number }> = {};
+    const agrupado: Record<number, { ventas: number; compras: number; gastos: number; iva: number; asientos: number }> = {};
     
     // Agrupar documentos por mes
     state.documentos.forEach(d => {
-      const m = new Date(d.fecha || d.fechaEmision || '').getMonth();
+      const fecha = String(d.fecha || d.fechaEmision || '');
+      if (!fecha.startsWith(`${anioDashboard}-` ) || d.estado === 'anulado') return;
+      const m = Number(fecha.slice(5, 7)) - 1;
       if (isNaN(m)) return;
-      if (!agrupado[m]) agrupado[m] = { ventas: 0, compras: 0, gastos: 0 };
+      if (!agrupado[m]) agrupado[m] = { ventas: 0, compras: 0, gastos: 0, iva: 0, asientos: 0 };
       const total = d.total || d.montoTotal || 0;
-      if (d.tipo === 'factura' || d.tipoTransaccion === 'venta') {
+      if (!esCompra(d)) {
         agrupado[m].ventas += total;
+        agrupado[m].iva += d.iva || 0;
       } else {
         agrupado[m].compras += total;
+        agrupado[m].iva -= d.iva || 0;
       }
     });
 
     // Agrupar asientos por mes (gastos = cuentas código 5xx)
     state.asientos.forEach(a => {
-      const m = new Date(a.fecha).getMonth();
+      const fecha = String(a.fecha);
+      if (!fecha.startsWith(`${anioDashboard}-`) || a.estado === 'anulado') return;
+      const m = Number(fecha.slice(5, 7)) - 1;
       if (isNaN(m)) return;
-      if (!agrupado[m]) agrupado[m] = { ventas: 0, compras: 0, gastos: 0 };
+      if (!agrupado[m]) agrupado[m] = { ventas: 0, compras: 0, gastos: 0, iva: 0, asientos: 0 };
+      agrupado[m].asientos += 1;
       a.detalles?.forEach(det => {
         if (det.cuentaCodigo?.startsWith('5')) {
           agrupado[m].gastos += det.debe || 0;
@@ -341,8 +338,10 @@ export default function Dashboard() {
       ventas: agrupado[i]?.ventas || 0,
       compras: agrupado[i]?.compras || 0,
       gastos: agrupado[i]?.gastos || 0,
+      iva: agrupado[i]?.iva || 0,
+      asientos: agrupado[i]?.asientos || 0,
     }));
-  }, [state.documentos, state.asientos]);
+  }, [state.documentos, state.asientos, anioDashboard]);
 
   // Datos de distribución desde gastos reales
   const datosDistribucion = useMemo(() => {
@@ -472,11 +471,11 @@ export default function Dashboard() {
           />
         );
       case 'kpi': {
-        // Sparkline: últimos 6 meses de ventas/gastos para cada KPI
-        const ventasSpark = datosMensuales.slice(-6).map(d => d.ventas || Math.random() * 500000 + 100000);
-        const comprasSpark = datosMensuales.slice(-6).map(d => d.compras || Math.random() * 300000 + 80000);
-        const nominaSpark = [1200000,1350000,1500000,1480000,1520000, totalTrabajadores * 1500000];
-        const impSpark    = [180000,220000,190000,240000,210000, documentosPendientes * 200000 || 195000];
+        // Las tarjetas usan únicamente datos reales del período seleccionado.
+        const ventasSpark = datosMensuales.slice(-6).map(d => d.ventas);
+        const comprasSpark = datosMensuales.slice(-6).map(d => d.compras);
+        const asientosSpark = datosMensuales.slice(-6).map(d => d.asientos);
+        const ivaSpark = datosMensuales.slice(-6).map(d => d.iva);
         return (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <KPICard
@@ -491,31 +490,30 @@ export default function Dashboard() {
             />
             <KPICard
               title="Compras del Mes"
-              value={formatCurrency(totalGastos)}
-              subtitle="Proveedores y gastos"
+              value={formatCurrency(totalCompras)}
+              subtitle="Facturas de compra"
               icon={ShoppingCart}
-              trend={totalGastos > 0 ? { value: -3.2, label: 'vs mes anterior' } : undefined}
               variant="default"
               animateValue
               sparklineData={comprasSpark}
             />
             <KPICard
-              title="Nómina"
-              value={formatCurrency(totalTrabajadores * 1500000)}
-              subtitle={`${totalTrabajadores} trabajador${totalTrabajadores !== 1 ? 'es' : ''}`}
-              icon={Users}
+              title="Asientos del Mes"
+              value={String(asientosDelMes.length)}
+              subtitle="Comprobantes registrados"
+              icon={FileText}
               variant="warning"
               animateValue
-              sparklineData={nominaSpark}
+              sparklineData={asientosSpark}
             />
             <KPICard
-              title="Impuestos Pendientes"
-              value={formatCurrency(documentosPendientes * 200000)}
-              subtitle="PPM e IVA a pagar"
+              title="IVA Neto del Mes"
+              value={formatCurrency(ivaNeto)}
+              subtitle="Débito fiscal menos crédito fiscal"
               icon={FileText}
               variant="danger"
               animateValue
-              sparklineData={impSpark}
+              sparklineData={ivaSpark}
             />
           </div>
         );
@@ -733,7 +731,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Dashboard</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Resumen de {periodoActual} {new Date().getFullYear()}
+            Resumen de {periodoActual} {anioDashboard}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -748,8 +746,11 @@ export default function Dashboard() {
             <Settings size={16} />
             <span className="text-sm">Personalizar</span>
           </button>
-          <select className="input-modern px-3 py-2 text-sm">
-            <option>{periodoActual} {new Date().getFullYear()}</option>
+          <select className="input-modern px-3 py-2 text-sm" value={periodoDashboard} onChange={e => setPeriodoDashboard(e.target.value)}>
+            {Array.from({ length: 12 }, (_, i) => {
+              const value = `${anioDashboard}-${String(i + 1).padStart(2, '0')}`;
+              return <option key={value} value={value}>{getNombreMes(i + 1)} {anioDashboard}</option>;
+            })}
           </select>
         </div>
       </div>

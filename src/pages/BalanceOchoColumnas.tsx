@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { Card } from '../components/ui/Cards';
-import { Button, Input } from '../components/ui/FormElements';
+import { Button, Select } from '../components/ui/FormElements';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDate } from '../utils/calculos';
 import { getBrandRgb } from '../utils/brandColor';
@@ -21,8 +21,16 @@ const celda = (valor: number) => valor ? formatCurrency(valor) : '';
 export default function BalanceOchoColumnas() {
   const { state } = useApp();
   const hoy = new Date();
-  const [fechaInicio, setFechaInicio] = useState(`${hoy.getFullYear()}-01-01`);
-  const [fechaFin, setFechaFin] = useState(hoy.toISOString().slice(0, 10));
+  const [anioCorte, setAnioCorte] = useState(String(hoy.getFullYear()));
+  const [mesCorte, setMesCorte] = useState(String(hoy.getMonth() + 1));
+  const [tipoCorte, setTipoCorte] = useState<'mensual' | 'anual'>('mensual');
+  const aniosDisponibles = Array.from(new Set((state.asientos ?? []).map(a => new Date(a.fecha).getFullYear())))
+    .sort((a, b) => b - a);
+  if (!aniosDisponibles.includes(hoy.getFullYear())) aniosDisponibles.unshift(hoy.getFullYear());
+  const fechaInicio = `${anioCorte}-01-01`;
+  const ultimoMes = tipoCorte === 'anual' ? 12 : Number(mesCorte);
+  const fechaFin = `${anioCorte}-${String(ultimoMes).padStart(2, '0')}-${new Date(Number(anioCorte), ultimoMes, 0).getDate()}`;
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
   const filas = useMemo<FilaBalance8[]>(() => {
     const movimientos = new Map<string, { nombre: string; tipo: string; anteriorDebe: number; anteriorHaber: number; periodoDebe: number; periodoHaber: number }>();
@@ -132,7 +140,7 @@ export default function BalanceOchoColumnas() {
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Balance de 8 Columnas</h1><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Balance de comprobacion y saldos del periodo</p></div><div className="flex gap-2"><Button variant="secondary" icon={<FileSpreadsheet size={16}/>} onClick={exportarExcel} disabled={!filas.length}>Traspasar a Excel</Button><Button icon={<Download size={16}/>} onClick={exportarPDF} disabled={!filas.length}>Descargar PDF</Button></div></div>
-    <Card><div className="grid gap-4 sm:grid-cols-2"><Input type="date" label="Desde" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)}/><Input type="date" label="Hasta" value={fechaFin} onChange={e => setFechaFin(e.target.value)}/></div><p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Las cuentas de activo, pasivo y patrimonio incluyen automáticamente el saldo de apertura anterior a la fecha inicial. Las cuentas de resultado comienzan en cero cada año.</p></Card>
+    <Card><div className="grid gap-4 sm:grid-cols-3"><Select label="Tipo de corte" value={tipoCorte} onChange={e => setTipoCorte(e.target.value as 'mensual' | 'anual')} options={[{ value: 'mensual', label: 'Mensual acumulado' }, { value: 'anual', label: 'Año completo' }]} /><Select label="Año" value={anioCorte} onChange={e => setAnioCorte(e.target.value)} options={aniosDisponibles.map(a => ({ value: String(a), label: String(a) }))} /><Select label="Mes de corte" value={mesCorte} disabled={tipoCorte === 'anual'} onChange={e => setMesCorte(e.target.value)} options={meses.map((label, i) => ({ value: String(i + 1), label }))} /></div><p className="mt-3 text-xs text-gray-500 dark:text-gray-400">{tipoCorte === 'anual' ? `Acumulado del año ${anioCorte}` : `Acumulado desde enero hasta ${meses[Number(mesCorte) - 1]} de ${anioCorte}`}. Las cuentas permanentes incluyen sus saldos de apertura.</p></Card>
     {!filas.length ? <Card><div className="flex flex-col items-center gap-3 py-12 text-gray-400"><AlertCircle size={36}/><p>No hay movimientos en el periodo seleccionado.</p></div></Card> : <Card padding="none">
       <div className="max-h-[68vh] overflow-auto"><table className="w-full min-w-[1280px] border-collapse text-xs"><thead className="sticky top-0 z-10 text-white"><tr className="bg-primary"><th rowSpan={2} className="border border-white/20 px-2 py-3 text-left">Codigo</th><th rowSpan={2} className="min-w-64 border border-white/20 px-2 py-3 text-left">Cuenta</th>{['Sumas','Saldos','Inventario','Resultados'].map(x=><th key={x} colSpan={2} className="border border-white/20 px-2 py-2">{x}</th>)}</tr><tr className="bg-[var(--brand-dark)]">{['Debe','Haber','Deudor','Acreedor','Activo','Pasivo','Perdida','Ganancia'].map(x=><th key={x} className="border border-white/20 px-2 py-2 text-right">{x}</th>)}</tr></thead>
       <tbody>{filas.map((f,i)=><tr key={f.codigo} className={i%2?'bg-gray-50 dark:bg-gray-800/40':'bg-white dark:bg-gray-900'}><td className="border px-2 py-2 font-data dark:border-gray-700">{f.codigo}</td><td className="border px-2 py-2 dark:border-gray-700">{f.nombre}</td>{valores(f).map((v,j)=><td key={j} className="border px-2 py-2 text-right font-data tabular-nums dark:border-gray-700">{celda(v)}</td>)}</tr>)}</tbody>
