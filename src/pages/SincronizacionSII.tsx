@@ -10,7 +10,7 @@ import { SearchSelect } from '../components/ui/FormElements';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useApp } from '../context/AppContext';
 import { formatRUT, formatCurrency, generateId } from '../utils/calculos';
-import { fetchImportacionesSII, finalizarImportacionSII, ingresoDocumento, iniciarImportacionSII, ImportacionSII, IngresoDocumentoPayload } from '../services/apiSync';
+import { cerrarImportacionInterrumpida, fetchImportacionesSII, finalizarImportacionSII, ingresoDocumento, iniciarImportacionSII, ImportacionSII, IngresoDocumentoPayload, revertirImportacionSII } from '../services/apiSync';
 
 // ─── Tipo interno ──────────────────────────────────────────────────────────────
 interface FilaRCV {
@@ -329,6 +329,7 @@ export default function SincronizacionSII() {
   const [backendStatus, setBackendStatus] = useState<'unknown'|'online'|'offline'>('unknown');
   const [nombreArchivo, setNombreArchivo] = useState('');
   const [historialImportaciones, setHistorialImportaciones] = useState<ImportacionSII[]>([]);
+  const [revirtiendo, setRevirtiendo] = useState<string | null>(null);
 
   // Verificar disponibilidad del backend al cargar
   useEffect(() => {
@@ -758,7 +759,7 @@ export default function SincronizacionSII() {
                   <td className="px-2 py-2 text-gray-600">{new Date(lote.createdAt).toLocaleString('es-CL')}</td>
                   <td className="px-2 py-2 capitalize">{lote.tipo}</td><td className="max-w-[220px] truncate px-2 py-2" title={lote.nombreArchivo}>{lote.nombreArchivo || 'Sin archivo'}</td>
                   <td className="px-2 py-2 text-right font-data">{lote.totalRegistros}</td><td className="px-2 py-2 text-right font-data text-emerald-700">{lote.nuevos}</td><td className="px-2 py-2 text-right font-data text-amber-700">{lote.duplicados}</td>
-                  <td className="px-2 py-2"><div className="flex items-center gap-2"><Badge variant={lote.estado === 'completada' ? 'success' : lote.estado === 'con_errores' ? 'warning' : 'danger'}>{lote.estado.replace('_', ' ')}</Badge>{['completada', 'con_errores'].includes(lote.estado) && <button type="button" disabled={revirtiendo === lote.id} onClick={async () => { if (!window.confirm('¿Revertir este lote? Se eliminarán sus documentos y asientos importados.')) return; setRevirtiendo(lote.id); try { await revertirImportacionSII(lote.id); showToast('success', 'Lote revertido', 'Se eliminaron los documentos y asientos de esta carga.'); setHistorialImportaciones(actual => actual.map(x => x.id === lote.id ? { ...x, estado: 'revertida' } : x)); window.dispatchEvent(new Event('scc:login')); } catch (e) { showToast('error', 'No se pudo revertir', e instanceof Error ? e.message : 'Error inesperado'); } finally { setRevirtiendo(null); } }} className="text-xs text-red-600 hover:underline disabled:opacity-50">{revirtiendo === lote.id ? 'Revirtiendo…' : 'Revertir'}</button>}</div></td>
+                  <td className="px-2 py-2"><div className="flex items-center gap-2"><Badge variant={lote.estado === 'completada' ? 'success' : lote.estado === 'con_errores' ? 'warning' : 'danger'}>{lote.estado.replace('_', ' ')}</Badge>{lote.estado === 'procesando' && <button type="button" disabled={revirtiendo === lote.id} onClick={async () => { if (!window.confirm('La carga fue interrumpida. ¿Marcarla como incompleta para revisarla o revertirla?')) return; setRevirtiendo(lote.id); try { await cerrarImportacionInterrumpida(lote.id); showToast('warning', 'Lote cerrado como incompleto', 'Puedes revisar los documentos cargados o revertir este lote.'); setHistorialImportaciones(actual => actual.map(x => x.id === lote.id ? { ...x, estado: 'fallida' } : x)); } catch (e) { showToast('error', 'No se pudo cerrar', e instanceof Error ? e.message : 'Error inesperado'); } finally { setRevirtiendo(null); } }} className="text-xs text-amber-700 hover:underline disabled:opacity-50">Cerrar incompleta</button>}{['completada', 'con_errores', 'fallida'].includes(lote.estado) && <button type="button" disabled={revirtiendo === lote.id} onClick={async () => { if (!window.confirm('¿Revertir este lote? Se eliminarán sus documentos y asientos importados.')) return; setRevirtiendo(lote.id); try { await revertirImportacionSII(lote.id); showToast('success', 'Lote revertido', 'Se eliminaron los documentos y asientos de esta carga.'); setHistorialImportaciones(actual => actual.map(x => x.id === lote.id ? { ...x, estado: 'revertida' } : x)); window.dispatchEvent(new Event('scc:login')); } catch (e) { showToast('error', 'No se pudo revertir', e instanceof Error ? e.message : 'Error inesperado'); } finally { setRevirtiendo(null); } }} className="text-xs text-red-600 hover:underline disabled:opacity-50">{revirtiendo === lote.id ? 'Procesando…' : 'Revertir'}</button>}</div></td>
                 </tr>
               ))}</tbody>
             </table>

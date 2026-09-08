@@ -582,6 +582,14 @@ export async function fetchImportacionesSII(): Promise<ImportacionSII[]> {
   return apiFetch<ImportacionSII[]>(`/api/importaciones-sii?empresaId=${encodeURIComponent(empresaId || '')}`);
 }
 
+export async function revertirImportacionSII(id: string): Promise<{ eliminados: number; asientosEliminados: number }> {
+  return apiFetch<{ eliminados: number; asientosEliminados: number }>(`/api/importaciones-sii/${id}/revertir`, { method: 'POST' });
+}
+
+export async function cerrarImportacionInterrumpida(id: string): Promise<ImportacionSII> {
+  return apiFetch<ImportacionSII>(`/api/importaciones-sii/${id}/cerrar`, { method: 'POST' });
+}
+
 
 const BACKEND_TIPO_ENUM = ['factura', 'factura_exenta', 'boleta', 'nota_credito', 'nota_debito', 'guia_despacho', 'compra'] as const;
 const BACKEND_ESTADO_ENUM = ['emitido', 'recibido', 'pendiente', 'vencido', 'pagado', 'anulado'] as const;

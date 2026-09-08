@@ -66,13 +66,33 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Cierra un lote que quedó abierto porque el navegador se cerró o perdió la
+// conexión. No elimina datos: deja el lote disponible para revisión o reverso.
+router.post('/:id/cerrar', authenticateToken, async (req, res) => {
+  try {
+    const lote = await prisma.importacionSII.findUnique({ where: { id: req.params.id } });
+    if (!lote) return res.status(404).json({ error: 'Importación no encontrada' });
+    if (!exigirAccesoEmpresa(req, res, lote.empresaId)) return;
+    if (lote.estado !== 'procesando') return res.status(409).json({ error: 'El lote ya fue cerrado' });
+    const row = await prisma.importacionSII.update({
+      where: { id: lote.id },
+      data: { estado: 'fallida', detalleErrores: 'Carga interrumpida antes de finalizar. Revise los documentos importados o revierta el lote.' },
+    });
+    await auditLog(req.usuario.id, 'CERRAR_IMPORTACION_INTERRUPTA', 'ImportacionSII', row.id, {}, req.ip, req.headers['user-agent']);
+    res.json(row);
+  } catch (err) {
+    logger.error({ err }, 'Error cerrando importación interrumpida');
+    res.status(500).json({ error: 'No se pudo cerrar la importación' });
+  }
+});
+
 router.post('/:id/revertir', authenticateToken, async (req, res) => {
   try {
     const lote = await prisma.importacionSII.findUnique({ where: { id: req.params.id } });
     if (!lote) return res.status(404).json({ error: 'Importación no encontrada' });
     if (!exigirAccesoEmpresa(req, res, lote.empresaId)) return;
     if (lote.estado === 'revertida') return res.status(409).json({ error: 'El lote ya fue revertido' });
-    if (lote.estado === 'procesando') return res.status(409).json({ error: 'No se puede revertir un lote en proceso' });
+    if (lote.estado === 'procesando') return res.status(409).json({ error: 'Cierre primero la importación interrumpida' });
 
     const resultado = await prisma.$transaction(async (tx) => {
       const [documentos, honorarios, asientos] = await Promise.all([
