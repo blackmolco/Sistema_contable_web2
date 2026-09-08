@@ -56,7 +56,14 @@ function reglaHonorario({ montoBruto, retencion, montoLiquido, cuentaGastoHonora
  * (la cuenta de gasto/activo que el usuario eligió).
  */
 async function lineasParaDocumento(tx, empresaId, { tipo, tipoTransaccion, neto = 0, exento = 0, iva = 0, total, cuentaGastoId, entidad, documentoId }) {
-    const netoTotal = (neto || 0) + (exento || 0);
+    // total - iva (no neto+exento) para que el asiento siempre cuadre por
+    // construcción. El RCV del SII trae documentos con un "otro impuesto"
+    // (tabaco, combustible, alcohol — códigos 28/35) que se suma al Monto
+    // Total pero no aparece ni en Neto ni en IVA Recuperable — con
+    // neto+exento esos 16 casos (de 129 compras reales) quedaban
+    // descuadrados. Para el caso normal (sin otro impuesto) total-iva es
+    // exactamente igual a neto+exento, así que no cambia nada.
+    const netoTotal = (total || 0) - (iva || 0);
     const invertido = tipo === 'nota_credito';
 
     if (tipoTransaccion === 'venta') {
