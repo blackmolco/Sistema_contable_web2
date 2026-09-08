@@ -46,6 +46,7 @@ const ingresoSchema = z.object({
     total: z.number().positive().optional(),
     cuentaGastoId: z.string().min(1).optional().nullable(),
     cuentaIngresoId: z.string().min(1).optional().nullable(),
+    cuentaHonorarioId: z.string().min(1).optional().nullable(),
     origenImportacionSII: z.boolean().optional().default(false),
     montoBruto: z.number().min(0).optional(),
     retencion: z.number().min(0).optional(),
@@ -102,18 +103,31 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                 if (body.montoBruto == null || body.retencion == null || body.montoLiquido == null || !body.periodo) {
                     throw Object.assign(new Error('Faltan montoBruto/retencion/montoLiquido/periodo para la boleta de honorarios'), { status: 400 });
                 }
+                const rutHonorario = entidad.rut.replace(/[^0-9kK]/g, '').toUpperCase();
+                const claveHonorario = body.folio ? ['honorario', rutHonorario, body.fecha, body.folio].join('|') : null;
+                if (claveHonorario) {
+                    const duplicadoHonorario = await tx.honorario.findFirst({
+                        where: { empresaId, claveImportacion: claveHonorario },
+                        select: { id: true },
+                    });
+                    if (duplicadoHonorario) {
+                        throw Object.assign(new Error(`Boleta de honorarios duplicada: folio ${body.folio} del RUT ${entidad.rut}`), { status: 409 });
+                    }
+                }
                 const honorarioId = require('crypto').randomUUID();
                 const honorario = await tx.honorario.create({
                     data: {
                         id: honorarioId,
                         rut: entidad.rut,
                         nombre: entidad.razonSocial,
+                        folio: body.folio || null,
                         direccion: entidad.direccion || null,
                         periodo: body.periodo,
                         montoBruto: body.montoBruto,
                         retencion: body.retencion,
                         montoLiquido: body.montoLiquido,
                         estado: 'pendiente',
+                        claveImportacion: claveHonorario,
                         empresaId,
                     },
                 });
@@ -123,6 +137,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                     montoLiquido: body.montoLiquido,
                     entidad,
                     documentoId: honorario.id,
+                    cuentaHonorarioId: body.cuentaHonorarioId || null,
                 });
                 const asiento = await crearAsiento(tx, {
                     empresaId,

@@ -297,6 +297,7 @@ export interface Honorario {
   id: string;
   rut: string;
   nombre: string;
+  folio?: number;
   direccion: string;
   periodo: string;
   montoBruto: number;

@@ -23,7 +23,10 @@ interface FilaRCV {
   exento: number;
   iva: number;
   total: number;
-  tipo: 'venta' | 'compra';
+  tipo: 'venta' | 'compra' | 'honorario';
+  montoBruto?: number;
+  retencion?: number;
+  montoLiquido?: number;
 }
 
 // Mapeo SII código → tipo interno
@@ -129,7 +132,7 @@ function resolverCol(colMap: Record<string, number>, aliases: string[]): number 
 //   Libro Ventas:   Nro; Tipo Doc; Tipo Venta; RUT; Razón Social; Folio; Fecha Docto; Fecha Vencim.; M. Neto; M. Exento; IVA Rec.; Ivs No Rec.; M. Total
 //   Libro Compras:  Nro; Tipo Doc; RUT; Razón Social; Folio; Fecha Docto; Fecha Vencim.; M. Neto; M. Exento; IVA Rec.; IVA No Rec.; M. Total
 //   Boletas:        Nro; Tipo Doc; Tipo Venta; Folio Desde; Folio Hasta; Fecha Docto; M. Neto; M. Exento; IVA; M. Total
-function parsearCSVSII(texto: string, tipoLibro: 'venta' | 'compra'): { filas: FilaRCV[]; debug: string } {
+function parsearCSVSII(texto: string, tipoLibro: 'venta' | 'compra' | 'honorario'): { filas: FilaRCV[]; debug: string } {
   const lineasRaw = texto.split('\n');
   const lineas    = lineasRaw.map(l => l.trim()).filter(l => l.length > 0);
 
@@ -170,7 +173,7 @@ function parsearCSVSII(texto: string, tipoLibro: 'venta' | 'compra'): { filas: F
     // "Tipo Doc" → tipodoc; también: tipodocumento, codtipodoc
     tipo    : resolverCol(colMap, ['tipodoc', 'tipodocumento', 'codigodoc', 'tipo']),
     // "Folio" → folio; "Folio Desde" → foliodesde (boletas)
-    folio   : resolverCol(colMap, ['folio', 'nrofolio', 'numero', 'nrooper']),
+    folio   : resolverCol(colMap, ['folio', 'nrofolio', 'nroboleta', 'numero', 'nrooper', 'nro']),
     // "Rut cliente"/"RUT" → rut, chequeado primero: el RCV tambien trae la
     // columna "RUT Emisor Liquid. Factura" (normaliza a "rutemisorliquid...",
     // casi siempre "-"), que calzaba antes con el alias 'rutem' y ganaba por
@@ -192,6 +195,9 @@ function parsearCSVSII(texto: string, tipoLibro: 'venta' | 'compra'): { filas: F
     ivaNoRec: resolverCol(colMap, ['ivsnorec', 'ivanorec', 'ivanorecuperable', 'ivasinderecho']),
     // "M. Total" → mtotal; también montototal, total
     total   : resolverCol(colMap, ['mtotal', 'montototal', 'total']),
+    bruto   : resolverCol(colMap, ['montobruto', 'bruto', 'honorariosbrutos', 'totalbruto']),
+    retencion: resolverCol(colMap, ['retencion', 'retenciones', 'impuestoretenido']),
+    liquido : resolverCol(colMap, ['montoliquido', 'liquido', 'pagado', 'totalliquido']),
   };
 
   // Fallback a posiciones fijas del SII cuando no hay cabecera detectada
@@ -218,7 +224,7 @@ function parsearCSVSII(texto: string, tipoLibro: 'venta' | 'compra'): { filas: F
     const posibleTipoDoc = CI.tipo >= 0 ? cols[CI.tipo] : cols[1] || cols[0];
     const tipoDocNum = parseInt(posibleTipoDoc.replace(/\D/g, ''));
     // Omitir si claramente no es un código DTE válido (los del SII van de 33 a 914)
-    if (headerIdx >= 0 && isNaN(tipoDocNum)) continue;
+    if (headerIdx >= 0 && tipoLibro !== 'honorario' && isNaN(tipoDocNum)) continue;
 
     const tipoDoc     = posibleTipoDoc.trim() || '33';
     // El folio puede estar vacío en resúmenes de boletas (usan Folio Desde/Hasta)
@@ -231,6 +237,9 @@ function parsearCSVSII(texto: string, tipoLibro: 'venta' | 'compra'): { filas: F
     const neto        = CI.neto    >= 0 ? parseMonto(cols[CI.neto])    : 0;
     const ivaRec      = CI.iva     >= 0 ? parseMonto(cols[CI.iva])     : 0;
     const ivaNoRec    = CI.ivaNoRec >= 0 ? parseMonto(cols[CI.ivaNoRec]) : 0;
+    const brutoCSV    = CI.bruto >= 0 ? parseMonto(cols[CI.bruto]) : 0;
+    const retencionCSV = CI.retencion >= 0 ? parseMonto(cols[CI.retencion]) : 0;
+    const liquidoCSV   = CI.liquido >= 0 ? parseMonto(cols[CI.liquido]) : 0;
 
     // Total: columna detectada → fallback a última columna numérica → calcular
     let total = CI.total >= 0 && CI.total < cols.length
@@ -246,6 +255,11 @@ function parsearCSVSII(texto: string, tipoLibro: 'venta' | 'compra'): { filas: F
       total = neto + exento + ivaRec + ivaNoRec;
     }
 
+    const montoBruto = tipoLibro === 'honorario' ? (brutoCSV || total || neto) : undefined;
+    const montoLiquido = tipoLibro === 'honorario' ? (liquidoCSV || total || Math.max((montoBruto || 0) - retencionCSV, 0)) : undefined;
+    const retencion = tipoLibro === 'honorario' ? (retencionCSV || Math.max((montoBruto || 0) - (montoLiquido || 0), 0)) : undefined;
+    if (tipoLibro === 'honorario') total = montoLiquido || 0;
+
     // Omitir filas completamente vacías de valores
     if (folio === 0 && total === 0 && neto === 0 && !rut) continue;
 
@@ -255,6 +269,7 @@ function parsearCSVSII(texto: string, tipoLibro: 'venta' | 'compra'): { filas: F
       neto, exento,
       iva: ivaRec + ivaNoRec,
       total, tipo: tipoLibro,
+      montoBruto, retencion, montoLiquido,
     });
   }
 
@@ -294,7 +309,7 @@ export default function SincronizacionSII() {
   const navigate = useNavigate();
   const { state, dispatch, showToast } = useApp();
   const [tab, setTab]           = useState<'manual' | 'auto'>('manual');
-  const [tipoArchivo, setTipoArchivo] = useState<'venta' | 'compra'>('venta');
+  const [tipoArchivo, setTipoArchivo] = useState<'venta' | 'compra' | 'honorario'>('venta');
   const [filasPreview, setFilasPreview] = useState<FilaRCV[]>([]);
   const [isImporting, setIsImporting]   = useState(false);
   const [importProgress, setImportProgress] = useState<{ hecho: number; total: number } | null>(null);
@@ -336,7 +351,7 @@ export default function SincronizacionSII() {
         return;
       }
       setFilasPreview(filas);
-      if (tipoArchivo === 'compra') {
+      if (tipoArchivo !== 'venta') {
         const iniciales: Record<string, string> = {};
         filas.forEach(fila => {
           const claveRut = fila.rut.replace(/[^0-9kK]/g, '').toUpperCase();
@@ -380,6 +395,13 @@ export default function SincronizacionSII() {
   const rutLimpio = (rutValor: string) => rutValor.replace(/[^0-9kK]/g, '').toUpperCase();
   const claveFila = (fila: FilaRCV) => `${tipoArchivo}|${TIPO_DOC_MAP[fila.tipoDoc] || fila.tipoDoc}|${rutLimpio(fila.rut)}|${fechaISO(fila)}|${fila.folio}`;
   const esDuplicada = (fila: FilaRCV) => {
+    if (tipoArchivo === 'honorario') {
+      const yaEstaEnSistema = (state.honorarios ?? []).some(h =>
+        h.folio === fila.folio && rutLimpio(h.rut) === rutLimpio(fila.rut) && h.periodo === fechaISO(fila).slice(0, 7)
+      );
+      const primeraEnArchivo = filasPreview.findIndex(otra => claveFila(otra) === claveFila(fila));
+      return yaEstaEnSistema || primeraEnArchivo !== filasPreview.indexOf(fila);
+    }
     const tipoInterno = MAPEO_TIPO_INGRESO[TIPO_DOC_MAP[fila.tipoDoc] || 'factura'] ?? 'factura';
     const yaEstaEnSistema = (state.documentos ?? []).some(doc =>
       doc.tipo === tipoInterno && doc.numero === fila.folio && doc.libro === (tipoArchivo === 'compra' ? 'compras' : 'ventas') &&
@@ -393,6 +415,7 @@ export default function SincronizacionSII() {
   const duplicadas = filasPreview.length - filasNuevas.length;
   const proveedores = [...new Map(filasNuevas.map(f => [rutLimpio(f.rut), f])).entries()].map(([clave, fila]) => ({ ...fila, claveRut: clave }));
   const opcionesCompra = [{ value: '', label: 'Seleccionar cuenta...' }, ...state.cuentas.filter(c => c.permiteMovimiento && !c.requiereAuxiliar && ['gasto', 'activo', 'pasivo'].includes(c.tipo)).map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }))];
+  const opcionesHonorario = [{ value: '', label: 'Seleccionar cuenta de honorarios...' }, ...state.cuentas.filter(c => c.permiteMovimiento && !c.requiereAuxiliar && c.tipo === 'gasto').map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }))];
   const opcionesVenta = [{ value: '', label: 'Seleccionar cuenta de ingreso...' }, ...state.cuentas.filter(c => c.permiteMovimiento && c.tipo === 'ingreso').map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }))];
 
   // ── Importar (secuencial: cada fila crea su entidad + documento + asiento) ──
@@ -401,14 +424,19 @@ export default function SincronizacionSII() {
     setIsImporting(true);
     if (filasNuevas.length === 0) {
       showToast('warning', 'Sin documentos nuevos', 'Todos los documentos del archivo ya fueron cargados anteriormente.');
+      setIsImporting(false);
       return;
     }
     if (tipoArchivo === 'venta' && !cuentaIngresoId) {
-      showToast('error', 'Falta cuenta contable', 'Seleccione la cuenta de ingreso para las ventas.'); return;
+      showToast('error', 'Falta cuenta contable', 'Seleccione la cuenta de ingreso para las ventas.');
+      setIsImporting(false);
+      return;
     }
     const proveedoresSinCuenta = proveedores.filter(f => !cuentasPorRut[f.claveRut]);
-    if (tipoArchivo === 'compra' && proveedoresSinCuenta.length > 0) {
-      showToast('error', 'Faltan cuentas contables', `Asigne una cuenta a ${proveedoresSinCuenta.length} proveedor(es) antes de importar.`); return;
+    if (tipoArchivo !== 'venta' && proveedoresSinCuenta.length > 0) {
+      showToast('error', 'Faltan cuentas contables', `Asigne una cuenta a ${proveedoresSinCuenta.length} proveedor(es) antes de importar.`);
+      setIsImporting(false);
+      return;
     }
     setImportProgress({ hecho: 0, total: filasNuevas.length });
 
@@ -421,23 +449,29 @@ export default function SincronizacionSII() {
       const tipoInterno = TIPO_DOC_MAP[fila.tipoDoc] || 'factura';
       const tipoDocumento = MAPEO_TIPO_INGRESO[tipoInterno] ?? 'factura';
       const fechaDocumento = fechaISO(fila);
+      const esHonorario = tipoArchivo === 'honorario';
 
       let cuentaGastoId: string | undefined;
-      if (tipoArchivo === 'compra') {
+      if (tipoArchivo !== 'venta') {
         cuentaGastoId = cuentasPorRut[rutLimpio(fila.rut)] || cuentaPorClasificarId;
         if (!cuentasPorRut[rutLimpio(fila.rut)]) sinCuentaAsignada++;
       }
 
       try {
         await ingresoDocumento({
-          tipoDocumento,
-          tipoTransaccion: tipoArchivo,
+          tipoDocumento: esHonorario ? 'honorario' : tipoDocumento,
+          tipoTransaccion: esHonorario ? undefined : tipoArchivo,
           folio: fila.folio,
           fecha: fechaDocumento,
-          entidad: { rut: fila.rut || 'SIN-RUT', razonSocial: fila.razonSocial?.trim() || fila.rut || 'Sin nombre', cuentaDefaultId: tipoArchivo === 'compra' ? cuentaGastoId : undefined },
+          periodo: esHonorario ? fechaDocumento.slice(0, 7) : undefined,
+          entidad: { rut: fila.rut || 'SIN-RUT', razonSocial: fila.razonSocial?.trim() || fila.rut || 'Sin nombre', cuentaDefaultId: tipoArchivo !== 'venta' ? cuentaGastoId : undefined },
           neto: fila.neto, exento: fila.exento, iva: fila.iva, total: fila.total,
-          cuentaGastoId,
+          cuentaGastoId: esHonorario ? undefined : cuentaGastoId,
           cuentaIngresoId: tipoArchivo === 'venta' ? cuentaIngresoId : undefined,
+          cuentaHonorarioId: esHonorario ? cuentaGastoId : undefined,
+          montoBruto: esHonorario ? fila.montoBruto : undefined,
+          retencion: esHonorario ? fila.retencion : undefined,
+          montoLiquido: esHonorario ? fila.montoLiquido : undefined,
           origenImportacionSII: true,
         });
         exitosos++;
@@ -698,17 +732,19 @@ export default function SincronizacionSII() {
             {/* Panel izquierdo: tipo + subida */}
             <Card>
               <h3 className="font-semibold text-gray-900 mb-4">1. Tipo de Registro</h3>
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                {(['venta', 'compra'] as const).map(t => (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                {(['venta', 'compra', 'honorario'] as const).map(t => (
                   <button key={t} onClick={() => { setTipoArchivo(t); setFilasPreview([]); }}
                     className={`py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
                       tipoArchivo === t
                         ? t === 'venta'
                           ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-amber-500 bg-amber-50 text-amber-700'
+                          : t === 'compra'
+                            ? 'border-amber-500 bg-amber-50 text-amber-700'
+                            : 'border-violet-500 bg-violet-50 text-violet-700'
                         : 'border-gray-200 text-gray-400 hover:border-gray-300'
                     }`}>
-                    {t === 'venta' ? '📤 Libro de Ventas' : '📥 Libro de Compras'}
+                    {t === 'venta' ? '📤 Libro de Ventas' : t === 'compra' ? '📥 Libro de Compras' : '🧾 Boletas de Honorarios'}
                   </button>
                 ))}
               </div>
@@ -773,12 +809,12 @@ export default function SincronizacionSII() {
                     <SearchSelect label="Cuenta contable de las ventas" value={cuentaIngresoId} onChange={setCuentaIngresoId} options={opcionesVenta} placeholder="Buscar cuenta de ingreso..." />
                   ) : proveedores.length > 0 ? (
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold text-gray-700">Cuenta de gasto, activo o pasivo por proveedor</p>
+                      <p className="text-xs font-semibold text-gray-700">{tipoArchivo === 'honorario' ? 'Cuenta de gasto de honorarios por prestador' : 'Cuenta de gasto, activo o pasivo por proveedor'}</p>
                       <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
                         {proveedores.map(proveedor => (
                           <div key={proveedor.claveRut} className="rounded-lg border border-gray-200 p-2">
                             <p className="mb-1.5 truncate text-xs font-medium text-gray-700">{formatRUT(proveedor.rut)} · {proveedor.razonSocial}</p>
-                            <SearchSelect value={cuentasPorRut[proveedor.claveRut] || ''} onChange={cuentaId => setCuentasPorRut(actual => ({ ...actual, [proveedor.claveRut]: cuentaId }))} options={opcionesCompra} placeholder="Asignar cuenta contable..." />
+                            <SearchSelect value={cuentasPorRut[proveedor.claveRut] || ''} onChange={cuentaId => setCuentasPorRut(actual => ({ ...actual, [proveedor.claveRut]: cuentaId }))} options={tipoArchivo === 'honorario' ? opcionesHonorario : opcionesCompra} placeholder="Asignar cuenta contable..." />
                             {cuentasPorRut[proveedor.claveRut] && <p className="mt-1 text-[11px] text-emerald-600">Cuenta recordada o seleccionada para este proveedor</p>}
                           </div>
                         ))}
@@ -808,7 +844,7 @@ export default function SincronizacionSII() {
                         <span className="text-blue-600 font-mono font-bold w-10 flex-shrink-0">{TIPO_DOC_MAP[f.tipoDoc] ? f.tipoDoc : f.tipoDoc}</span>
                         <span className="text-gray-500 font-mono w-16 flex-shrink-0">{f.folio || '—'}</span>
                         <span className="text-gray-700 truncate flex-1">{f.razonSocial || f.rut || '(sin nombre)'}</span>
-                        <span className="w-20 flex-shrink-0 text-center"><Badge variant={esDuplicada(f) ? 'warning' : tipoArchivo === 'compra' && !cuentasPorRut[rutLimpio(f.rut)] ? 'danger' : 'success'}>{esDuplicada(f) ? 'Duplicado' : tipoArchivo === 'compra' && !cuentasPorRut[rutLimpio(f.rut)] ? 'Sin cuenta' : 'Nuevo'}</Badge></span>
+                        <span className="w-20 flex-shrink-0 text-center"><Badge variant={esDuplicada(f) ? 'warning' : tipoArchivo !== 'venta' && !cuentasPorRut[rutLimpio(f.rut)] ? 'danger' : 'success'}>{esDuplicada(f) ? 'Duplicado' : tipoArchivo !== 'venta' && !cuentasPorRut[rutLimpio(f.rut)] ? 'Sin cuenta' : 'Nuevo'}</Badge></span>
                         <span className="font-mono text-gray-800 flex-shrink-0">{formatCurrency(f.total)}</span>
                       </div>
                     ))}

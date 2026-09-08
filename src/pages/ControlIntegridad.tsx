@@ -27,16 +27,16 @@ export default function ControlIntegridad() {
     state.asientos.forEach(asiento => {
       const debe = asiento.detalles.reduce((s, d) => s + Number(d.debe || 0), 0);
       const haber = asiento.detalles.reduce((s, d) => s + Number(d.haber || 0), 0);
-      if (Math.abs(debe - haber) >= 1) lista.push({ id: `descuadre-${asiento.id}`, nivel: 'critico', categoria: 'Asiento descuadrado', detalle: `Debe ${formatCurrency(debe)} · Haber ${formatCurrency(haber)} · Diferencia ${formatCurrency(Math.abs(debe - haber))}.`, referencia: `#${asiento.numero} · ${formatDate(asiento.fecha)}`, destino: '/asientos', accion: 'Abrir asientos' });
+      if (Math.abs(debe - haber) >= 1) lista.push({ id: `descuadre-${asiento.id}`, nivel: 'critico', categoria: 'Asiento descuadrado', detalle: `Debe ${formatCurrency(debe)} · Haber ${formatCurrency(haber)} · Diferencia ${formatCurrency(Math.abs(debe - haber))}.`, referencia: `#${asiento.numero} · ${formatDate(asiento.fecha)}`, destino: `/asientos?asientoId=${encodeURIComponent(asiento.id)}&modo=editar`, accion: 'Abrir para corregir' });
       asiento.detalles.forEach((d, i) => {
         const cuenta = cuentaPorId.get(d.cuentaId);
-        if (cuenta?.requiereAuxiliar && !d.rutAuxiliar) lista.push({ id: `aux-${asiento.id}-${i}`, nivel: 'critico', categoria: 'Auxiliar sin RUT', detalle: `${d.cuentaCodigo} ${d.cuentaNombre} exige cliente, proveedor o prestador.`, referencia: `Asiento #${asiento.numero}`, destino: '/asientos', accion: 'Completar auxiliar' });
-        if (d.documentoId && !documentosPorId.has(d.documentoId)) lista.push({ id: `doc-huerfano-${asiento.id}-${i}`, nivel: 'advertencia', categoria: 'Referencia sin documento', detalle: `La línea apunta a un documento que ya no existe.`, referencia: `Asiento #${asiento.numero}`, destino: '/asientos', accion: 'Revisar referencia' });
+        if (cuenta?.requiereAuxiliar && !d.rutAuxiliar) lista.push({ id: `aux-${asiento.id}-${i}`, nivel: 'critico', categoria: 'Auxiliar sin RUT', detalle: `${d.cuentaCodigo} ${d.cuentaNombre} exige cliente, proveedor o prestador.`, referencia: `Asiento #${asiento.numero}`, destino: `/asientos?asientoId=${encodeURIComponent(asiento.id)}&modo=editar`, accion: 'Completar auxiliar' });
+        if (d.documentoId && !documentosPorId.has(d.documentoId)) lista.push({ id: `doc-huerfano-${asiento.id}-${i}`, nivel: 'advertencia', categoria: 'Referencia sin documento', detalle: `La línea apunta a un documento que ya no existe.`, referencia: `Asiento #${asiento.numero}`, destino: `/asientos?asientoId=${encodeURIComponent(asiento.id)}&modo=editar`, accion: 'Revisar referencia' });
       });
     });
 
     state.documentos.forEach(doc => {
-      if (!doc.asientoId) lista.push({ id: `sin-asiento-${doc.id}`, nivel: 'critico', categoria: 'Documento sin asiento', detalle: `${doc.tipo} N° ${doc.numero} no tiene comprobante contable asociado.`, referencia: `${doc.rutCliente || 'Sin RUT'} · ${formatDate(doc.fecha)}`, destino: '/centralizacion', accion: 'Centralizar' });
+      if (!doc.asientoId) lista.push({ id: `sin-asiento-${doc.id}`, nivel: 'critico', categoria: 'Documento sin asiento', detalle: `${doc.tipo} N° ${doc.numero} no tiene comprobante contable asociado.`, referencia: `${doc.rutCliente || 'Sin RUT'} · ${formatDate(doc.fecha)}`, destino: '/sincronizacion-sii', accion: 'Revisar carga SII' });
     });
 
     const docs = new Map<string, number>();

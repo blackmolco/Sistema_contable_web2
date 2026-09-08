@@ -519,6 +519,7 @@ export interface IngresoDocumentoPayload {
   total?: number;
   cuentaGastoId?: string;
   cuentaIngresoId?: string;
+  cuentaHonorarioId?: string;
   origenImportacionSII?: boolean;
   montoBruto?: number;
   retencion?: number;
@@ -609,6 +610,7 @@ export async function fetchHonorarios(): Promise<Honorario[]> {
     id: r.id as string,
     rut: r.rut as string,
     nombre: r.nombre as string,
+    folio: r.folio ? r.folio as number : undefined,
     direccion: (r.direccion as string) || '',
     periodo: r.periodo as string,
     montoBruto: r.montoBruto as number,

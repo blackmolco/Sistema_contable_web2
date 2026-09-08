@@ -93,9 +93,11 @@ async function lineasParaDocumento(tx, empresaId, { tipo, tipoTransaccion, neto 
 }
 
 /** Arma las líneas del asiento para una boleta de honorarios. */
-async function lineasParaHonorario(tx, empresaId, { montoBruto, retencion, montoLiquido, entidad, documentoId }) {
+async function lineasParaHonorario(tx, empresaId, { montoBruto, retencion, montoLiquido, entidad, documentoId, cuentaHonorarioId }) {
     const [cuentaGastoHonorarios, cuentaRetencion, cuentaPorPagar] = await Promise.all([
-        buscarCuenta(tx, empresaId, CODIGOS.honorariosGasto),
+        cuentaHonorarioId
+            ? tx.cuenta.findFirst({ where: { id: cuentaHonorarioId, empresaId, activo: true, permiteMovimiento: true, tipo: 'gasto' } })
+            : buscarCuenta(tx, empresaId, CODIGOS.honorariosGasto),
         buscarCuenta(tx, empresaId, CODIGOS.retencionHonorarios),
         buscarCuenta(tx, empresaId, CODIGOS.honorariosPorPagar),
     ]);

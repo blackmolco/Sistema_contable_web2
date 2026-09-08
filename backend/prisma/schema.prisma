@@ -288,6 +288,7 @@ model Honorario {
   id           String    @id @default(uuid())
   rut          String
   nombre       String
+  folio        Int?
   direccion    String?
   periodo      String
   montoBruto   Float
@@ -298,7 +299,9 @@ model Honorario {
   asientoId    String?
   empresaId    String?
   createdAt    DateTime  @default(now())
+  claveImportacion String?
 
+  @@unique([empresaId, claveImportacion])
   @@index([empresaId])
   @@index([periodo])
 }

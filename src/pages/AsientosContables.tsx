@@ -14,6 +14,7 @@ export default function AsientosContables() {
   const { state, dispatch, showToast } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const asientoIdEnlace = searchParams.get('asientoId');
+  const modoEnlace = searchParams.get('modo');
   const [numeroBusqueda, setNumeroBusqueda] = useState('');
   const [glosaBusqueda, setGlosaBusqueda] = useState('');
   // Sin esto la lista mezclaba asientos de todos los años seguidos, sin
@@ -65,8 +66,9 @@ export default function AsientosContables() {
     const asiento = (state.asientos ?? []).find((a) => a.id === asientoIdEnlace);
     if (!asiento) return;
     setAnioFiltro(String(new Date(asiento.fecha).getFullYear()));
-    setAsientoConsultado(asiento);
-  }, [asientoIdEnlace, asientoConsultado, state.asientos]);
+    if (modoEnlace === 'editar') abrirModalEditar(asiento);
+    else setAsientoConsultado(asiento);
+  }, [asientoIdEnlace, modoEnlace, asientoConsultado, state.asientos]);
 
   const cerrarConsulta = () => {
     setAsientoConsultado(null);

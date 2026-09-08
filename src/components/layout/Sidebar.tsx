@@ -33,13 +33,6 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme, PRESETS, CATEGORY_COLORS } from '../../context/ThemeContext';
-import { ApiAuthService } from '../../services/apiAuth';
-
-// "Centralizar Libros" queda solo para esta cuenta: con el ingreso de
-// documentos generando su propio asiento, centralizar un periodo completo
-// duplicaria los asientos — se deja accesible unicamente para revisar
-// periodos ya cerrados con el metodo anterior.
-const EMAIL_CENTRALIZACION = 'robvalenzuela@gmail.com';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -74,7 +67,6 @@ const menuCategories = [
       { path: '/ingreso-documento', icon: FilePlus2, label: 'Ingreso de Documentos' },
       { path: '/libro-ventas', icon: BookUp, label: 'Libro Ventas' },
       { path: '/libro-compras', icon: BookDown, label: 'Libro Compras' },
-      { path: '/centralizacion-libros', icon: Combine, label: 'Centralizar Libros' },
       { path: '/f29', icon: FileSpreadsheet, label: 'Borrador F29' },
       { path: '/conciliacion-tributaria', icon: Scale, label: 'Conciliación Tributaria' },
     ]
@@ -96,7 +88,6 @@ const menuCategories = [
   {
     title: 'Herramientas y Cierres',
     items: [
-      { path: '/cierre-tributario',   icon: FileSpreadsheet, label: 'Cierre Tributario' },
       { path: '/periodos',            icon: CalendarCheck2, label: 'Períodos Contables' },
       { path: '/tablas-sii',          icon: Database,      label: 'Tablas SII' },
       { path: '/backup',              icon: Download,      label: 'Backup' },
@@ -133,10 +124,7 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
     return location.pathname.startsWith(path);
   };
 
-  const puedeCentralizar = ApiAuthService.getCurrentUser()?.email === EMAIL_CENTRALIZACION;
-  const categoriasVisibles = React.useMemo(() => menuCategories
-    .map(c => ({ ...c, items: c.items.filter(i => i.path !== '/centralizacion-libros' || puedeCentralizar) }))
-    .filter(c => c.items.length > 0), [puedeCentralizar]);
+  const categoriasVisibles = menuCategories;
 
   // ── Categorías colapsables (persistidas) ───────────────────────────────
   const [openCategories, setOpenCategories] = React.useState<Record<string, boolean>>(() =>
