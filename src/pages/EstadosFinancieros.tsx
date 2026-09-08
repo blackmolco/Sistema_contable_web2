@@ -17,6 +17,8 @@ import { formatCurrency } from '../utils/calculos';
 import { generarPDFEstadoFinanciero } from '../services/reportesPdf';
 import { CHART_PALETTE } from '../utils/chartPalette';
 
+const CODIGO_UTILIDADES_ACUMULADAS = '3-01-003-0001';
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 /** Devuelve los dos primeros segmentos del código jerárquico, ej. "1-01" */
@@ -108,12 +110,18 @@ export default function EstadosFinancieros() {
       });
     }
     if (Math.abs(resultadoAcumuladoAnterior) >= 0.5) {
-      resultado.push({
-        codigo: '9-RESULTADO-ANTERIOR',
-        nombre: 'Resultado acumulado de ejercicios anteriores',
-        tipo: 'patrimonio',
-        saldo: resultadoAcumuladoAnterior,
-      });
+      const utilidades = resultado.find(f => f.codigo === CODIGO_UTILIDADES_ACUMULADAS);
+      if (utilidades) {
+        utilidades.saldo += resultadoAcumuladoAnterior;
+      } else {
+        const cuentaUtilidades = state.cuentas.find(c => c.codigo === CODIGO_UTILIDADES_ACUMULADAS);
+        resultado.push({
+          codigo: CODIGO_UTILIDADES_ACUMULADAS,
+          nombre: cuentaUtilidades?.nombre || 'Utilidades Acumuladas',
+          tipo: 'patrimonio',
+          saldo: resultadoAcumuladoAnterior,
+        });
+      }
     }
     return resultado.sort((a, b) => a.codigo.localeCompare(b.codigo));
   }, [state.cuentas, saldosPorCuenta, resultadoAcumuladoAnterior]);

@@ -17,6 +17,7 @@ interface FilaBalance8 {
 
 const redondear = (valor: number) => Math.round(valor);
 const celda = (valor: number) => valor ? formatCurrency(valor) : '';
+const CODIGO_UTILIDADES_ACUMULADAS = '3-01-003-0001';
 
 export default function BalanceOchoColumnas() {
   const { state } = useApp();
@@ -60,9 +61,11 @@ export default function BalanceOchoColumnas() {
         movimientos.set(detalle.cuentaCodigo, actual);
       }));
     const filasCalculadas = [...movimientos.entries()].map(([codigo, m]) => {
-      const aperturaNeta = redondear(m.anteriorDebe - m.anteriorHaber);
-      const sumasDebe = Math.max(aperturaNeta, 0) + redondear(m.periodoDebe);
-      const sumasHaber = Math.max(-aperturaNeta, 0) + redondear(m.periodoHaber);
+      // Redondear solo al final. Redondear la apertura y el movimiento por
+      // separado podía crear diferencias de $1 al totalizar muchas cuentas.
+      const aperturaNeta = m.anteriorDebe - m.anteriorHaber;
+      const sumasDebe = redondear(Math.max(aperturaNeta, 0) + m.periodoDebe);
+      const sumasHaber = redondear(Math.max(-aperturaNeta, 0) + m.periodoHaber);
       const saldoDeudor = Math.max(redondear(sumasDebe - sumasHaber), 0);
       const saldoAcreedor = Math.max(redondear(sumasHaber - sumasDebe), 0);
       const esResultado = m.tipo === 'ingreso' || m.tipo === 'gasto';
@@ -77,21 +80,32 @@ export default function BalanceOchoColumnas() {
 
     const resultadoAnterior = redondear(resultadoAnteriorHaber - resultadoAnteriorDebe);
     if (resultadoAnterior !== 0) {
-      const sumasDebe = Math.max(-resultadoAnterior, 0);
-      const sumasHaber = Math.max(resultadoAnterior, 0);
-      filasCalculadas.push({
-        codigo: '9-RESULTADO-ANTERIOR',
-        nombre: 'Resultado acumulado de ejercicios anteriores',
-        tipo: 'patrimonio',
+      // El resultado de ejercicios anteriores pertenece a Utilidades
+      // Acumuladas; no debe aparecer como una cuenta técnica 9-...
+      const indiceUtilidades = filasCalculadas.findIndex(f => f.codigo === CODIGO_UTILIDADES_ACUMULADAS);
+      const cuentaUtilidades = state.cuentas.find(c => c.codigo === CODIGO_UTILIDADES_ACUMULADAS);
+      const agregarDebe = Math.max(-resultadoAnterior, 0);
+      const agregarHaber = Math.max(resultadoAnterior, 0);
+      const base = indiceUtilidades >= 0 ? filasCalculadas[indiceUtilidades] : {
+        codigo: CODIGO_UTILIDADES_ACUMULADAS,
+        nombre: cuentaUtilidades?.nombre || 'Utilidades Acumuladas',
+        tipo: 'patrimonio', sumasDebe: 0, sumasHaber: 0, saldoDeudor: 0, saldoAcreedor: 0,
+        inventarioActivo: 0, inventarioPasivo: 0, resultadoPerdida: 0, resultadoGanancia: 0,
+      };
+      const sumasDebe = base.sumasDebe + agregarDebe;
+      const sumasHaber = base.sumasHaber + agregarHaber;
+      const saldoNeto = redondear(sumasDebe - sumasHaber);
+      const actualizada: FilaBalance8 = {
+        ...base,
         sumasDebe,
         sumasHaber,
-        saldoDeudor: sumasDebe,
-        saldoAcreedor: sumasHaber,
+        saldoDeudor: Math.max(saldoNeto, 0),
+        saldoAcreedor: Math.max(-saldoNeto, 0),
         inventarioActivo: 0,
-        inventarioPasivo: resultadoAnterior,
-        resultadoPerdida: 0,
-        resultadoGanancia: 0,
-      });
+        inventarioPasivo: -saldoNeto,
+      };
+      if (indiceUtilidades >= 0) filasCalculadas[indiceUtilidades] = actualizada;
+      else filasCalculadas.push(actualizada);
     }
     return filasCalculadas.sort((a, b) => a.codigo.localeCompare(b.codigo));
   }, [state.asientos, state.cuentas, fechaInicio, fechaFin]);
