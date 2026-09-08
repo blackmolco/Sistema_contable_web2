@@ -112,7 +112,7 @@ async function lineasParaHonorario(tx, empresaId, { montoBruto, retencion, monto
  * asignando el número correlativo de forma atómica (increment sobre
  * Empresa.ultimoNumeroAsiento, serializado a nivel de fila por Postgres).
  */
-async function crearAsiento(tx, { empresaId, fecha, glosa, tipo, detalles, usuarioId }) {
+async function crearAsiento(tx, { empresaId, fecha, glosa, tipo, detalles, usuarioId, importacionId }) {
     let numero = 1;
     if (empresaId) {
         const empresa = await tx.empresa.update({
@@ -128,6 +128,7 @@ async function crearAsiento(tx, { empresaId, fecha, glosa, tipo, detalles, usuar
             fecha: new Date(fecha),
             glosa,
             tipo: tipo || null,
+            importacionId: importacionId || null,
             // El backend solo reconoce pendiente/contabilizado/anulado (ver
             // asientoSchema en routes/asientos.js) — 'aprobado' no es un
             // valor valido ahi, así que el mapeo estadoFromBackend en

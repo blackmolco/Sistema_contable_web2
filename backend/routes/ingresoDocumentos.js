@@ -48,6 +48,7 @@ const ingresoSchema = z.object({
     cuentaIngresoId: z.string().min(1).optional().nullable(),
     cuentaHonorarioId: z.string().min(1).optional().nullable(),
     origenImportacionSII: z.boolean().optional().default(false),
+    importacionId: z.string().uuid().optional().nullable(),
     montoBruto: z.number().min(0).optional(),
     retencion: z.number().min(0).optional(),
     montoLiquido: z.number().min(0).optional(),
@@ -129,6 +130,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                         estado: 'pendiente',
                         claveImportacion: claveHonorario,
                         empresaId,
+                        importacionId: body.importacionId || null,
                     },
                 });
                 const detalles = await lineasParaHonorario(tx, empresaId, {
@@ -146,6 +148,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                     tipo: 'honorario',
                     detalles,
                     usuarioId: req.usuario.id,
+                    importacionId: body.importacionId || null,
                 });
                 const honorarioConAsiento = await tx.honorario.update({ where: { id: honorario.id }, data: { asientoId: asiento.id } });
                 return { entidad, documento: honorarioConAsiento, asiento };
@@ -205,6 +208,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                     tipoTransaccion: body.tipoTransaccion,
                     documentoReferenciaId: documentoReferencia?.id || null,
                     claveImportacion,
+                    importacionId: body.importacionId || null,
                     empresaId,
                 },
             });
@@ -228,6 +232,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                 tipo: body.tipoTransaccion,
                 detalles,
                 usuarioId: req.usuario.id,
+                importacionId: body.importacionId || null,
             });
             const documentoConAsiento = await tx.documentoTributario.update({ where: { id: documento.id }, data: { asientoId: asiento.id } });
             return { entidad, documento: documentoConAsiento, asiento };

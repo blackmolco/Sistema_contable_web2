@@ -557,7 +557,7 @@ export interface ImportacionSII {
   nuevos: number;
   duplicados: number;
   errores: number;
-  estado: 'procesando' | 'completada' | 'con_errores' | 'fallida';
+  estado: 'procesando' | 'completada' | 'con_errores' | 'fallida' | 'revertida';
   detalleErrores?: string;
   createdAt: string;
 }
@@ -581,6 +581,7 @@ export async function fetchImportacionesSII(): Promise<ImportacionSII[]> {
   const empresaId = getEmpresaActivaId();
   return apiFetch<ImportacionSII[]>(`/api/importaciones-sii?empresaId=${encodeURIComponent(empresaId || '')}`);
 }
+
 
 const BACKEND_TIPO_ENUM = ['factura', 'factura_exenta', 'boleta', 'nota_credito', 'nota_debito', 'guia_despacho', 'compra'] as const;
 const BACKEND_ESTADO_ENUM = ['emitido', 'recibido', 'pendiente', 'vencido', 'pagado', 'anulado'] as const;

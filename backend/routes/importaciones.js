@@ -17,7 +17,7 @@ const actualizarSchema = z.object({
   nuevos: z.number().int().min(0).optional(),
   duplicados: z.number().int().min(0).optional(),
   errores: z.number().int().min(0).optional(),
-  estado: z.enum(['procesando', 'completada', 'con_errores', 'fallida']).optional(),
+  estado: z.enum(['procesando', 'completada', 'con_errores', 'fallida', 'revertida']).optional(),
   detalleErrores: z.string().max(10000).optional().nullable(),
 });
 
@@ -63,6 +63,35 @@ router.put('/:id', authenticateToken, async (req, res) => {
   } catch (err) {
     logger.error({ err }, 'Error actualizando importación SII');
     res.status(500).json({ error: 'No se pudo actualizar la importación' });
+  }
+});
+
+router.post('/:id/revertir', authenticateToken, async (req, res) => {
+  try {
+    const lote = await prisma.importacionSII.findUnique({ where: { id: req.params.id } });
+    if (!lote) return res.status(404).json({ error: 'Importación no encontrada' });
+    if (!exigirAccesoEmpresa(req, res, lote.empresaId)) return;
+    if (lote.estado === 'revertida') return res.status(409).json({ error: 'El lote ya fue revertido' });
+    if (lote.estado === 'procesando') return res.status(409).json({ error: 'No se puede revertir un lote en proceso' });
+
+    const resultado = await prisma.$transaction(async (tx) => {
+      const [documentos, honorarios, asientos] = await Promise.all([
+        tx.documentoTributario.findMany({ where: { empresaId: lote.empresaId, importacionId: lote.id }, select: { id: true } }),
+        tx.honorario.findMany({ where: { empresaId: lote.empresaId, importacionId: lote.id }, select: { id: true } }),
+        tx.asientoContable.findMany({ where: { empresaId: lote.empresaId, importacionId: lote.id }, select: { id: true } }),
+      ]);
+      const asientoIds = asientos.map((a) => a.id);
+      if (asientoIds.length) await tx.asientoContable.deleteMany({ where: { id: { in: asientoIds }, empresaId: lote.empresaId } });
+      if (documentos.length) await tx.documentoTributario.deleteMany({ where: { id: { in: documentos.map((d) => d.id) }, empresaId: lote.empresaId } });
+      if (honorarios.length) await tx.honorario.deleteMany({ where: { id: { in: honorarios.map((h) => h.id) }, empresaId: lote.empresaId } });
+      await tx.importacionSII.update({ where: { id: lote.id }, data: { estado: 'revertida' } });
+      return { eliminados: documentos.length + honorarios.length, asientosEliminados: asientoIds.length };
+    }, { timeout: 15000 });
+    await auditLog(req.usuario.id, 'REVERTIR_IMPORTACION', 'ImportacionSII', lote.id, resultado, req.ip, req.headers['user-agent']);
+    res.json(resultado);
+  } catch (err) {
+    logger.error({ err }, 'Error revirtiendo importación SII');
+    res.status(500).json({ error: 'No se pudo revertir el lote' });
   }
 });
 

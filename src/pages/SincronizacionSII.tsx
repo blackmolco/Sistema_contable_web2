@@ -492,6 +492,7 @@ export default function SincronizacionSII() {
           retencion: esHonorario ? fila.retencion : undefined,
           montoLiquido: esHonorario ? fila.montoLiquido : undefined,
           origenImportacionSII: true,
+          importacionId,
         });
         exitosos++;
       } catch (err) {
@@ -757,7 +758,7 @@ export default function SincronizacionSII() {
                   <td className="px-2 py-2 text-gray-600">{new Date(lote.createdAt).toLocaleString('es-CL')}</td>
                   <td className="px-2 py-2 capitalize">{lote.tipo}</td><td className="max-w-[220px] truncate px-2 py-2" title={lote.nombreArchivo}>{lote.nombreArchivo || 'Sin archivo'}</td>
                   <td className="px-2 py-2 text-right font-data">{lote.totalRegistros}</td><td className="px-2 py-2 text-right font-data text-emerald-700">{lote.nuevos}</td><td className="px-2 py-2 text-right font-data text-amber-700">{lote.duplicados}</td>
-                  <td className="px-2 py-2"><Badge variant={lote.estado === 'completada' ? 'success' : lote.estado === 'con_errores' ? 'warning' : 'danger'}>{lote.estado.replace('_', ' ')}</Badge></td>
+                  <td className="px-2 py-2"><div className="flex items-center gap-2"><Badge variant={lote.estado === 'completada' ? 'success' : lote.estado === 'con_errores' ? 'warning' : 'danger'}>{lote.estado.replace('_', ' ')}</Badge>{['completada', 'con_errores'].includes(lote.estado) && <button type="button" disabled={revirtiendo === lote.id} onClick={async () => { if (!window.confirm('¿Revertir este lote? Se eliminarán sus documentos y asientos importados.')) return; setRevirtiendo(lote.id); try { await revertirImportacionSII(lote.id); showToast('success', 'Lote revertido', 'Se eliminaron los documentos y asientos de esta carga.'); setHistorialImportaciones(actual => actual.map(x => x.id === lote.id ? { ...x, estado: 'revertida' } : x)); window.dispatchEvent(new Event('scc:login')); } catch (e) { showToast('error', 'No se pudo revertir', e instanceof Error ? e.message : 'Error inesperado'); } finally { setRevirtiendo(null); } }} className="text-xs text-red-600 hover:underline disabled:opacity-50">{revirtiendo === lote.id ? 'Revirtiendo…' : 'Revertir'}</button>}</div></td>
                 </tr>
               ))}</tbody>
             </table>

@@ -103,6 +103,7 @@ model AsientoContable {
   glosa     String
   estado    String   @default("pendiente")
   tipo      String?
+  importacionId String?
   usuarioId String?
   empresaId String?
   createdAt DateTime @default(now())
@@ -115,6 +116,7 @@ model AsientoContable {
   @@index([empresaId])
   @@index([fecha])
   @@index([estado])
+  @@index([importacionId])
 }
 
 model DetalleAsiento {
@@ -229,6 +231,7 @@ model DocumentoTributario {
   numeroAutorizacion  String?
   fechaRecepcionSII   DateTime?
   asientoId           String?
+  importacionId       String?
   documentoReferenciaId String?
   claveImportacion     String?
   empresaId           String?
@@ -243,6 +246,7 @@ model DocumentoTributario {
   @@index([folio])
   @@index([asientoId])
   @@index([documentoReferenciaId])
+  @@index([importacionId])
 }
 
 model LibroCompra {
@@ -263,6 +267,7 @@ model LibroCompra {
 
   @@index([empresaId])
   @@index([periodo])
+  @@index([importacionId])
 }
 
 model LibroVenta {
@@ -297,6 +302,7 @@ model Honorario {
   fechaPago    DateTime?
   estado       String    @default("pendiente")
   asientoId    String?
+  importacionId String?
   empresaId    String?
   createdAt    DateTime  @default(now())
   claveImportacion String?
