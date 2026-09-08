@@ -29,6 +29,7 @@ import {
   Wallet,
   ShieldCheck,
   CalendarCheck2,
+  Scale,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme, PRESETS, CATEGORY_COLORS } from '../../context/ThemeContext';
@@ -75,6 +76,7 @@ const menuCategories = [
       { path: '/libro-compras', icon: BookDown, label: 'Libro Compras' },
       { path: '/centralizacion-libros', icon: Combine, label: 'Centralizar Libros' },
       { path: '/f29', icon: FileSpreadsheet, label: 'Borrador F29' },
+      { path: '/conciliacion-tributaria', icon: Scale, label: 'Conciliación Tributaria' },
     ]
   },
   {

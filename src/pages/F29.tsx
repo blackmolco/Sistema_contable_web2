@@ -122,7 +122,7 @@ export default function F29() {
     a => a.glosa === glosaCierreIva && a.estado !== 'anulado'
   );
 
-  const cIvaDebito = buscarCuenta('2-01-002-0002', 'IVA Débito Fiscal', 'iva-debito-fiscal');
+  const cIvaDebito = buscarCuenta('2-01-002-0001', 'IVA Débito Fiscal', 'iva-debito-fiscal');
   const cIvaCredito = buscarCuenta('1-02-002-0001', 'IVA Crédito Fiscal', 'iva-credito-fiscal');
   const cIvaPagar = buscarCuenta('2-01-002-0003', 'IVA por Pagar', 'iva-por-pagar');
   const cRemanente = buscarCuenta('1-02-002-0002', 'Remanente de Crédito Fiscal', 'remanente-credito-fiscal');
