@@ -10,7 +10,11 @@ async function main() {
     const BCRYPT_ROUNDS = 10;
 
     // ============ USUARIO ADMIN ============
-    const adminHash = bcrypt.hashSync('admin123', BCRYPT_ROUNDS);
+    const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD;
+    if (!seedAdminPassword || seedAdminPassword.length < 12) {
+        throw new Error('Define SEED_ADMIN_PASSWORD con al menos 12 caracteres antes de ejecutar el seed');
+    }
+    const adminHash = bcrypt.hashSync(seedAdminPassword, BCRYPT_ROUNDS);
     const admin = await prisma.usuario.upsert({
         where: { email: 'admin@contable.cl' },
         update: {},

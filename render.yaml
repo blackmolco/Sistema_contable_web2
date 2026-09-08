@@ -34,6 +34,16 @@ services:
         value: 7d
       - key: ADMIN_API_TOKEN
         sync: false
+      # Opcionales: solo permiten crear el primer administrador en una BD nueva.
+      # No se escriben aquí y nunca reemplazan la contraseña de un usuario existente.
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: BOOTSTRAP_ADMIN_NAME
+        sync: false
+      - key: BOOTSTRAP_ADMIN_RUT
+        sync: false
       - key: CORS_ORIGINS
         sync: false
       - key: LOG_LEVEL
