@@ -25,21 +25,34 @@ export default function BalanceOchoColumnas() {
   const [fechaFin, setFechaFin] = useState(hoy.toISOString().slice(0, 10));
 
   const filas = useMemo<FilaBalance8[]>(() => {
-    const movimientos = new Map<string, { nombre: string; tipo: string; debe: number; haber: number }>();
+    const movimientos = new Map<string, { nombre: string; tipo: string; anteriorDebe: number; anteriorHaber: number; periodoDebe: number; periodoHaber: number }>();
     const tipoPorCodigo = new Map(state.cuentas.map(c => [c.codigo, c.tipo]));
     state.asientos
-      .filter(a => a.estado !== 'anulado' && a.fecha.slice(0, 10) >= fechaInicio && a.fecha.slice(0, 10) <= fechaFin)
+      .filter(a => a.estado !== 'anulado' && a.fecha.slice(0, 10) <= fechaFin)
       .forEach(asiento => asiento.detalles.forEach(detalle => {
-        const actual = movimientos.get(detalle.cuentaCodigo) ?? { nombre: detalle.cuentaNombre, tipo: tipoPorCodigo.get(detalle.cuentaCodigo) ?? 'activo', debe: 0, haber: 0 };
-        actual.debe += detalle.debe || 0; actual.haber += detalle.haber || 0;
+        const tipo = tipoPorCodigo.get(detalle.cuentaCodigo) ?? 'activo';
+        const actual = movimientos.get(detalle.cuentaCodigo) ?? { nombre: detalle.cuentaNombre, tipo, anteriorDebe: 0, anteriorHaber: 0, periodoDebe: 0, periodoHaber: 0 };
+        if (asiento.fecha.slice(0, 10) < fechaInicio) {
+          // Solo las cuentas permanentes arrastran saldo. Ingresos y gastos
+          // comienzan en cero en cada ejercicio.
+          if (tipo === 'ingreso' || tipo === 'gasto') return;
+          actual.anteriorDebe += detalle.debe || 0;
+          actual.anteriorHaber += detalle.haber || 0;
+        } else {
+          actual.periodoDebe += detalle.debe || 0;
+          actual.periodoHaber += detalle.haber || 0;
+        }
         movimientos.set(detalle.cuentaCodigo, actual);
       }));
     return [...movimientos.entries()].map(([codigo, m]) => {
-      const saldoDeudor = Math.max(redondear(m.debe - m.haber), 0);
-      const saldoAcreedor = Math.max(redondear(m.haber - m.debe), 0);
+      const aperturaNeta = redondear(m.anteriorDebe - m.anteriorHaber);
+      const sumasDebe = Math.max(aperturaNeta, 0) + redondear(m.periodoDebe);
+      const sumasHaber = Math.max(-aperturaNeta, 0) + redondear(m.periodoHaber);
+      const saldoDeudor = Math.max(redondear(sumasDebe - sumasHaber), 0);
+      const saldoAcreedor = Math.max(redondear(sumasHaber - sumasDebe), 0);
       const esResultado = m.tipo === 'ingreso' || m.tipo === 'gasto';
       return {
-        codigo, nombre: m.nombre, tipo: m.tipo, sumasDebe: redondear(m.debe), sumasHaber: redondear(m.haber), saldoDeudor, saldoAcreedor,
+        codigo, nombre: m.nombre, tipo: m.tipo, sumasDebe, sumasHaber, saldoDeudor, saldoAcreedor,
         inventarioActivo: !esResultado && m.tipo === 'activo' ? saldoDeudor - saldoAcreedor : 0,
         inventarioPasivo: !esResultado && m.tipo !== 'activo' ? saldoAcreedor - saldoDeudor : 0,
         resultadoPerdida: m.tipo === 'gasto' ? saldoDeudor - saldoAcreedor : 0,
@@ -92,7 +105,7 @@ export default function BalanceOchoColumnas() {
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Balance de 8 Columnas</h1><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Balance de comprobacion y saldos del periodo</p></div><div className="flex gap-2"><Button variant="secondary" icon={<FileSpreadsheet size={16}/>} onClick={exportarExcel} disabled={!filas.length}>Traspasar a Excel</Button><Button icon={<Download size={16}/>} onClick={exportarPDF} disabled={!filas.length}>Descargar PDF</Button></div></div>
-    <Card><div className="grid gap-4 sm:grid-cols-2"><Input type="date" label="Desde" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)}/><Input type="date" label="Hasta" value={fechaFin} onChange={e => setFechaFin(e.target.value)}/></div></Card>
+    <Card><div className="grid gap-4 sm:grid-cols-2"><Input type="date" label="Desde" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)}/><Input type="date" label="Hasta" value={fechaFin} onChange={e => setFechaFin(e.target.value)}/></div><p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Las cuentas de activo, pasivo y patrimonio incluyen automáticamente el saldo de apertura anterior a la fecha inicial. Las cuentas de resultado comienzan en cero cada año.</p></Card>
     {!filas.length ? <Card><div className="flex flex-col items-center gap-3 py-12 text-gray-400"><AlertCircle size={36}/><p>No hay movimientos en el periodo seleccionado.</p></div></Card> : <Card padding="none">
       <div className="max-h-[68vh] overflow-auto"><table className="w-full min-w-[1280px] border-collapse text-xs"><thead className="sticky top-0 z-10 text-white"><tr className="bg-primary"><th rowSpan={2} className="border border-white/20 px-2 py-3 text-left">Codigo</th><th rowSpan={2} className="min-w-64 border border-white/20 px-2 py-3 text-left">Cuenta</th>{['Sumas','Saldos','Inventario','Resultados'].map(x=><th key={x} colSpan={2} className="border border-white/20 px-2 py-2">{x}</th>)}</tr><tr className="bg-[var(--brand-dark)]">{['Debe','Haber','Deudor','Acreedor','Activo','Pasivo','Perdida','Ganancia'].map(x=><th key={x} className="border border-white/20 px-2 py-2 text-right">{x}</th>)}</tr></thead>
       <tbody>{filas.map((f,i)=><tr key={f.codigo} className={i%2?'bg-gray-50 dark:bg-gray-800/40':'bg-white dark:bg-gray-900'}><td className="border px-2 py-2 font-data dark:border-gray-700">{f.codigo}</td><td className="border px-2 py-2 dark:border-gray-700">{f.nombre}</td>{valores(f).map((v,j)=><td key={j} className="border px-2 py-2 text-right font-data tabular-nums dark:border-gray-700">{celda(v)}</td>)}</tr>)}</tbody>
