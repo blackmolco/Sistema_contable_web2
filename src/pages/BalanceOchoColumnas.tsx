@@ -27,6 +27,8 @@ export default function BalanceOchoColumnas() {
   const filas = useMemo<FilaBalance8[]>(() => {
     const movimientos = new Map<string, { nombre: string; tipo: string; anteriorDebe: number; anteriorHaber: number; periodoDebe: number; periodoHaber: number }>();
     const tipoPorCodigo = new Map(state.cuentas.map(c => [c.codigo, c.tipo]));
+    let resultadoAnteriorDebe = 0;
+    let resultadoAnteriorHaber = 0;
     state.asientos
       .filter(a => a.estado !== 'anulado' && a.fecha.slice(0, 10) <= fechaFin)
       .forEach(asiento => asiento.detalles.forEach(detalle => {
@@ -34,8 +36,13 @@ export default function BalanceOchoColumnas() {
         const actual = movimientos.get(detalle.cuentaCodigo) ?? { nombre: detalle.cuentaNombre, tipo, anteriorDebe: 0, anteriorHaber: 0, periodoDebe: 0, periodoHaber: 0 };
         if (asiento.fecha.slice(0, 10) < fechaInicio) {
           // Solo las cuentas permanentes arrastran saldo. Ingresos y gastos
-          // comienzan en cero en cada ejercicio.
-          if (tipo === 'ingreso' || tipo === 'gasto') return;
+          // comienzan en cero en cada ejercicio, pero su resultado neto debe
+          // incorporarse al patrimonio inicial para mantener el cuadre.
+          if (tipo === 'ingreso' || tipo === 'gasto') {
+            resultadoAnteriorDebe += detalle.debe || 0;
+            resultadoAnteriorHaber += detalle.haber || 0;
+            return;
+          }
           actual.anteriorDebe += detalle.debe || 0;
           actual.anteriorHaber += detalle.haber || 0;
         } else {
@@ -44,7 +51,7 @@ export default function BalanceOchoColumnas() {
         }
         movimientos.set(detalle.cuentaCodigo, actual);
       }));
-    return [...movimientos.entries()].map(([codigo, m]) => {
+    const filasCalculadas = [...movimientos.entries()].map(([codigo, m]) => {
       const aperturaNeta = redondear(m.anteriorDebe - m.anteriorHaber);
       const sumasDebe = Math.max(aperturaNeta, 0) + redondear(m.periodoDebe);
       const sumasHaber = Math.max(-aperturaNeta, 0) + redondear(m.periodoHaber);
@@ -58,7 +65,27 @@ export default function BalanceOchoColumnas() {
         resultadoPerdida: m.tipo === 'gasto' ? saldoDeudor - saldoAcreedor : 0,
         resultadoGanancia: m.tipo === 'ingreso' ? saldoAcreedor - saldoDeudor : 0,
       };
-    }).filter(f => f.sumasDebe || f.sumasHaber).sort((a, b) => a.codigo.localeCompare(b.codigo));
+    }).filter(f => f.sumasDebe || f.sumasHaber);
+
+    const resultadoAnterior = redondear(resultadoAnteriorHaber - resultadoAnteriorDebe);
+    if (resultadoAnterior !== 0) {
+      const sumasDebe = Math.max(-resultadoAnterior, 0);
+      const sumasHaber = Math.max(resultadoAnterior, 0);
+      filasCalculadas.push({
+        codigo: '9-RESULTADO-ANTERIOR',
+        nombre: 'Resultado acumulado de ejercicios anteriores',
+        tipo: 'patrimonio',
+        sumasDebe,
+        sumasHaber,
+        saldoDeudor: sumasDebe,
+        saldoAcreedor: sumasHaber,
+        inventarioActivo: 0,
+        inventarioPasivo: resultadoAnterior,
+        resultadoPerdida: 0,
+        resultadoGanancia: 0,
+      });
+    }
+    return filasCalculadas.sort((a, b) => a.codigo.localeCompare(b.codigo));
   }, [state.asientos, state.cuentas, fechaInicio, fechaFin]);
 
   const totales = useMemo(() => filas.reduce((t, f) => ({
