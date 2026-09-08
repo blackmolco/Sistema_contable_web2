@@ -5,6 +5,7 @@ const { validate } = require('../middlewares/validate');
 const { parsePagination, paginatedResponse } = require('../middlewares/pagination');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
+const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -66,9 +67,10 @@ const libroVentaSchema = z.object({
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
-        const { empresaId, tipo, estado, tipoTransaccion, desde, hasta } = req.query;
-        const where = {};
-        if (empresaId) where.empresaId = empresaId;
+        const { tipo, estado, tipoTransaccion, desde, hasta } = req.query;
+        const empresaId = req.query.empresaId || req.usuario.empresaId || null;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
+        const where = { empresaId };
         if (tipo) where.tipo = tipo;
         if (estado) where.estado = estado;
         if (tipoTransaccion) where.tipoTransaccion = tipoTransaccion;
@@ -91,6 +93,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, writeLimiter, validate(docTributarioSchema), async (req, res) => {
     try {
         const { id, ...rest } = req.body;
+        if (!exigirAccesoEmpresa(req, res, rest.empresaId)) return;
         const docId = id || require('crypto').randomUUID();
         const data = {
             ...rest,
@@ -129,6 +132,10 @@ router.post('/', authenticateToken, writeLimiter, validate(docTributarioSchema),
 
 router.put('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
+        const actual = await prisma.documentoTributario.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
+        if (!actual) return res.status(404).json({ error: 'Documento no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
+        if (req.body.empresaId && req.body.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de un documento' });
         const doc = await prisma.documentoTributario.update({ where: { id: req.params.id }, data: req.body });
         await auditLog(req.usuario.id, 'ACTUALIZAR', 'DocumentoTributario', doc.id, req.body, req.ip, req.headers['user-agent']);
         res.json(doc);
@@ -140,6 +147,9 @@ router.put('/:id', authenticateToken, writeLimiter, async (req, res) => {
 
 router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
+        const actual = await prisma.documentoTributario.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
+        if (!actual) return res.status(404).json({ error: 'Documento no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         await prisma.documentoTributario.delete({ where: { id: req.params.id } });
         await auditLog(req.usuario.id, 'ELIMINAR', 'DocumentoTributario', req.params.id, {}, req.ip, req.headers['user-agent']);
         res.json({ message: 'Documento eliminado' });
@@ -154,8 +164,9 @@ router.get('/libro-compras', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
         const { empresaId, periodo } = req.query;
-        const where = {};
-        if (empresaId) where.empresaId = empresaId;
+        const empresaSeleccionada = empresaId || req.usuario.empresaId || null;
+        if (!exigirAccesoEmpresa(req, res, empresaSeleccionada)) return;
+        const where = { empresaId: empresaSeleccionada };
         if (periodo) where.periodo = periodo;
         const [total, registros] = await Promise.all([
             prisma.libroCompra.count({ where }),
@@ -170,6 +181,7 @@ router.get('/libro-compras', authenticateToken, async (req, res) => {
 
 router.post('/libro-compras', authenticateToken, writeLimiter, validate(libroCompraSchema), async (req, res) => {
     try {
+        if (!exigirAccesoEmpresa(req, res, req.body.empresaId)) return;
         const registro = await prisma.libroCompra.create({ data: { ...req.body, fecha: new Date(req.body.fecha) } });
         await auditLog(req.usuario.id, 'CREAR', 'LibroCompra', registro.id, req.body, req.ip, req.headers['user-agent']);
         res.status(201).json(registro);
@@ -184,8 +196,9 @@ router.get('/libro-ventas', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
         const { empresaId, periodo } = req.query;
-        const where = {};
-        if (empresaId) where.empresaId = empresaId;
+        const empresaSeleccionada = empresaId || req.usuario.empresaId || null;
+        if (!exigirAccesoEmpresa(req, res, empresaSeleccionada)) return;
+        const where = { empresaId: empresaSeleccionada };
         if (periodo) where.periodo = periodo;
         const [total, registros] = await Promise.all([
             prisma.libroVenta.count({ where }),
@@ -200,6 +213,7 @@ router.get('/libro-ventas', authenticateToken, async (req, res) => {
 
 router.post('/libro-ventas', authenticateToken, writeLimiter, validate(libroVentaSchema), async (req, res) => {
     try {
+        if (!exigirAccesoEmpresa(req, res, req.body.empresaId)) return;
         const registro = await prisma.libroVenta.create({ data: { ...req.body, fecha: new Date(req.body.fecha) } });
         await auditLog(req.usuario.id, 'CREAR', 'LibroVenta', registro.id, req.body, req.ip, req.headers['user-agent']);
         res.status(201).json(registro);
@@ -210,4 +224,3 @@ router.post('/libro-ventas', authenticateToken, writeLimiter, validate(libroVent
 });
 
 module.exports = router;
-

@@ -6,7 +6,7 @@ const { parsePagination, paginatedResponse } = require('../middlewares/paginatio
 
 const router = Router();
 
-router.get('/', authenticateToken, requireRole('administrador'), async (req, res) => {
+router.get('/', authenticateToken, requireRole('admin', 'administrador'), async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
         const { entidad, usuarioId, desde, hasta } = req.query;

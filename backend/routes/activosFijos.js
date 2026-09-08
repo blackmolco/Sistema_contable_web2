@@ -5,6 +5,7 @@ const { validate } = require('../middlewares/validate');
 const { parsePagination, paginatedResponse } = require('../middlewares/pagination');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
+const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -28,9 +29,10 @@ const activoFijoSchema = z.object({
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
-        const { empresaId, estado } = req.query;
-        const where = {};
-        if (empresaId) where.empresaId = empresaId;
+        const empresaId = req.query.empresaId || req.usuario.empresaId || null;
+        const { estado } = req.query;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
+        const where = { empresaId };
         if (estado) where.estado = estado;
         const [total, activos] = await Promise.all([
             prisma.activoFijo.count({ where }),
@@ -45,6 +47,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, writeLimiter, validate(activoFijoSchema), async (req, res) => {
     try {
+        if (!exigirAccesoEmpresa(req, res, req.body.empresaId)) return;
         const depreciacionMensual = req.body.valorAdquisicion / req.body.vidaUtilMeses;
         const activo = await prisma.activoFijo.create({
             data: {

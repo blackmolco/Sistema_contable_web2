@@ -5,6 +5,7 @@ const { validate } = require('../middlewares/validate');
 const { parsePagination, paginatedResponse } = require('../middlewares/pagination');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
+const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -62,9 +63,10 @@ const liquidacionSchema = z.object({
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
-        const { empresaId, estado, busqueda } = req.query;
-        const where = {};
-        if (empresaId) where.empresaId = empresaId;
+        const { estado, busqueda } = req.query;
+        const empresaId = req.query.empresaId || req.usuario.empresaId || null;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
+        const where = { empresaId };
         if (estado) where.estado = estado;
         if (busqueda) {
             where.OR = [
@@ -87,6 +89,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, writeLimiter, validate(trabajadorSchema), async (req, res) => {
     try {
         const { id, ...rest } = req.body;
+        if (!exigirAccesoEmpresa(req, res, rest.empresaId)) return;
         const trabajadorId = id || require('crypto').randomUUID();
         const data = {
             ...rest,
@@ -109,7 +112,11 @@ router.post('/', authenticateToken, writeLimiter, validate(trabajadorSchema), as
 
 router.put('/:id', authenticateToken, writeLimiter, validate(trabajadorSchema.partial()), async (req, res) => {
     try {
+        const actual = await prisma.trabajador.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
+        if (!actual) return res.status(404).json({ error: 'Trabajador no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         const data = { ...req.body };
+        if (data.empresaId && data.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de un trabajador' });
         if (data.fechaNacimiento) data.fechaNacimiento = new Date(data.fechaNacimiento);
         if (data.fechaIngreso) data.fechaIngreso = new Date(data.fechaIngreso);
         if (data.fechaTermino) data.fechaTermino = new Date(data.fechaTermino);
@@ -124,6 +131,9 @@ router.put('/:id', authenticateToken, writeLimiter, validate(trabajadorSchema.pa
 
 router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
+        const actual = await prisma.trabajador.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
+        if (!actual) return res.status(404).json({ error: 'Trabajador no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         await prisma.trabajador.update({ where: { id: req.params.id }, data: { estado: 'desvinculado' } });
         await auditLog(req.usuario.id, 'ELIMINAR', 'Trabajador', req.params.id, {}, req.ip, req.headers['user-agent']);
         res.json({ message: 'Trabajador desvinculado' });
@@ -138,7 +148,9 @@ router.get('/liquidaciones', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
         const { trabajadorId, periodo } = req.query;
-        const where = {};
+        const empresaId = req.query.empresaId || req.usuario.empresaId || null;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
+        const where = { trabajador: { empresaId } };
         if (trabajadorId) where.trabajadorId = trabajadorId;
         if (periodo) where.periodo = periodo;
         const [total, liquidaciones] = await Promise.all([
@@ -154,6 +166,9 @@ router.get('/liquidaciones', authenticateToken, async (req, res) => {
 
 router.post('/liquidaciones', authenticateToken, writeLimiter, validate(liquidacionSchema), async (req, res) => {
     try {
+        const trabajador = await prisma.trabajador.findUnique({ where: { id: req.body.trabajadorId }, select: { empresaId: true } });
+        if (!trabajador) return res.status(404).json({ error: 'Trabajador no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, trabajador.empresaId)) return;
         const totalImponible = req.body.sueldoBase + req.body.bonos + req.body.montoHorasExtras + req.body.gratificacion;
         const totalDescuentos = req.body.descuentoAFP + req.body.descuentoSalud + req.body.descuentoAFC + req.body.descuentoImpuesto + req.body.otrosDescuentos;
         const sueldoLiquido = totalImponible - totalDescuentos + req.body.asignacionFamiliar;

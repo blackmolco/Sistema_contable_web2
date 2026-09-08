@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const mime = require('mime-types');
 const { v4: uuidv4 } = require('uuid');
+const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -70,8 +71,9 @@ router.get('/', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
         const { categoria, trabajadorId, texto, activo = 'true' } = req.query;
-        const empresaId = req.usuario.empresaId || null;
-        const where = { activo: activo === 'true' };
+        const empresaId = req.query.empresaId || req.usuario.empresaId || null;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
+        const where = { activo: activo === 'true', empresaId };
         if (categoria) where.categoria = categoria;
         if (empresaId) where.empresaId = empresaId;
         if (trabajadorId) where.trabajadorId = trabajadorId;
@@ -97,6 +99,10 @@ router.post('/upload', authenticateToken, writeLimiter, upload.single('archivo')
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No se encontro archivo' });
+        }
+        if (!exigirAccesoEmpresa(req, res, req.body.empresaId)) {
+            if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+            return;
         }
         const sanitizeFilename = (name) => path.basename(name).replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 200);
         const nombreOriginal = sanitizeFilename(req.file.originalname);
@@ -129,10 +135,7 @@ router.get('/:id/descargar', authenticateToken, async (req, res) => {
     try {
         const documento = await prisma.documento.findUnique({ where: { id: req.params.id } });
         if (!documento) return res.status(404).json({ error: 'Documento no encontrado' });
-        const empresaId = req.usuario.empresaId || null;
-        if (empresaId && documento.empresaId && documento.empresaId !== empresaId) {
-            return res.status(403).json({ error: 'Acceso denegado' });
-        }
+        if (!exigirAccesoEmpresa(req, res, documento.empresaId)) return;
         if (!fs.existsSync(documento.ruta)) {
             return res.status(404).json({ error: 'Archivo no encontrado' });
         }
@@ -147,10 +150,7 @@ router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
         const documento = await prisma.documento.findUnique({ where: { id: req.params.id } });
         if (!documento) return res.status(404).json({ error: 'Documento no encontrado' });
-        const empresaId = req.usuario.empresaId || null;
-        if (empresaId && documento.empresaId && documento.empresaId !== empresaId) {
-            return res.status(403).json({ error: 'Acceso denegado' });
-        }
+        if (!exigirAccesoEmpresa(req, res, documento.empresaId)) return;
         await prisma.documento.update({ where: { id: req.params.id }, data: { activo: false } });
         await auditLog(req.usuario.id, 'ELIMINAR', 'Documento', req.params.id, {}, req.ip, req.headers['user-agent']);
         res.json({ message: 'Documento desactivado' });

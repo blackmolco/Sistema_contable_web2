@@ -5,6 +5,7 @@ const { validate } = require('../middlewares/validate');
 const { parsePagination, paginatedResponse } = require('../middlewares/pagination');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
+const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -32,6 +33,7 @@ router.get('/', authenticateToken, async (req, res) => {
         const { page, limit, offset } = parsePagination(req);
         const { tipo, busqueda, empresaId: qEmpresaId } = req.query;
         const empresaId = qEmpresaId || req.usuario.empresaId || null;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
         const where = { activo: true };
         if (tipo) where.tipo = tipo;
         if (empresaId) where.empresaId = empresaId;
@@ -60,6 +62,7 @@ router.post('/', authenticateToken, writeLimiter, validate(entidadSchema), async
     try {
         const { id, ...data } = req.body;
         const empresaId = data.empresaId ?? null;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
         if (data.email === '') data.email = null;
 
         const existente = await prisma.entidad.findFirst({
@@ -88,7 +91,11 @@ router.post('/', authenticateToken, writeLimiter, validate(entidadSchema), async
 
 router.put('/:id', authenticateToken, writeLimiter, validate(entidadSchema.partial()), async (req, res) => {
     try {
+        const actual = await prisma.entidad.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
+        if (!actual) return res.status(404).json({ error: 'Entidad no encontrada' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         const data = { ...req.body };
+        if (data.empresaId && data.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de una entidad' });
         if (data.email === '') data.email = null;
         const entidad = await prisma.entidad.update({ where: { id: req.params.id }, data });
         await auditLog(req.usuario.id, 'ACTUALIZAR', 'Entidad', entidad.id, req.body, req.ip, req.headers['user-agent']);
@@ -101,6 +108,9 @@ router.put('/:id', authenticateToken, writeLimiter, validate(entidadSchema.parti
 
 router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
+        const actual = await prisma.entidad.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
+        if (!actual) return res.status(404).json({ error: 'Entidad no encontrada' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         await prisma.entidad.update({ where: { id: req.params.id }, data: { activo: false } });
         await auditLog(req.usuario.id, 'ELIMINAR', 'Entidad', req.params.id, {}, req.ip, req.headers['user-agent']);
         res.json({ message: 'Entidad desactivada' });

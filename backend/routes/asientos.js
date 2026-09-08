@@ -6,6 +6,7 @@ const { parsePagination, paginatedResponse } = require('../middlewares/paginatio
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
 const { exigirPeriodoAbierto } = require('../services/periodos');
+const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 
 const router = Router();
 
@@ -47,6 +48,7 @@ router.post('/:id/reversar', authenticateToken, writeLimiter, async (req, res) =
     try {
         const original = await prisma.asientoContable.findUnique({ where: { id: req.params.id }, include: { detalles: true } });
         if (!original) return res.status(404).json({ error: 'Asiento no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, original.empresaId)) return;
         if (original.estado !== 'contabilizado') return res.status(409).json({ error: 'Solo se pueden reversar asientos contabilizados' });
         const tipoReverso = `reverso:${original.id}`;
         const existente = await prisma.asientoContable.findFirst({ where: { empresaId: original.empresaId, tipo: tipoReverso } });
@@ -105,8 +107,10 @@ router.get('/', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
         const { empresaId, estado, desde, hasta } = req.query;
+        const empresaSeleccionada = empresaId || req.usuario.empresaId || null;
+        if (!exigirAccesoEmpresa(req, res, empresaSeleccionada)) return;
         const where = {};
-        if (empresaId) where.empresaId = empresaId;
+        where.empresaId = empresaSeleccionada;
         if (estado) where.estado = estado;
         if (desde || hasta) {
             where.fecha = {};
@@ -139,6 +143,7 @@ router.post('/', authenticateToken, writeLimiter, validate(asientoSchema), async
             return res.status(400).json({ error: 'El asiento no esta cuadrado', totalDebe, totalHaber, diferencia: totalDebe - totalHaber });
         }
         const empresaId = asientoData.empresaId ?? null;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
         const existente = id ? await prisma.asientoContable.findUnique({ where: { id }, select: { id: true, estado: true, empresaId: true } }) : null;
         if (existente && existente.estado !== 'pendiente') {
             return res.status(409).json({ error: 'Solo se pueden editar asientos pendientes. Use un asiento reverso para corregir un comprobante contabilizado.' });
@@ -215,6 +220,7 @@ router.put('/:id', authenticateToken, writeLimiter, async (req, res) => {
         }
         const actual = await prisma.asientoContable.findUnique({ where: { id: req.params.id } });
         if (!actual) return res.status(404).json({ error: 'Asiento no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         if (actual.estado === 'anulado') {
             return res.status(409).json({ error: 'Un asiento anulado no puede modificarse' });
         }
@@ -236,8 +242,9 @@ router.put('/:id', authenticateToken, writeLimiter, async (req, res) => {
 
 router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
-        const actual = await prisma.asientoContable.findUnique({ where: { id: req.params.id }, select: { estado: true } });
+        const actual = await prisma.asientoContable.findUnique({ where: { id: req.params.id }, select: { estado: true, empresaId: true } });
         if (!actual) return res.status(404).json({ error: 'Asiento no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         if (actual.estado !== 'pendiente') {
             return res.status(409).json({ error: 'Solo se pueden eliminar asientos pendientes' });
         }

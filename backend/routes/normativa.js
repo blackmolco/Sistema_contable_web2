@@ -16,7 +16,7 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 });
 
-router.post('/actualizar', authenticateToken, requireRole('administrador'), async (req, res) => {
+router.post('/actualizar', authenticateToken, requireRole('admin', 'administrador'), async (req, res) => {
     try {
         const resultado = await normativa.actualizarDesdeSII(prisma);
         res.json(resultado);

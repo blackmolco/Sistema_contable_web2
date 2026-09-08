@@ -5,6 +5,7 @@ const { validate } = require('../middlewares/validate');
 const { parsePagination, paginatedResponse } = require('../middlewares/pagination');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
+const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -57,6 +58,7 @@ router.get('/', authenticateToken, async (req, res) => {
         const { page, limit, offset } = parsePagination(req);
         const { tipo, busqueda, empresaId: qEmpresaId } = req.query;
         const empresaId = qEmpresaId || req.usuario.empresaId || null;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
         const where = { activo: true };
         if (tipo) where.tipo = tipo;
         if (empresaId) where.empresaId = empresaId;
@@ -81,6 +83,7 @@ router.post('/', authenticateToken, writeLimiter, validate(cuentaSchema), async 
     try {
         const { id, ...data } = req.body;
         const empresaId = data.empresaId ?? null;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
 
         // La identidad real de una cuenta es (codigo, empresa) — asi lo declara
         // @@unique([codigo, empresaId]) en el schema. NO se puede hacer upsert
@@ -116,6 +119,10 @@ router.post('/', authenticateToken, writeLimiter, validate(cuentaSchema), async 
 
 router.put('/:id', authenticateToken, writeLimiter, validate(cuentaSchema.partial()), async (req, res) => {
     try {
+        const actual = await prisma.cuenta.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
+        if (!actual) return res.status(404).json({ error: 'Cuenta no encontrada' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
+        if (req.body.empresaId && req.body.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de una cuenta' });
         const cuenta = await prisma.cuenta.update({ where: { id: req.params.id }, data: req.body });
         await auditLog(req.usuario.id, 'ACTUALIZAR', 'Cuenta', cuenta.id, req.body, req.ip, req.headers['user-agent']);
         res.json(cuenta);
@@ -127,6 +134,9 @@ router.put('/:id', authenticateToken, writeLimiter, validate(cuentaSchema.partia
 
 router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
+        const actual = await prisma.cuenta.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
+        if (!actual) return res.status(404).json({ error: 'Cuenta no encontrada' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         await prisma.cuenta.update({ where: { id: req.params.id }, data: { activo: false } });
         await auditLog(req.usuario.id, 'ELIMINAR', 'Cuenta', req.params.id, {}, req.ip, req.headers['user-agent']);
         res.json({ message: 'Cuenta desactivada' });
@@ -137,4 +147,3 @@ router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
 });
 
 module.exports = router;
-

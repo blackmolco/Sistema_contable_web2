@@ -5,6 +5,7 @@ const { validate } = require('../middlewares/validate');
 const { parsePagination, paginatedResponse } = require('../middlewares/pagination');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
+const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -27,9 +28,10 @@ const tesoreriaSchema = z.object({
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
-        const { empresaId, tipo, estado, desde, hasta } = req.query;
-        const where = {};
-        if (empresaId) where.empresaId = empresaId;
+        const { tipo, estado, desde, hasta } = req.query;
+        const empresaId = req.query.empresaId || req.usuario.empresaId || null;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
+        const where = { empresaId };
         if (tipo) where.tipo = tipo;
         if (estado) where.estado = estado;
         if (desde || hasta) {
@@ -50,6 +52,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, writeLimiter, validate(tesoreriaSchema), async (req, res) => {
     try {
+        if (!exigirAccesoEmpresa(req, res, req.body.empresaId)) return;
         const mov = await prisma.tesoreriaMovimiento.create({ data: { ...req.body, fecha: new Date(req.body.fecha) } });
         await auditLog(req.usuario.id, 'CREAR', 'TesoreriaMovimiento', mov.id, req.body, req.ip, req.headers['user-agent']);
         res.status(201).json(mov);

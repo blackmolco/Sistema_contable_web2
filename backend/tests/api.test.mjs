@@ -77,17 +77,12 @@ describe('Aislamiento de tenant', () => {
     );
   }
 
-  it('GET /api/cuentas ignora empresaId de otro tenant via query', async () => {
+  it('GET /api/cuentas rechaza empresaId de otro tenant via query', async () => {
     const token = tokenEmpresa(EMPRESA_A);
     const res = await request(app)
       .get(`/api/cuentas?empresaId=${EMPRESA_B}`)
       .set('Authorization', `Bearer ${token}`);
-    expect(res.status).toBe(200);
-    const cuentas = res.body.data ?? res.body;
-    expect(Array.isArray(cuentas)).toBe(true);
-    // Solo cuentas de la empresa A (del token) o vacio — nunca de la empresa B
-    for (const c of cuentas) {
-      expect(c.empresaId).toBe(EMPRESA_A);
-    }
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/acceso/i);
   });
 });

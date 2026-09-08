@@ -5,6 +5,7 @@ const { validate } = require('../middlewares/validate');
 const { parsePagination, paginatedResponse } = require('../middlewares/pagination');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
+const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -30,7 +31,9 @@ const honorarioCreateSchema = z.object({
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
-        const { empresaId, periodo, estado } = req.query;
+        const empresaId = req.query.empresaId || req.usuario.empresaId || null;
+        const { periodo, estado } = req.query;
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
         const where = {};
         if (empresaId) where.empresaId = empresaId;
         if (periodo) where.periodo = periodo;
@@ -49,6 +52,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, writeLimiter, validate(honorarioCreateSchema), async (req, res) => {
     try {
         const { id, ...rest } = req.body;
+        if (!exigirAccesoEmpresa(req, res, rest.empresaId)) return;
         const honorarioId = id || require('crypto').randomUUID();
         const data = { ...rest, fechaPago: rest.fechaPago ? new Date(rest.fechaPago) : null };
         const honorario = await prisma.honorario.upsert({
@@ -66,7 +70,11 @@ router.post('/', authenticateToken, writeLimiter, validate(honorarioCreateSchema
 
 router.put('/:id', authenticateToken, writeLimiter, validate(honorarioCreateSchema.partial()), async (req, res) => {
     try {
+        const actual = await prisma.honorario.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
+        if (!actual) return res.status(404).json({ error: 'Honorario no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         const data = { ...req.body };
+        if (data.empresaId && data.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de un honorario' });
         if (data.fechaPago) data.fechaPago = new Date(data.fechaPago);
         const honorario = await prisma.honorario.update({ where: { id: req.params.id }, data });
         await auditLog(req.usuario.id, 'ACTUALIZAR', 'Honorario', honorario.id, req.body, req.ip, req.headers['user-agent']);
@@ -79,6 +87,9 @@ router.put('/:id', authenticateToken, writeLimiter, validate(honorarioCreateSche
 
 router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
+        const actual = await prisma.honorario.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
+        if (!actual) return res.status(404).json({ error: 'Honorario no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         await prisma.honorario.delete({ where: { id: req.params.id } });
         await auditLog(req.usuario.id, 'ELIMINAR', 'Honorario', req.params.id, {}, req.ip, req.headers['user-agent']);
         res.json({ message: 'Honorario eliminado' });

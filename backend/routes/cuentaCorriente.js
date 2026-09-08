@@ -6,6 +6,7 @@ const { authenticateToken } = require('../middlewares/authenticate');
 const { validate } = require('../middlewares/validate');
 const { crearAsiento } = require('../services/generarAsiento');
 const { exigirPeriodoAbierto } = require('../services/periodos');
+const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -30,6 +31,7 @@ const schema = z.object({
 
 router.post('/aplicar', authenticateToken, writeLimiter, validate(schema), async (req, res) => {
   const { empresaId, fecha, cuentaMedioId, aplicaciones, glosa } = req.body;
+  if (!exigirAccesoEmpresa(req, res, empresaId)) return;
   try {
     const asiento = await prisma.$transaction(async tx => {
       await exigirPeriodoAbierto(tx, empresaId, fecha);

@@ -5,6 +5,8 @@ const { validate } = require('../middlewares/validate');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
 const { validarRut } = require('../lib/rut');
+const { requireRole } = require('../middlewares/requireRole');
+const { esAdmin } = require('../middlewares/empresaAccess');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -31,7 +33,12 @@ const empresaSchema = z.object({
 
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        const empresas = await prisma.empresa.findMany({ where: { activo: true }, orderBy: { razonSocial: 'asc' } });
+        const where = { activo: true };
+        if (!esAdmin(req.usuario)) {
+            if (!req.usuario.empresaId) return res.json([]);
+            where.id = req.usuario.empresaId;
+        }
+        const empresas = await prisma.empresa.findMany({ where, orderBy: { razonSocial: 'asc' } });
         res.json(empresas);
     } catch (err) {
         logger.error({ err }, 'Error obteniendo empresas');
@@ -39,7 +46,7 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 });
 
-router.post('/', authenticateToken, writeLimiter, validate(empresaSchema), async (req, res) => {
+router.post('/', authenticateToken, requireRole('admin', 'administrador'), writeLimiter, validate(empresaSchema), async (req, res) => {
     try {
         if (!validarRut(req.body.rut)) {
             return res.status(400).json({ error: 'RUT invalido' });
@@ -60,7 +67,7 @@ router.post('/', authenticateToken, writeLimiter, validate(empresaSchema), async
     }
 });
 
-router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
+router.delete('/:id', authenticateToken, requireRole('admin', 'administrador'), writeLimiter, async (req, res) => {
     try {
         await prisma.empresa.update({ where: { id: req.params.id }, data: { activo: false } });
         await auditLog(req.usuario.id, 'ELIMINAR', 'Empresa', req.params.id, {}, req.ip, req.headers['user-agent']);
