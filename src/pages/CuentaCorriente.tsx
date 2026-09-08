@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { CreditCard, History, ListChecks, WalletCards } from 'lucide-react';
+import { CreditCard, ExternalLink, History, ListChecks, WalletCards } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { Button, Input, MontoInput, Select, SearchSelect } from '../components/ui/FormElements';
@@ -26,6 +27,7 @@ const vencimientoDocumento = (fecha: string, vencimiento?: string) => {
 
 export default function CuentaCorriente() {
   const { state, showToast } = useApp();
+  const navigate = useNavigate();
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
   const [rutSeleccionado, setRutSeleccionado] = useState('');
   const [soloPendientes, setSoloPendientes] = useState(true);
@@ -355,7 +357,16 @@ export default function CuentaCorriente() {
                 {historialRut.map((l, i) => (
                   <tr key={i} className="odd:bg-gray-50/50 dark:odd:bg-gray-800/30">
                     <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{formatDate(l.fecha)}</td>
-                    <td className="px-3 py-2 font-data text-primary dark:text-blue-400">#{l.numero}</td>
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/asientos?asientoId=${encodeURIComponent(l.asientoId)}`)}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 font-data text-primary hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/30 dark:text-blue-400"
+                        title="Abrir comprobante contable"
+                      >
+                        #{l.numero} <ExternalLink size={12} />
+                      </button>
+                    </td>
                     <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{l.glosa}</td>
                     <td className="px-3 py-2 text-right font-data text-gray-900 dark:text-gray-100">{l.debe > 0 ? formatCurrency(l.debe) : ''}</td>
                     <td className="px-3 py-2 text-right font-data text-gray-900 dark:text-gray-100">{l.haber > 0 ? formatCurrency(l.haber) : ''}</td>

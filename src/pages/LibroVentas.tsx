@@ -6,7 +6,9 @@ import {
   TrendingDown,
   Filter,
   Calendar,
+  ExternalLink,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { Button, Select } from '../components/ui/FormElements';
@@ -19,6 +21,7 @@ interface LibroVentasProps {
 
 export default function LibroVentas({ tipo }: LibroVentasProps) {
   const { state } = useApp();
+  const navigate = useNavigate();
 
   // ── Estados de período: mes y año SEPARADOS para que funcionen independientemente ──
   const now = new Date();
@@ -69,6 +72,7 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
         neto: (doc.neto ?? doc.subtotal ?? 0) * signo,
         iva: (doc.iva ?? 0) * signo,
         total: (doc.total ?? 0) * signo,
+        asientoId: doc.asientoId,
       };
     });
   }, [registrosFiltrados]);
@@ -243,12 +247,13 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
               <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Neto</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">IVA</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Total</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Comprobante</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
             {registros.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-12 text-center">
+                <td colSpan={10} className="px-4 py-12 text-center">
                   <FileText className="mx-auto text-gray-300 dark:text-gray-600 mb-3" size={48} />
                   <p className="text-gray-500 dark:text-gray-400">No hay documentos en este período</p>
                 </td>
@@ -267,6 +272,20 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
                   <td className="px-4 py-3 text-sm text-right font-data text-gray-600 dark:text-gray-300">{formatCurrency(registro.neto)}</td>
                   <td className="px-4 py-3 text-sm text-right font-data text-gray-600 dark:text-gray-300">{formatCurrency(registro.iva)}</td>
                   <td className="px-4 py-3 text-sm text-right font-data font-medium text-gray-900 dark:text-gray-100">{formatCurrency(registro.total)}</td>
+                  <td className="px-4 py-3 text-center">
+                    {registro.asientoId ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/asientos?asientoId=${encodeURIComponent(registro.asientoId!)}`)}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        title="Abrir comprobante contable"
+                      >
+                        Ver <ExternalLink size={13} />
+                      </button>
+                    ) : (
+                      <Badge variant="warning">Sin asiento</Badge>
+                    )}
+                  </td>
                 </tr>
               ))
             )}
@@ -280,6 +299,7 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
               <td className="px-4 py-3 text-right font-data font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(totales.neto)}</td>
               <td className="px-4 py-3 text-right font-data font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(totales.iva)}</td>
               <td className="px-4 py-3 text-right font-data font-semibold text-primary dark:text-blue-300">{formatCurrency(totales.total)}</td>
+              <td></td>
             </tr>
           </tfoot>
         </table>

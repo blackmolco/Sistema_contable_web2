@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
-import { Plus, Search, Edit2, Trash2, CheckCircle, AlertCircle, Bookmark, BookmarkPlus, Copy, Undo2 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, Search, Edit2, Trash2, CheckCircle, AlertCircle, Bookmark, BookmarkPlus, Copy, Undo2, Eye } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { Button, Input, Select, SearchSelect, MontoInput, Textarea } from '../components/ui/FormElements';
@@ -11,6 +12,8 @@ import { reversarAsiento } from '../services/apiSync';
 
 export default function AsientosContables() {
   const { state, dispatch, showToast } = useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const asientoIdEnlace = searchParams.get('asientoId');
   const [searchTerm, setSearchTerm] = useState('');
   // Sin esto la lista mezclaba asientos de todos los años seguidos, sin
   // forma de acotar a un ejercicio. Se arma con los años que realmente
@@ -26,6 +29,7 @@ export default function AsientosContables() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [reversoId, setReversoId] = useState<string | null>(null);
   const [motivoReverso, setMotivoReverso] = useState('');
+  const [asientoConsultado, setAsientoConsultado] = useState<AsientoContable | null>(null);
 
   const [formData, setFormData] = useState({
     fecha: new Date().toISOString().split('T')[0],
@@ -51,6 +55,23 @@ export default function AsientosContables() {
   const [nombrePlantilla, setNombrePlantilla] = useState('');
 
   const plantillas: PlantillaAsiento[] = state.plantillas ?? [];
+
+  useEffect(() => {
+    if (!asientoIdEnlace || asientoConsultado) return;
+    const asiento = (state.asientos ?? []).find((a) => a.id === asientoIdEnlace);
+    if (!asiento) return;
+    setAnioFiltro(String(new Date(asiento.fecha).getFullYear()));
+    setAsientoConsultado(asiento);
+  }, [asientoIdEnlace, asientoConsultado, state.asientos]);
+
+  const cerrarConsulta = () => {
+    setAsientoConsultado(null);
+    if (asientoIdEnlace) {
+      const siguientes = new URLSearchParams(searchParams);
+      siguientes.delete('asientoId');
+      setSearchParams(siguientes, { replace: true });
+    }
+  };
 
   // Filtrar asientos
   const asientosFiltrados = (state.asientos ?? []).filter((a) => {
@@ -453,6 +474,14 @@ export default function AsientosContables() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1">
                       <button
+                        onClick={() => setAsientoConsultado(asiento)}
+                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-blue-400 hover:bg-primary/10 rounded-lg transition-[background-color,color] duration-150"
+                        title="Ver comprobante"
+                        aria-label={`Ver asiento #${asiento.numero}`}
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button
                         onClick={() => abrirModalEditar(asiento)}
                         disabled={asiento.estado !== 'pendiente'}
                         className="p-2 text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg
@@ -506,6 +535,40 @@ export default function AsientosContables() {
         </table>
         </div>
       </Card>
+
+      <Modal
+        isOpen={!!asientoConsultado}
+        onClose={cerrarConsulta}
+        title={asientoConsultado ? `Comprobante contable #${asientoConsultado.numero}` : 'Comprobante contable'}
+        size="xl"
+        footer={<Button variant="secondary" onClick={cerrarConsulta}>Cerrar</Button>}
+      >
+        {asientoConsultado && (
+          <div className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800"><p className="text-xs text-gray-500">Fecha</p><p className="font-semibold">{formatDate(asientoConsultado.fecha)}</p></div>
+              <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800"><p className="text-xs text-gray-500">Estado</p><Badge variant={asientoConsultado.estado === 'contabilizado' ? 'success' : asientoConsultado.estado === 'anulado' ? 'danger' : 'warning'}>{asientoConsultado.estado}</Badge></div>
+              <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800"><p className="text-xs text-gray-500">Origen</p><p className="font-semibold">{asientoConsultado.tipo || 'Manual'}</p></div>
+            </div>
+            <div><p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Glosa</p><p className="mt-1 text-gray-900 dark:text-gray-100">{asientoConsultado.glosa}</p></div>
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-800"><tr><th className="px-3 py-2 text-left">Cuenta y auxiliar</th><th className="px-3 py-2 text-right">Debe</th><th className="px-3 py-2 text-right">Haber</th></tr></thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {asientoConsultado.detalles.map((detalle, index) => (
+                    <tr key={detalle.id || index}>
+                      <td className="px-3 py-3"><span className="font-data text-xs text-gray-500">{detalle.cuentaCodigo}</span><span className="ml-2 font-medium">{detalle.cuentaNombre}</span>{detalle.rutAuxiliar && <span className="mt-1 block text-xs text-primary">{detalle.rutAuxiliar} — {detalle.nombreAuxiliar || 'Sin nombre'}{detalle.documentoId ? ` · ${etiquetaPorDocumentoId.get(detalle.documentoId)?.label || 'Documento asociado'}` : ''}</span>}</td>
+                      <td className="px-3 py-3 text-right font-data">{detalle.debe ? formatCurrency(detalle.debe) : ''}</td>
+                      <td className="px-3 py-3 text-right font-data">{detalle.haber ? formatCurrency(detalle.haber) : ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="border-t-2 border-gray-200 bg-gray-50 font-semibold dark:border-gray-700 dark:bg-gray-800"><tr><td className="px-3 py-2">Totales</td><td className="px-3 py-2 text-right font-data">{formatCurrency(asientoConsultado.totalDebe)}</td><td className="px-3 py-2 text-right font-data">{formatCurrency(asientoConsultado.totalHaber)}</td></tr></tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Modal Asiento */}
       <Modal
