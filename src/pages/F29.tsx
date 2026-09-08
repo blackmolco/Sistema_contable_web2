@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Upload, FileText, Printer, CheckCircle2, AlertCircle, Save, RefreshCw, Info } from 'lucide-react';
-import { Card } from '../components/ui/Cards';
+import { Upload, FileText, Printer, CheckCircle2, AlertCircle, Save, RefreshCw, Info, Scale } from 'lucide-react';
+import { Card, Badge } from '../components/ui/Cards';
 import { formatCurrency, generateId } from '../utils/calculos';
 import { useApp } from '../context/AppContext';
 import { RETENCION_HONORARIOS } from '../data/normativa';
@@ -73,6 +73,7 @@ export default function F29() {
       comprasIva:  sumaIva(compras),
       countVentas:  ventas.length,
       countCompras: compras.length,
+      documentos: docsDelPeriodo,
     };
   }, [state.documentos, mesAuto, anioAuto]);
 
@@ -101,11 +102,42 @@ export default function F29() {
     [state.honorarios, mesAuto, anioAuto]
   );
 
+  const controlContable = useMemo(() => {
+    const inicio = `${anioAuto}-${String(mesAuto).padStart(2, '0')}-01`;
+    const asientosPeriodo = state.asientos.filter(a => {
+      const fecha = a.fecha.slice(0, 10);
+      const [anio, mes] = fecha.split('-').map(Number);
+      return anio === anioAuto && mes === mesAuto && a.estado !== 'anulado' && a.tipo !== 'traspaso' && !a.tipo?.startsWith('reverso:');
+    });
+    let ivaDebitoMayor = 0;
+    let ivaCreditoMayor = 0;
+    asientosPeriodo.forEach(a => a.detalles.forEach(d => {
+      if (d.cuentaCodigo === '2-01-002-0001') ivaDebitoMayor += d.haber - d.debe;
+      if (d.cuentaCodigo === '1-02-002-0001') ivaCreditoMayor += d.debe - d.haber;
+    }));
+    let remanenteAnterior = 0;
+    state.asientos.filter(a => a.estado !== 'anulado' && a.fecha.slice(0, 10) < inicio).forEach(a => a.detalles.forEach(d => {
+      if (d.cuentaCodigo === '1-02-002-0002') remanenteAnterior += d.debe - d.haber;
+    }));
+    const sinAsiento = datosDelSistema.documentos.filter(d => !d.asientoId).length;
+    return {
+      ivaDebitoMayor,
+      ivaCreditoMayor,
+      remanenteAnterior: Math.max(0, remanenteAnterior),
+      sinAsiento,
+      diferenciaDebito: datosDelSistema.ventasIva - ivaDebitoMayor,
+      diferenciaCredito: datosDelSistema.comprasIva - ivaCreditoMayor,
+    };
+  }, [state.asientos, datosDelSistema, mesAuto, anioAuto]);
+
+  const conciliado = Math.abs(controlContable.diferenciaDebito) < 1 && Math.abs(controlContable.diferenciaCredito) < 1 && controlContable.sinAsiento === 0;
+
   // PPM (1% por defecto)
   const [tasaPpm, setTasaPpm] = useState(1);
   const ppm = (ventasNeto * tasaPpm) / 100;
 
-  const totalAPagar = (ventasIva - comprasIva) + honorariosRetencion + ppm;
+  const creditoDisponible = comprasIva + controlContable.remanenteAnterior;
+  const totalAPagar = (ventasIva - creditoDisponible) + honorariosRetencion + ppm;
 
   // --- Lógica de Cierre de IVA ---
   const buscarCuenta = (codigo: string, defaultNombre: string, defaultId: string) => {
@@ -129,7 +161,7 @@ export default function F29() {
 
   const debeDebito = ventasIva;
   const haberCredito = comprasIva;
-  const difIva = ventasIva - comprasIva;
+  const difIva = ventasIva - creditoDisponible;
 
   const detallesCierre: DetalleAsiento[] = [];
   if (debeDebito > 0) {
@@ -137,6 +169,9 @@ export default function F29() {
   }
   if (haberCredito > 0) {
     detallesCierre.push({ ...cIvaCredito, debe: 0, haber: haberCredito });
+  }
+  if (controlContable.remanenteAnterior > 0) {
+    detallesCierre.push({ ...cRemanente, debe: 0, haber: controlContable.remanenteAnterior });
   }
 
   if (difIva > 0) {
@@ -149,6 +184,10 @@ export default function F29() {
   const totalHaberCierre = detallesCierre.reduce((acc, d) => acc + d.haber, 0);
 
   const generarAsientoCierreIva = () => {
+    if (!conciliado) {
+      showToast('error', 'Período no conciliado', 'Corrige los documentos sin asiento y las diferencias entre libros y mayor antes de cerrar el IVA.');
+      return;
+    }
     if (ventasIva === 0 && comprasIva === 0) {
       showToast('error', 'Sin montos', 'No hay saldos de IVA para cerrar en este período.');
       return;
@@ -343,6 +382,19 @@ export default function F29() {
         </button>
       </div>
 
+      <Card className="no-print">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2"><Scale size={19} className="text-primary" /><div><p className="font-semibold text-gray-900 dark:text-gray-100">Conciliación previa al cierre</p><p className="text-xs text-gray-500">Compara el borrador con los asientos contabilizados del período.</p></div></div>
+          <Badge variant={conciliado ? 'success' : 'danger'}>{conciliado ? 'Conciliado' : 'Requiere revisión'}</Badge>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800"><p className="text-xs text-gray-500">Diferencia IVA Débito</p><p className={`mt-1 font-data font-bold ${Math.abs(controlContable.diferenciaDebito) < 1 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(controlContable.diferenciaDebito)}</p></div>
+          <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800"><p className="text-xs text-gray-500">Diferencia IVA Crédito</p><p className={`mt-1 font-data font-bold ${Math.abs(controlContable.diferenciaCredito) < 1 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(controlContable.diferenciaCredito)}</p></div>
+          <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800"><p className="text-xs text-gray-500">Documentos sin asiento</p><p className={`mt-1 font-data font-bold ${controlContable.sinAsiento === 0 ? 'text-emerald-600' : 'text-red-600'}`}>{controlContable.sinAsiento}</p></div>
+        </div>
+        {!conciliado && <p className="mt-3 text-xs text-red-600">El cierre de IVA permanecerá bloqueado hasta corregir estas diferencias en Control de Integridad o Conciliación Tributaria.</p>}
+      </Card>
+
       {/* ── Carga automática desde libros del sistema ── */}
       <div className="no-print flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
         <Info size={18} className="text-blue-600 flex-shrink-0 mt-0.5" />
@@ -520,7 +572,8 @@ export default function F29() {
             ) : (
               <button
                 onClick={generarAsientoCierreIva}
-                className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-all rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm"
+                disabled={!conciliado}
+                className="px-4 py-2 bg-primary text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 transition-all rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm"
               >
                 <RefreshCw size={16} /> Generar Asiento de Cierre de IVA
               </button>
@@ -556,6 +609,11 @@ export default function F29() {
           {/* IVA Crédito (Compras) */}
           <section>
             <h3 className="font-bold text-lg mb-3 bg-gray-100 p-2 rounded">CRÉDITO Y COMPRAS (IVA)</h3>
+            <div className="grid grid-cols-12 gap-4 border-b py-2">
+              <div className="col-span-8 text-sm text-gray-700">Remanente Crédito Fiscal mes anterior</div>
+              <div className="col-span-2 text-right text-xs font-mono text-gray-400 border border-gray-300 px-1 rounded">Cód. 504</div>
+              <div className="col-span-2 text-right font-data font-medium">{formatCurrency(controlContable.remanenteAnterior)}</div>
+            </div>
             <div className="grid grid-cols-12 gap-4 border-b py-2">
               <div className="col-span-8 text-sm text-gray-700">Facturas Recibidas (Neto)</div>
               <div className="col-span-2 text-right text-xs font-mono text-gray-400 border border-gray-300 px-1 rounded">Cód. 514</div>
