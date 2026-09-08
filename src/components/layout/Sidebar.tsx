@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   FilePen,
-  Users,
   CloudCog,
   BarChart3,
   Settings,
@@ -18,13 +17,11 @@ import {
   Table,
   FileSpreadsheet,
   Bell,
-  CreditCard,
   ListTree,
   BookText,
   BookMarked,
   BookUp,
   BookDown,
-  HandCoins,
   Combine,
   Star,
   UserCog,
@@ -81,10 +78,7 @@ const menuCategories = [
   {
     title: 'Clientes y Cobros',
     items: [
-      { path: '/cuenta-corriente',     icon: Wallet,       label: 'Cuenta Corriente' },
-      { path: '/clientes-proveedores', icon: Users,        label: 'Clientes/Proveedores' },
-      { path: '/cuentas-cobrar',       icon: CreditCard,   label: 'Cuentas por Cobrar' },
-      { path: '/cuentas-pagar',        icon: HandCoins,    label: 'Cuentas por Pagar' },
+      { path: '/cuenta-corriente', icon: Wallet, label: 'Cuenta Corriente' },
     ]
   },
   // Remuneraciones: oculto del menú — se está migrando a un sistema dedicado aparte.
@@ -176,23 +170,10 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
     .filter((i): i is (typeof ALL_ITEMS)[number] => Boolean(i));
 
   // ── Badges de notificación ─────────────────────────────────────────────
-  const today = new Date();
-  const in7Days = new Date(today); in7Days.setDate(today.getDate() + 7);
-
-  const cxcVencidas = (state.cuentasCobrar ?? []).filter(c =>
-    c.estado !== 'pagada' && new Date(c.fechaVencimiento) < today
-  ).length;
-
-  const cxpProximas = (state.cuentasPagar ?? []).filter(p =>
-    p.estado !== 'pagada' && new Date(p.fechaVencimiento) <= in7Days
-  ).length;
-
   const alertasActivas = (state.alertas ?? []).filter(a => !a.leida).length;
 
   const BADGE_MAP: Record<string, number> = {
-    '/cuentas-cobrar':   cxcVencidas,
-    '/cuentas-pagar':    cxpProximas,
-    '/alertas':          alertasActivas,
+    '/alertas': alertasActivas,
   };
 
   // ── Render de un ítem del menú ─────────────────────────────────────────
