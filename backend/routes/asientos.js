@@ -42,6 +42,35 @@ const writeLimiter = rateLimit({
     message: { error: 'Limite de operaciones alcanzado' },
 });
 
+router.post('/:id/reversar', authenticateToken, writeLimiter, async (req, res) => {
+    try {
+        const original = await prisma.asientoContable.findUnique({ where: { id: req.params.id }, include: { detalles: true } });
+        if (!original) return res.status(404).json({ error: 'Asiento no encontrado' });
+        if (original.estado !== 'contabilizado') return res.status(409).json({ error: 'Solo se pueden reversar asientos contabilizados' });
+        const tipoReverso = `reverso:${original.id}`;
+        const existente = await prisma.asientoContable.findFirst({ where: { empresaId: original.empresaId, tipo: tipoReverso } });
+        if (existente) return res.status(409).json({ error: `El asiento ya fue reversado por el comprobante ${existente.numero}` });
+        const motivo = String(req.body?.motivo || '').trim();
+        if (motivo.length < 3) return res.status(400).json({ error: 'Indique el motivo del reverso' });
+        const fecha = req.body?.fecha ? new Date(req.body.fecha) : new Date();
+        const asiento = await prisma.$transaction(async tx => {
+            const empresa = await tx.empresa.update({ where: { id: original.empresaId }, data: { ultimoNumeroAsiento: { increment: 1 } } });
+            return tx.asientoContable.create({
+                data: {
+                    numero: empresa.ultimoNumeroAsiento, fecha, glosa: `Reverso asiento #${original.numero} — ${motivo}`,
+                    estado: 'contabilizado', tipo: tipoReverso, empresaId: original.empresaId, usuarioId: req.usuario.id,
+                    detalles: { create: original.detalles.map(d => ({ cuentaId: d.cuentaId, cuentaCodigo: d.cuentaCodigo, cuentaNombre: d.cuentaNombre, debe: d.haber, haber: d.debe, glosa: d.glosa, rutAuxiliar: d.rutAuxiliar, nombreAuxiliar: d.nombreAuxiliar, documentoId: d.documentoId })) },
+                }, include: { detalles: true },
+            });
+        });
+        await auditLog(req.usuario.id, 'REVERSAR', 'AsientoContable', original.id, { asientoReversoId: asiento.id, motivo }, req.ip, req.headers['user-agent']);
+        res.status(201).json(asiento);
+    } catch (err) {
+        logger.error({ err }, 'Error reversando asiento');
+        res.status(500).json({ error: 'No se pudo reversar el asiento' });
+    }
+});
+
 const detalleAsientoSchema = z.object({
     cuentaId: z.string().min(1).optional().nullable(),
     cuentaCodigo: z.string().max(50).optional().nullable(),

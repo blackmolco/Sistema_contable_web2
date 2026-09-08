@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { CreditCard, History } from 'lucide-react';
+import { CreditCard, History, WalletCards } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Card, Badge } from '../components/ui/Cards';
-import { Select, SearchSelect } from '../components/ui/FormElements';
+import { Button, Input, MontoInput, Select, SearchSelect } from '../components/ui/FormElements';
+import { Modal } from '../components/ui/Modal';
 import { formatCurrency, formatDate } from '../utils/calculos';
 import { Entidad } from '../types';
+import { aplicarPagoCobro } from '../services/apiSync';
 
 type FiltroTipo = 'todos' | 'cliente' | 'proveedor' | 'honorario';
 
@@ -15,10 +17,15 @@ const LABEL_TIPO: Record<Exclude<FiltroTipo, 'todos'>, string> = {
 };
 
 export default function CuentaCorriente() {
-  const { state } = useApp();
+  const { state, showToast } = useApp();
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
   const [rutSeleccionado, setRutSeleccionado] = useState('');
   const [soloPendientes, setSoloPendientes] = useState(true);
+  const [aplicando, setAplicando] = useState<null | { rut: string; nombre: string; documentoId: string; cuentaControlId: string; saldo: number }>(null);
+  const [cuentaMedioId, setCuentaMedioId] = useState('');
+  const [montoAplicar, setMontoAplicar] = useState(0);
+  const [fechaAplicar, setFechaAplicar] = useState(new Date().toISOString().slice(0, 10));
+  const [guardando, setGuardando] = useState(false);
 
   // Etiqueta legible por documentoId + monto original del documento
   // (factura/boleta/honorario), tal como se guardó al emitirse.
@@ -46,7 +53,7 @@ export default function CuentaCorriente() {
     const lineas: Array<{
       asientoId: string; numero: number; fecha: string; glosa: string;
       rutAuxiliar: string; nombreAuxiliar: string; documentoId?: string;
-      debe: number; haber: number; naturaleza: 'deudora' | 'acreedora'; tipoAuxiliar?: string;
+      debe: number; haber: number; naturaleza: 'deudora' | 'acreedora'; tipoAuxiliar?: string; cuentaControlId: string;
     }> = [];
     (state.asientos ?? []).forEach((asiento) => {
       asiento.detalles.forEach((d) => {
@@ -57,6 +64,7 @@ export default function CuentaCorriente() {
           rutAuxiliar: d.rutAuxiliar, nombreAuxiliar: d.nombreAuxiliar || d.rutAuxiliar,
           documentoId: d.documentoId, debe: d.debe, haber: d.haber,
           naturaleza: cuenta?.naturaleza ?? 'deudora', tipoAuxiliar: cuenta?.tipoAuxiliar,
+          cuentaControlId: d.cuentaId,
         });
       });
     });
@@ -67,7 +75,7 @@ export default function CuentaCorriente() {
   const documentosPendientes = useMemo(() => {
     const mapa = new Map<string, {
       rut: string; nombre: string; tipoAuxiliar?: string; documentoId?: string;
-      saldo: number; naturaleza: 'deudora' | 'acreedora';
+      saldo: number; naturaleza: 'deudora' | 'acreedora'; cuentaControlId: string;
     }>();
     lineasAuxiliares.forEach((l) => {
       const key = `${l.rutAuxiliar}|${l.documentoId ?? l.asientoId}`;
@@ -78,7 +86,7 @@ export default function CuentaCorriente() {
       } else {
         mapa.set(key, {
           rut: l.rutAuxiliar, nombre: l.nombreAuxiliar, tipoAuxiliar: l.tipoAuxiliar,
-          documentoId: l.documentoId, saldo: (l.debe - l.haber) * signo, naturaleza: l.naturaleza,
+          documentoId: l.documentoId, saldo: (l.debe - l.haber) * signo, naturaleza: l.naturaleza, cuentaControlId: l.cuentaControlId,
         });
       }
     });
@@ -124,6 +132,25 @@ export default function CuentaCorriente() {
       .filter((e) => filtroTipo === 'todos' || e.tipo === filtroTipo || e.tipo === 'ambos')
       .map((e) => ({ value: e.rut, label: `${e.rut} — ${e.razonSocial}` })),
   ], [state.entidades, filtroTipo]);
+
+  const cuentasMedioOptions = useMemo(() => [
+    { value: '', label: 'Seleccionar banco o caja...' },
+    ...state.cuentas.filter(c => c.permiteMovimiento && !c.requiereAuxiliar && (c.nombre.toLowerCase().includes('banco') || c.nombre.toLowerCase().includes('caja')))
+      .map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` })),
+  ], [state.cuentas]);
+
+  const registrarAplicacion = async () => {
+    if (!aplicando || !cuentaMedioId || montoAplicar <= 0) return;
+    setGuardando(true);
+    try {
+      await aplicarPagoCobro({ fecha: fechaAplicar, cuentaMedioId, glosa: `${aplicando.saldo >= 0 ? 'Aplicación' : 'Regularización'} ${aplicando.nombre}`, aplicaciones: [{ ...aplicando, monto: montoAplicar }] });
+      showToast('success', 'Movimiento registrado', 'Se creó el asiento y se actualizó la cuenta corriente.');
+      setAplicando(null); setCuentaMedioId(''); setMontoAplicar(0);
+      window.dispatchEvent(new Event('scc:login'));
+    } catch (e) {
+      showToast('error', 'No se pudo registrar', e instanceof Error ? e.message : 'Error inesperado');
+    } finally { setGuardando(false); }
+  };
 
   return (
     <div className="space-y-6">
@@ -192,13 +219,13 @@ export default function CuentaCorriente() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Nombre</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Documento</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Saldo pendiente</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Estado</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Estado</th><th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {filasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
                     No hay documentos {soloPendientes ? 'pendientes' : ''} para este filtro.
                   </td>
                 </tr>
@@ -215,6 +242,7 @@ export default function CuentaCorriente() {
                       <td className="px-4 py-3 text-center">
                         <Badge variant={pendiente ? 'warning' : 'success'}>{pendiente ? 'Pendiente' : 'Pagado'}</Badge>
                       </td>
+                      <td className="px-4 py-3 text-right">{pendiente && f.documentoId && <Button size="sm" variant="secondary" onClick={() => { setAplicando({ rut: f.rut, nombre: f.nombre, documentoId: f.documentoId!, cuentaControlId: f.cuentaControlId, saldo: f.saldo }); setMontoAplicar(Math.abs(f.saldo)); }}>Aplicar pago/cobro</Button>}</td>
                     </tr>
                   );
                 })
@@ -258,6 +286,9 @@ export default function CuentaCorriente() {
           </div>
         </Card>
       )}
+      <Modal isOpen={!!aplicando} onClose={() => setAplicando(null)} title="Aplicar pago o cobro" size="md" footer={<><Button variant="secondary" onClick={() => setAplicando(null)}>Cancelar</Button><Button onClick={registrarAplicacion} disabled={guardando || !cuentaMedioId || montoAplicar <= 0}>{guardando ? 'Guardando...' : 'Registrar movimiento'}</Button></>}>
+        <div className="space-y-4"><div className="p-3 rounded-lg bg-primary/5 border border-primary/15"><p className="font-semibold">{aplicando?.nombre}</p><p className="text-sm text-gray-500">{aplicando?.rut} · Saldo {formatCurrency(Math.abs(aplicando?.saldo ?? 0))}</p></div><SearchSelect label="Cuenta de banco o caja" value={cuentaMedioId} onChange={setCuentaMedioId} options={cuentasMedioOptions} /><MontoInput label="Monto a aplicar" value={montoAplicar} onChange={setMontoAplicar} /><Input type="date" label="Fecha" value={fechaAplicar} onChange={e => setFechaAplicar(e.target.value)} /><p className="text-xs text-gray-500 flex gap-2"><WalletCards size={15} />El sistema generará el asiento contable automáticamente.</p></div>
+      </Modal>
     </div>
   );
 }

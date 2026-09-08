@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, Search, Edit2, Trash2, CheckCircle, AlertCircle, Bookmark, BookmarkPlus, Copy } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, CheckCircle, AlertCircle, Bookmark, BookmarkPlus, Copy, Undo2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { Button, Input, Select, SearchSelect, MontoInput, Textarea } from '../components/ui/FormElements';
@@ -7,6 +7,7 @@ import { Modal, ConfirmDialog } from '../components/ui/Modal';
 import { AsientoContable, DetalleAsiento, PlantillaAsiento } from '../types';
 import { formatCurrency, formatDate, generateId } from '../utils/calculos';
 import { AsientoContableSchema, formatZodErrors } from '../utils/schemas';
+import { reversarAsiento } from '../services/apiSync';
 
 export default function AsientosContables() {
   const { state, dispatch, showToast } = useApp();
@@ -23,6 +24,8 @@ export default function AsientosContables() {
   const [showModal, setShowModal] = useState(false);
   const [editingAsiento, setEditingAsiento] = useState<AsientoContable | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [reversoId, setReversoId] = useState<string | null>(null);
+  const [motivoReverso, setMotivoReverso] = useState('');
 
   const [formData, setFormData] = useState({
     fecha: new Date().toISOString().split('T')[0],
@@ -286,6 +289,16 @@ export default function AsientosContables() {
     setConfirmDeleteId(null);
   };
 
+  const confirmarReverso = async () => {
+    if (!reversoId || motivoReverso.trim().length < 3) return;
+    try {
+      await reversarAsiento(reversoId, new Date().toISOString().slice(0, 10), motivoReverso.trim());
+      showToast('success', 'Reverso generado', 'El comprobante inverso quedó contabilizado y relacionado con el original.');
+      setReversoId(null); setMotivoReverso('');
+      window.dispatchEvent(new Event('scc:login'));
+    } catch (e) { showToast('error', 'No se pudo reversar', e instanceof Error ? e.message : 'Error inesperado'); }
+  };
+
   // ── Plantillas ──────────────────────────────────────────
   const aplicarPlantilla = (plantilla: PlantillaAsiento) => {
     setFormData({
@@ -470,6 +483,9 @@ export default function AsientosContables() {
                         >
                           <CheckCircle size={16} />
                         </button>
+                      )}
+                      {asiento.estado === 'contabilizado' && !asiento.tipo?.startsWith('reverso:') && (
+                        <button onClick={() => setReversoId(asiento.id)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg" title="Generar reverso"><Undo2 size={16} /></button>
                       )}
                       <button
                         onClick={() => setConfirmDeleteId(asiento.id)}
@@ -715,6 +731,7 @@ export default function AsientosContables() {
           )}
         </div>
       </Modal>
+      <Modal isOpen={!!reversoId} onClose={() => setReversoId(null)} title="Reversar comprobante" size="sm" footer={<><Button variant="secondary" onClick={() => setReversoId(null)}>Cancelar</Button><Button onClick={confirmarReverso} disabled={motivoReverso.trim().length < 3}>Generar reverso</Button></>}><Textarea label="Motivo obligatorio" value={motivoReverso} onChange={e => setMotivoReverso(e.target.value)} placeholder="Explique por qué se revierte el comprobante" /></Modal>
 
       {/* Modal — Biblioteca de plantillas */}
       <Modal

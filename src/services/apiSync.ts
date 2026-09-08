@@ -309,6 +309,32 @@ export async function deleteAsiento(id: string): Promise<void> {
   await apiFetch(`/api/asientos/${id}`, { method: 'DELETE' });
 }
 
+export async function reversarAsiento(id: string, fecha: string, motivo: string): Promise<void> {
+  await apiFetch(`/api/asientos/${id}/reversar`, { method: 'POST', body: JSON.stringify({ fecha, motivo }) });
+}
+
+export interface AplicacionPagoCobro {
+  documentoId: string;
+  rut: string;
+  nombre: string;
+  cuentaControlId: string;
+  monto: number;
+}
+
+export async function aplicarPagoCobro(data: {
+  fecha: string;
+  cuentaMedioId: string;
+  glosa?: string;
+  aplicaciones: AplicacionPagoCobro[];
+}): Promise<void> {
+  const empresaId = getEmpresaActivaId();
+  if (!empresaId) throw new Error('Seleccione una empresa');
+  await apiFetch('/api/cuenta-corriente/aplicar', {
+    method: 'POST',
+    body: JSON.stringify({ ...data, empresaId }),
+  });
+}
+
 // ============ TRABAJADORES ============
 
 const contratoToBackend: Record<string, string> = {
