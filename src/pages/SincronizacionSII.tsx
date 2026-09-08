@@ -728,9 +728,9 @@ export default function SincronizacionSII() {
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.75fr)] gap-6 items-start">
             {/* Panel izquierdo: tipo + subida */}
-            <Card>
+            <Card className="lg:sticky lg:top-4">
               <h3 className="font-semibold text-gray-900 mb-4">1. Tipo de Registro</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                 {(['venta', 'compra', 'honorario'] as const).map(t => (
@@ -760,7 +760,7 @@ export default function SincronizacionSII() {
             </Card>
 
             {/* Panel derecho: preview */}
-            <Card>
+            <Card className="min-h-[680px]">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-900">3. Vista Previa y Confirmación</h3>
                 {filasPreview.length > 0 && (
@@ -810,7 +810,7 @@ export default function SincronizacionSII() {
                   ) : proveedores.length > 0 ? (
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-gray-700">{tipoArchivo === 'honorario' ? 'Cuenta de gasto de honorarios por prestador' : 'Cuenta de gasto, activo o pasivo por proveedor'}</p>
-                      <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 max-h-[430px] overflow-y-auto pr-1">
                         {proveedores.map(proveedor => (
                           <div key={proveedor.claveRut} className="rounded-lg border border-gray-200 p-2">
                             <p className="mb-1.5 truncate text-xs font-medium text-gray-700">{formatRUT(proveedor.rut)} · {proveedor.razonSocial}</p>
@@ -830,7 +830,7 @@ export default function SincronizacionSII() {
                     <CheckCircle className="text-emerald-500" size={24} />
                   </div>
 
-                  <div className="max-h-40 overflow-y-auto space-y-1 text-xs custom-scrollbar">
+                  <div className="max-h-[300px] overflow-y-auto space-y-1 text-xs custom-scrollbar">
                     {/* Cabecera de tabla */}
                     <div className="flex items-center gap-2 py-1 border-b-2 border-gray-200 font-semibold text-gray-500 sticky top-0 bg-white">
                       <span className="w-10 flex-shrink-0">DTE</span>
