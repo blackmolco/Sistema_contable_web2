@@ -41,9 +41,14 @@ router.post('/aplicar', authenticateToken, writeLimiter, validate(schema), async
       const detalles = [];
       let totalDebeMedio = 0;
       let totalHaberMedio = 0;
+      let naturalezaLote = null;
       for (const app of aplicaciones) {
         const control = await tx.cuenta.findFirst({ where: { id: app.cuentaControlId, empresaId, activo: true, requiereAuxiliar: true } });
         if (!control) throw Object.assign(new Error('Cuenta de control no valida'), { status: 400 });
+        if (naturalezaLote && naturalezaLote !== control.naturaleza) {
+          throw Object.assign(new Error('No se pueden mezclar cobros de clientes con pagos a proveedores en un mismo movimiento'), { status: 400 });
+        }
+        naturalezaLote = control.naturaleza;
         const previas = await tx.detalleAsiento.findMany({
           where: { documentoId: app.documentoId, rutAuxiliar: app.rut, asiento: { empresaId, estado: { not: 'anulado' } } },
         });

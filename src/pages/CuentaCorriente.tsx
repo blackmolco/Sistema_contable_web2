@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { CreditCard, History, WalletCards } from 'lucide-react';
+import { CreditCard, History, ListChecks, WalletCards } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Card, Badge } from '../components/ui/Cards';
 import { Button, Input, MontoInput, Select, SearchSelect } from '../components/ui/FormElements';
@@ -9,6 +9,7 @@ import { Entidad } from '../types';
 import { aplicarPagoCobro } from '../services/apiSync';
 
 type FiltroTipo = 'todos' | 'cliente' | 'proveedor' | 'honorario';
+type Aplicable = { rut: string; nombre: string; documentoId: string; cuentaControlId: string; saldo: number; naturaleza: 'deudora' | 'acreedora' };
 
 const LABEL_TIPO: Record<Exclude<FiltroTipo, 'todos'>, string> = {
   cliente: 'Clientes',
@@ -21,9 +22,10 @@ export default function CuentaCorriente() {
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
   const [rutSeleccionado, setRutSeleccionado] = useState('');
   const [soloPendientes, setSoloPendientes] = useState(true);
-  const [aplicando, setAplicando] = useState<null | { rut: string; nombre: string; documentoId: string; cuentaControlId: string; saldo: number }>(null);
+  const [aplicando, setAplicando] = useState<Aplicable[]>([]);
+  const [seleccionados, setSeleccionados] = useState<Record<string, Aplicable>>({});
+  const [montosAplicar, setMontosAplicar] = useState<Record<string, number>>({});
   const [cuentaMedioId, setCuentaMedioId] = useState('');
-  const [montoAplicar, setMontoAplicar] = useState(0);
   const [fechaAplicar, setFechaAplicar] = useState(new Date().toISOString().slice(0, 10));
   const [guardando, setGuardando] = useState(false);
 
@@ -139,13 +141,32 @@ export default function CuentaCorriente() {
       .map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` })),
   ], [state.cuentas]);
 
+  const claveAplicacion = (f: Aplicable) => `${f.rut}|${f.documentoId}`;
+
+  const abrirAplicaciones = (items: Aplicable[]) => {
+    setAplicando(items);
+    setMontosAplicar(Object.fromEntries(items.map((f) => [claveAplicacion(f), Math.abs(f.saldo)])));
+  };
+
+  const alternarSeleccion = (f: Aplicable) => {
+    const clave = claveAplicacion(f);
+    setSeleccionados((actual) => {
+      const siguiente = { ...actual };
+      if (siguiente[clave]) delete siguiente[clave];
+      else siguiente[clave] = f;
+      return siguiente;
+    });
+  };
+
   const registrarAplicacion = async () => {
-    if (!aplicando || !cuentaMedioId || montoAplicar <= 0) return;
+    if (!aplicando.length || !cuentaMedioId) return;
+    const aplicaciones = aplicando.map((f) => ({ ...f, monto: montosAplicar[claveAplicacion(f)] || 0 }));
+    if (aplicaciones.some((a) => a.monto <= 0 || a.monto > Math.abs(a.saldo))) return;
     setGuardando(true);
     try {
-      await aplicarPagoCobro({ fecha: fechaAplicar, cuentaMedioId, glosa: `${aplicando.saldo >= 0 ? 'Aplicación' : 'Regularización'} ${aplicando.nombre}`, aplicaciones: [{ ...aplicando, monto: montoAplicar }] });
+      await aplicarPagoCobro({ fecha: fechaAplicar, cuentaMedioId, glosa: `Aplicación de ${aplicaciones.length} obligación(es)`, aplicaciones });
       showToast('success', 'Movimiento registrado', 'Se creó el asiento y se actualizó la cuenta corriente.');
-      setAplicando(null); setCuentaMedioId(''); setMontoAplicar(0);
+      setAplicando([]); setSeleccionados({}); setMontosAplicar({}); setCuentaMedioId('');
       window.dispatchEvent(new Event('scc:login'));
     } catch (e) {
       showToast('error', 'No se pudo registrar', e instanceof Error ? e.message : 'Error inesperado');
@@ -211,10 +232,23 @@ export default function CuentaCorriente() {
       </Card>
 
       <Card title="Documentos" padding="none">
+        {Object.keys(seleccionados).length > 0 && (
+          <div className="flex flex-col gap-3 border-b border-primary/15 bg-primary/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-200">
+              <ListChecks size={17} className="text-primary" />
+              {Object.keys(seleccionados).length} obligación(es) seleccionada(s)
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setSeleccionados({})}>Limpiar</Button>
+              <Button size="sm" onClick={() => abrirAplicaciones(Object.values(seleccionados))}>Aplicar seleccionadas</Button>
+            </div>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
               <tr>
+                <th className="w-10 px-3 py-3"></th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">RUT</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Nombre</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Documento</th>
@@ -225,7 +259,7 @@ export default function CuentaCorriente() {
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {filasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
                     No hay documentos {soloPendientes ? 'pendientes' : ''} para este filtro.
                   </td>
                 </tr>
@@ -233,8 +267,13 @@ export default function CuentaCorriente() {
                 filasFiltradas.map((f, i) => {
                   const info = f.documentoId ? documentoPorId.get(f.documentoId) : undefined;
                   const pendiente = Math.abs(f.saldo) >= 1;
+                  const aplicable: Aplicable | null = pendiente && f.documentoId ? { rut: f.rut, nombre: f.nombre, documentoId: f.documentoId, cuentaControlId: f.cuentaControlId, saldo: f.saldo, naturaleza: f.naturaleza } : null;
+                  const clave = aplicable ? claveAplicacion(aplicable) : '';
+                  const seleccionActual = Object.values(seleccionados);
+                  const mezclaNaturaleza = aplicable && seleccionActual.length > 0 && seleccionActual[0].naturaleza !== aplicable.naturaleza;
                   return (
                     <tr key={i} className="odd:bg-gray-50/50 dark:odd:bg-gray-800/30 hover:bg-blue-50 dark:hover:bg-gray-700/50">
+                      <td className="px-3 py-3 text-center">{aplicable && <input type="checkbox" aria-label={`Seleccionar ${info?.label ?? 'documento'}`} checked={Boolean(seleccionados[clave])} disabled={Boolean(mezclaNaturaleza)} title={mezclaNaturaleza ? 'Registre cobros y pagos en operaciones separadas' : undefined} onChange={() => alternarSeleccion(aplicable)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />}</td>
                       <td className="px-4 py-3 font-data text-gray-600 dark:text-gray-300">{f.rut}</td>
                       <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{f.nombre}</td>
                       <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{info?.label ?? 'Sin documento'}</td>
@@ -242,7 +281,7 @@ export default function CuentaCorriente() {
                       <td className="px-4 py-3 text-center">
                         <Badge variant={pendiente ? 'warning' : 'success'}>{pendiente ? 'Pendiente' : 'Pagado'}</Badge>
                       </td>
-                      <td className="px-4 py-3 text-right">{pendiente && f.documentoId && <Button size="sm" variant="secondary" onClick={() => { setAplicando({ rut: f.rut, nombre: f.nombre, documentoId: f.documentoId!, cuentaControlId: f.cuentaControlId, saldo: f.saldo }); setMontoAplicar(Math.abs(f.saldo)); }}>Aplicar pago/cobro</Button>}</td>
+                      <td className="px-4 py-3 text-right">{aplicable && <Button size="sm" variant="secondary" onClick={() => abrirAplicaciones([aplicable])}>Aplicar pago/cobro</Button>}</td>
                     </tr>
                   );
                 })
@@ -286,8 +325,14 @@ export default function CuentaCorriente() {
           </div>
         </Card>
       )}
-      <Modal isOpen={!!aplicando} onClose={() => setAplicando(null)} title="Aplicar pago o cobro" size="md" footer={<><Button variant="secondary" onClick={() => setAplicando(null)}>Cancelar</Button><Button onClick={registrarAplicacion} disabled={guardando || !cuentaMedioId || montoAplicar <= 0}>{guardando ? 'Guardando...' : 'Registrar movimiento'}</Button></>}>
-        <div className="space-y-4"><div className="p-3 rounded-lg bg-primary/5 border border-primary/15"><p className="font-semibold">{aplicando?.nombre}</p><p className="text-sm text-gray-500">{aplicando?.rut} · Saldo {formatCurrency(Math.abs(aplicando?.saldo ?? 0))}</p></div><SearchSelect label="Cuenta de banco o caja" value={cuentaMedioId} onChange={setCuentaMedioId} options={cuentasMedioOptions} /><MontoInput label="Monto a aplicar" value={montoAplicar} onChange={setMontoAplicar} /><Input type="date" label="Fecha" value={fechaAplicar} onChange={e => setFechaAplicar(e.target.value)} /><p className="text-xs text-gray-500 flex gap-2"><WalletCards size={15} />El sistema generará el asiento contable automáticamente.</p></div>
+      <Modal isOpen={aplicando.length > 0} onClose={() => setAplicando([])} title={aplicando.length > 1 ? 'Aplicar varias obligaciones' : 'Aplicar pago o cobro'} size="lg" footer={<><Button variant="secondary" onClick={() => setAplicando([])}>Cancelar</Button><Button onClick={registrarAplicacion} disabled={guardando || !cuentaMedioId || aplicando.some(f => (montosAplicar[claveAplicacion(f)] || 0) <= 0 || (montosAplicar[claveAplicacion(f)] || 0) > Math.abs(f.saldo))}>{guardando ? 'Guardando...' : `Registrar ${aplicando.length} movimiento(s)`}</Button></>}>
+        <div className="space-y-4">
+          <div className="max-h-64 space-y-2 overflow-y-auto pr-1">{aplicando.map((f) => { const clave = claveAplicacion(f); const info = documentoPorId.get(f.documentoId); return <div key={clave} className="grid gap-3 rounded-lg border border-primary/15 bg-primary/5 p-3 sm:grid-cols-[1fr_180px] sm:items-end"><div><p className="font-semibold">{f.nombre}</p><p className="text-sm text-gray-500">{f.rut} · {info?.label ?? 'Documento'} · Pendiente {formatCurrency(Math.abs(f.saldo))}</p></div><MontoInput label="Monto a aplicar" value={montosAplicar[clave] || 0} onChange={(monto) => setMontosAplicar(actual => ({ ...actual, [clave]: monto }))} error={(montosAplicar[clave] || 0) > Math.abs(f.saldo) ? 'Supera el saldo pendiente' : undefined} /></div>; })}</div>
+          <SearchSelect label="Cuenta de banco o caja" value={cuentaMedioId} onChange={setCuentaMedioId} options={cuentasMedioOptions} />
+          <Input type="date" label="Fecha" value={fechaAplicar} onChange={e => setFechaAplicar(e.target.value)} />
+          <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3 text-sm dark:bg-gray-800"><span className="text-gray-500">Total a registrar</span><strong className="font-data text-lg">{formatCurrency(Object.values(montosAplicar).reduce((s, n) => s + n, 0))}</strong></div>
+          <p className="text-xs text-gray-500 flex gap-2"><WalletCards size={15} />El sistema generará un solo asiento contable con el detalle de cada obligación.</p>
+        </div>
       </Modal>
     </div>
   );
