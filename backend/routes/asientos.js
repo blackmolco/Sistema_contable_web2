@@ -103,6 +103,53 @@ const asientoSchema = z.object({
     empresaId: z.string().min(1).optional().nullable(),
 });
 
+router.post('/:id/corregir', authenticateToken, writeLimiter, async (req, res) => {
+    try {
+        const original = await prisma.asientoContable.findUnique({ where: { id: req.params.id }, include: { detalles: true } });
+        if (!original) return res.status(404).json({ error: 'Asiento no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, original.empresaId)) return;
+        if (original.estado !== 'contabilizado') return res.status(409).json({ error: 'Solo se corrigen por reverso los comprobantes contabilizados' });
+
+        const motivo = String(req.body?.motivo || '').trim();
+        if (motivo.length < 3) return res.status(400).json({ error: 'Indique el motivo de la correccion' });
+        const parsed = asientoSchema.pick({ fecha: true, glosa: true, detalles: true }).safeParse(req.body);
+        if (!parsed.success) return res.status(400).json({ error: 'Datos de correccion invalidos', detalles: parsed.error.flatten() });
+        const { fecha, glosa, detalles } = parsed.data;
+        const totalDebe = detalles.reduce((s, d) => s + d.debe, 0);
+        const totalHaber = detalles.reduce((s, d) => s + d.haber, 0);
+        if (Math.abs(totalDebe - totalHaber) > 0.01) return res.status(400).json({ error: 'El comprobante corregido no esta cuadrado' });
+
+        const yaCorregido = await prisma.asientoContable.findFirst({ where: { empresaId: original.empresaId, tipo: `correccion:${original.id}` } });
+        if (yaCorregido) return res.status(409).json({ error: `El comprobante ya fue corregido mediante el asiento ${yaCorregido.numero}` });
+
+        const resultado = await prisma.$transaction(async tx => {
+            await exigirPeriodoAbierto(tx, original.empresaId, fecha);
+            const empresa = await tx.empresa.update({ where: { id: original.empresaId }, data: { ultimoNumeroAsiento: { increment: 2 } } });
+            const numeroCorreccion = empresa.ultimoNumeroAsiento;
+            const reverso = await tx.asientoContable.create({
+                data: {
+                    numero: numeroCorreccion - 1, fecha: new Date(fecha), glosa: `Reverso asiento #${original.numero} - ${motivo}`,
+                    estado: 'contabilizado', tipo: `reverso:${original.id}`, empresaId: original.empresaId, usuarioId: req.usuario.id,
+                    detalles: { create: original.detalles.map(d => ({ cuentaId: d.cuentaId, cuentaCodigo: d.cuentaCodigo, cuentaNombre: d.cuentaNombre, debe: d.haber, haber: d.debe, glosa: d.glosa, rutAuxiliar: d.rutAuxiliar, nombreAuxiliar: d.nombreAuxiliar, documentoId: d.documentoId })) },
+                }, include: { detalles: true },
+            });
+            const corregido = await tx.asientoContable.create({
+                data: {
+                    numero: numeroCorreccion, fecha: new Date(fecha), glosa, estado: 'contabilizado', tipo: `correccion:${original.id}`,
+                    empresaId: original.empresaId, usuarioId: req.usuario.id, detalles: { create: detalles.map(d => ({ ...d })) },
+                }, include: { detalles: true },
+            });
+            return { reverso, corregido };
+        }, { timeout: 15000 });
+        await auditLog(req.usuario.id, 'CORREGIR', 'AsientoContable', original.id, { reversoId: resultado.reverso.id, corregidoId: resultado.corregido.id, motivo }, req.ip, req.headers['user-agent']);
+        res.status(201).json(resultado);
+    } catch (err) {
+        if (err.status) return res.status(err.status).json({ error: err.message });
+        logger.error({ err }, 'Error corrigiendo asiento');
+        res.status(500).json({ error: 'No se pudo corregir el comprobante' });
+    }
+});
+
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);

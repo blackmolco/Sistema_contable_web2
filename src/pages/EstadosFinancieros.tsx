@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Download, AlertCircle } from 'lucide-react';
 import {
   LineChart,
@@ -12,7 +12,7 @@ import {
 } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { Card } from '../components/ui/Cards';
-import { Button } from '../components/ui/FormElements';
+import { Button, Input } from '../components/ui/FormElements';
 import { formatCurrency } from '../utils/calculos';
 import { generarPDFEstadoFinanciero } from '../services/reportesPdf';
 import { CHART_PALETTE } from '../utils/chartPalette';
@@ -47,13 +47,21 @@ interface FilaCuenta {
 
 export default function EstadosFinancieros() {
   const { state } = useApp();
+  const [fechaCorte, setFechaCorte] = useState(new Date().toISOString().slice(0, 10));
+  const inicioEjercicio = `${fechaCorte.slice(0, 4)}-01-01`;
 
   // 1. Calcular saldos acumulados por cuenta desde asientos (excluir anulados)
   const saldosPorCuenta = useMemo(() => {
     const mapa = new Map<string, { debe: number; haber: number }>();
+    const cuentaPorCodigo = new Map(state.cuentas.map(c => [c.codigo, c]));
     for (const asiento of state.asientos) {
-      if (asiento.estado === 'anulado') continue;
+      const fecha = asiento.fecha.slice(0, 10);
+      if (asiento.estado === 'anulado' || fecha > fechaCorte) continue;
       for (const det of asiento.detalles) {
+        const cuenta = cuentaPorCodigo.get(det.cuentaCodigo);
+        // Las cuentas de resultado pertenecen solo al ejercicio seleccionado;
+        // activos, pasivos y patrimonio sí mantienen su saldo histórico.
+        if ((cuenta?.tipo === 'ingreso' || cuenta?.tipo === 'gasto') && fecha < inicioEjercicio) continue;
         const prev = mapa.get(det.cuentaCodigo) ?? { debe: 0, haber: 0 };
         mapa.set(det.cuentaCodigo, {
           debe: prev.debe + det.debe,
@@ -62,7 +70,7 @@ export default function EstadosFinancieros() {
       }
     }
     return mapa;
-  }, [state.asientos]);
+  }, [state.asientos, state.cuentas, fechaCorte, inicioEjercicio]);
 
   // 2. Saldo neto por cuenta (según su naturaleza)
   const filas = useMemo((): FilaCuenta[] => {
@@ -124,7 +132,8 @@ export default function EstadosFinancieros() {
   const datosEvolucion = useMemo(() => {
     const porMes = new Map<string, { ingresos: number; gastos: number }>();
     for (const asiento of state.asientos) {
-      if (asiento.estado === 'anulado') continue;
+      const fecha = asiento.fecha.slice(0, 10);
+      if (asiento.estado === 'anulado' || fecha < inicioEjercicio || fecha > fechaCorte) continue;
       const mes = asiento.fecha.substring(0, 7); // "YYYY-MM"
       if (!porMes.has(mes)) porMes.set(mes, { ingresos: 0, gastos: 0 });
       const m = porMes.get(mes)!;
@@ -144,7 +153,7 @@ export default function EstadosFinancieros() {
         gastos:   Math.round(v.gastos   / 1000),
         resultado: Math.round((v.ingresos - v.gastos) / 1000),
       }));
-  }, [state.asientos, state.cuentas]);
+  }, [state.asientos, state.cuentas, fechaCorte, inicioEjercicio]);
 
   const hasDatos = filas.length > 0;
 
@@ -156,6 +165,7 @@ export default function EstadosFinancieros() {
           <h1 className="text-2xl font-bold text-gray-900">Estados Financieros</h1>
           <p className="text-sm text-gray-500 mt-1">Balance General y Estado de Resultados</p>
         </div>
+        <Card><div className="max-w-xs"><Input type="date" label="Fecha de corte" value={fechaCorte} onChange={e => setFechaCorte(e.target.value)} /></div></Card>
         <Card>
           <div className="py-16 text-center">
             <AlertCircle className="mx-auto mb-4 text-gray-300" size={48} />
@@ -231,6 +241,13 @@ export default function EstadosFinancieros() {
           </Button>
         </div>
       </div>
+
+      <Card padding="sm">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="w-full sm:w-64"><Input type="date" label="Fecha de corte" value={fechaCorte} onChange={e => setFechaCorte(e.target.value)} /></div>
+          <p className="pb-2 text-sm text-gray-500">Balance acumulado al {fechaCorte}; resultados desde el 01-01-{fechaCorte.slice(0, 4)}.</p>
+        </div>
+      </Card>
 
       {/* ── Balance General ─────────────────────────────────────────────────── */}
       <Card title="Balance General" className="overflow-hidden">

@@ -1,432 +1,103 @@
 import React, { useMemo, useState } from 'react';
-import { Download, AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Download, FileSpreadsheet } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { Card } from '../components/ui/Cards';
 import { Button, Input } from '../components/ui/FormElements';
 import { useApp } from '../context/AppContext';
-import { formatCurrency } from '../utils/calculos';
+import { formatCurrency, formatDate } from '../utils/calculos';
+import { getBrandRgb } from '../utils/brandColor';
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function toDate(s: string) {
-  return new Date(s + 'T00:00:00');
+interface FilaBalance8 {
+  codigo: string; nombre: string; tipo: string;
+  sumasDebe: number; sumasHaber: number; saldoDeudor: number; saldoAcreedor: number;
+  inventarioActivo: number; inventarioPasivo: number; resultadoPerdida: number; resultadoGanancia: number;
 }
 
-// ── Tipos internos ─────────────────────────────────────────────────────────────
-
-interface FilaBalance {
-  codigo: string;
-  nombre: string;
-  tipo: string;
-  saldoAnt:   { debe: number; haber: number };
-  movimiento: { debe: number; haber: number };
-  saldoAct:   { debe: number; haber: number };
-}
-
-// ── Componente ─────────────────────────────────────────────────────────────────
+const redondear = (valor: number) => Math.round(valor);
+const celda = (valor: number) => valor ? formatCurrency(valor) : '';
 
 export default function BalanceOchoColumnas() {
   const { state } = useApp();
-
   const hoy = new Date();
-  const primerDiaAnio = new Date(hoy.getFullYear(), 0, 1).toISOString().split('T')[0];
-  const [fechaInicio, setFechaInicio] = useState(primerDiaAnio);
-  const [fechaFin, setFechaFin] = useState(hoy.toISOString().split('T')[0]);
+  const [fechaInicio, setFechaInicio] = useState(`${hoy.getFullYear()}-01-01`);
+  const [fechaFin, setFechaFin] = useState(hoy.toISOString().slice(0, 10));
 
-  // ── Cálculo del balance ──────────────────────────────────────────────────────
-
-  const filas = useMemo<FilaBalance[]>(() => {
-    const mapa = new Map<string, {
-      nombre: string; tipo: string;
-      antD: number; antH: number;
-      movD: number; movH: number;
-    }>();
-
-    const tipoPorCodigo = new Map<string, string>();
-    state.cuentas.forEach((c) => tipoPorCodigo.set(c.codigo, c.tipo));
-
-    const ini = fechaInicio ? toDate(fechaInicio) : null;
-    const fin = fechaFin ? toDate(fechaFin) : null;
-
+  const filas = useMemo<FilaBalance8[]>(() => {
+    const movimientos = new Map<string, { nombre: string; tipo: string; debe: number; haber: number }>();
+    const tipoPorCodigo = new Map(state.cuentas.map(c => [c.codigo, c.tipo]));
     state.asientos
-      .filter((a) => a.estado !== 'anulado')
-      .forEach((asiento) => {
-        const fAsiento = toDate(asiento.fecha);
-        const esAnterior = ini ? fAsiento < ini : false;
-        const esMovimiento =
-          (!ini || fAsiento >= ini) && (!fin || fAsiento <= fin);
-
-        if (!esAnterior && !esMovimiento) return;
-
-        asiento.detalles.forEach((d) => {
-          if (!mapa.has(d.cuentaCodigo)) {
-            mapa.set(d.cuentaCodigo, {
-              nombre: d.cuentaNombre,
-              tipo: tipoPorCodigo.get(d.cuentaCodigo) ?? 'activo',
-              antD: 0, antH: 0, movD: 0, movH: 0,
-            });
-          }
-          const r = mapa.get(d.cuentaCodigo)!;
-          if (esAnterior) {
-            // Ingreso/Gasto son cuentas de resultado: se cierran a cero al
-            // termino del ejercicio (asiento de cierre) y nunca arrastran
-            // saldo al periodo siguiente. Sin este filtro, un asiento de
-            // carga y su cierre — misma fecha, montos iguales y opuestos —
-            // quedaban sumados por separado en vez de anularse, mostrando
-            // un "saldo anterior" de gasto/ingreso que en realidad es cero.
-            if (r.tipo === 'ingreso' || r.tipo === 'gasto') return;
-            r.antD += d.debe;
-            r.antH += d.haber;
-          } else {
-            r.movD += d.debe;
-            r.movH += d.haber;
-          }
-        });
-      });
-
-    return Array.from(mapa.entries())
-      .map(([codigo, v]) => ({
-        codigo,
-        nombre: v.nombre,
-        tipo: v.tipo,
-        saldoAnt:   { debe: Math.round(v.antD), haber: Math.round(v.antH) },
-        movimiento: { debe: Math.round(v.movD), haber: Math.round(v.movH) },
-        saldoAct:   {
-          debe:  Math.round(v.antD + v.movD),
-          haber: Math.round(v.antH + v.movH),
-        },
-      }))
-      .filter(
-        (f) =>
-          f.saldoAnt.debe || f.saldoAnt.haber ||
-          f.movimiento.debe || f.movimiento.haber
-      )
-      .sort((a, b) => a.codigo.localeCompare(b.codigo));
+      .filter(a => a.estado !== 'anulado' && a.fecha.slice(0, 10) >= fechaInicio && a.fecha.slice(0, 10) <= fechaFin)
+      .forEach(asiento => asiento.detalles.forEach(detalle => {
+        const actual = movimientos.get(detalle.cuentaCodigo) ?? { nombre: detalle.cuentaNombre, tipo: tipoPorCodigo.get(detalle.cuentaCodigo) ?? 'activo', debe: 0, haber: 0 };
+        actual.debe += detalle.debe || 0; actual.haber += detalle.haber || 0;
+        movimientos.set(detalle.cuentaCodigo, actual);
+      }));
+    return [...movimientos.entries()].map(([codigo, m]) => {
+      const saldoDeudor = Math.max(redondear(m.debe - m.haber), 0);
+      const saldoAcreedor = Math.max(redondear(m.haber - m.debe), 0);
+      const esResultado = m.tipo === 'ingreso' || m.tipo === 'gasto';
+      return {
+        codigo, nombre: m.nombre, tipo: m.tipo, sumasDebe: redondear(m.debe), sumasHaber: redondear(m.haber), saldoDeudor, saldoAcreedor,
+        inventarioActivo: !esResultado && m.tipo === 'activo' ? saldoDeudor - saldoAcreedor : 0,
+        inventarioPasivo: !esResultado && m.tipo !== 'activo' ? saldoAcreedor - saldoDeudor : 0,
+        resultadoPerdida: m.tipo === 'gasto' ? saldoDeudor - saldoAcreedor : 0,
+        resultadoGanancia: m.tipo === 'ingreso' ? saldoAcreedor - saldoDeudor : 0,
+      };
+    }).filter(f => f.sumasDebe || f.sumasHaber).sort((a, b) => a.codigo.localeCompare(b.codigo));
   }, [state.asientos, state.cuentas, fechaInicio, fechaFin]);
 
-  // ── Totales generales ────────────────────────────────────────────────────────
+  const totales = useMemo(() => filas.reduce((t, f) => ({
+    sumasDebe: t.sumasDebe + f.sumasDebe, sumasHaber: t.sumasHaber + f.sumasHaber,
+    saldoDeudor: t.saldoDeudor + f.saldoDeudor, saldoAcreedor: t.saldoAcreedor + f.saldoAcreedor,
+    inventarioActivo: t.inventarioActivo + f.inventarioActivo, inventarioPasivo: t.inventarioPasivo + f.inventarioPasivo,
+    resultadoPerdida: t.resultadoPerdida + f.resultadoPerdida, resultadoGanancia: t.resultadoGanancia + f.resultadoGanancia,
+  }), { sumasDebe: 0, sumasHaber: 0, saldoDeudor: 0, saldoAcreedor: 0, inventarioActivo: 0, inventarioPasivo: 0, resultadoPerdida: 0, resultadoGanancia: 0 }), [filas]);
 
-  const totales = useMemo(() => {
-    const sum = (fn: (f: FilaBalance) => number) => filas.reduce((s, f) => s + fn(f), 0);
-    return {
-      saldoAnt:   { debe: sum((f) => f.saldoAnt.debe),   haber: sum((f) => f.saldoAnt.haber)   },
-      movimiento: { debe: sum((f) => f.movimiento.debe), haber: sum((f) => f.movimiento.haber) },
-      saldoAct:   { debe: sum((f) => f.saldoAct.debe),   haber: sum((f) => f.saldoAct.haber)   },
-    };
-  }, [filas]);
+  const diferenciaSumas = redondear(totales.sumasDebe - totales.sumasHaber);
+  const diferenciaSaldos = redondear(totales.saldoDeudor - totales.saldoAcreedor);
+  const resultado = redondear(totales.resultadoGanancia - totales.resultadoPerdida);
+  const diferenciaFinal = redondear((totales.inventarioActivo + totales.resultadoPerdida) - (totales.inventarioPasivo + totales.resultadoGanancia));
+  const cuadrado = Math.abs(diferenciaSumas) <= 1 && Math.abs(diferenciaSaldos) <= 1 && Math.abs(diferenciaFinal) <= 1;
+  const valores = (f: FilaBalance8) => [f.sumasDebe, f.sumasHaber, f.saldoDeudor, f.saldoAcreedor, f.inventarioActivo, f.inventarioPasivo, f.resultadoPerdida, f.resultadoGanancia];
+  const valoresTotales = [totales.sumasDebe, totales.sumasHaber, totales.saldoDeudor, totales.saldoAcreedor, totales.inventarioActivo, totales.inventarioPasivo, totales.resultadoPerdida, totales.resultadoGanancia];
 
-  // ── Estado de Resultados ─────────────────────────────────────────────────────
+  const exportarPDF = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const brand = getBrandRgb();
+    doc.setFontSize(14); doc.setTextColor(...brand);
+    doc.text('BALANCE DE COMPROBACION Y DE SALDOS - 8 COLUMNAS', 148.5, 13, { align: 'center' });
+    doc.setFontSize(9); doc.setTextColor(70);
+    doc.text(`Periodo: ${formatDate(fechaInicio)} al ${formatDate(fechaFin)}`, 148.5, 19, { align: 'center' });
+    autoTable(doc, {
+      startY: 24,
+      head: [[{ content: 'Cuenta', colSpan: 2 }, { content: 'Sumas', colSpan: 2 }, { content: 'Saldos', colSpan: 2 }, { content: 'Inventario', colSpan: 2 }, { content: 'Resultados', colSpan: 2 }], ['Codigo', 'Nombre', 'Debe', 'Haber', 'Deudor', 'Acreedor', 'Activo', 'Pasivo', 'Perdida', 'Ganancia']],
+      body: filas.map(f => [f.codigo, f.nombre, ...valores(f).map(celda)]),
+      foot: [['', 'TOTALES', ...valoresTotales.map(celda)]], theme: 'grid',
+      styles: { fontSize: 6.5, cellPadding: 1.2, halign: 'right' }, headStyles: { fillColor: brand, textColor: 255, fontStyle: 'bold' }, footStyles: { fillColor: brand, textColor: 255, fontStyle: 'bold' },
+      columnStyles: { 0: { halign: 'left', cellWidth: 23 }, 1: { halign: 'left', cellWidth: 53 } },
+      didDrawPage: data => { doc.setFontSize(7); doc.setTextColor(110); doc.text(`Pagina ${data.pageNumber}`, 282, 202, { align: 'right' }); },
+    });
+    doc.save(`Balance_8_Columnas_${fechaFin}.pdf`);
+  };
 
-  const estadoResultados = useMemo(() => {
-    const ingresos = filas
-      .filter((f) => f.tipo === 'ingreso')
-      .map((f) => ({ nombre: f.nombre, monto: f.saldoAct.haber - f.saldoAct.debe }));
-    const gastos = filas
-      .filter((f) => f.tipo === 'gasto')
-      .map((f) => ({ nombre: f.nombre, monto: f.saldoAct.debe - f.saldoAct.haber }));
-    const totalIngresos = ingresos.reduce((s, x) => s + x.monto, 0);
-    const totalGastos   = gastos.reduce((s, x) => s + x.monto, 0);
-    return { ingresos, gastos, totalIngresos, totalGastos, utilidad: totalIngresos - totalGastos };
-  }, [filas]);
+  const exportarExcel = () => {
+    const datos: Record<string, string | number>[] = filas.map(f => ({ Codigo: f.codigo, Cuenta: f.nombre, 'Sumas Debe': f.sumasDebe, 'Sumas Haber': f.sumasHaber, 'Saldo Deudor': f.saldoDeudor, 'Saldo Acreedor': f.saldoAcreedor, 'Inventario Activo': f.inventarioActivo, 'Inventario Pasivo': f.inventarioPasivo, 'Resultado Perdida': f.resultadoPerdida, 'Resultado Ganancia': f.resultadoGanancia }));
+    datos.push({ Codigo: '', Cuenta: 'TOTALES', 'Sumas Debe': totales.sumasDebe, 'Sumas Haber': totales.sumasHaber, 'Saldo Deudor': totales.saldoDeudor, 'Saldo Acreedor': totales.saldoAcreedor, 'Inventario Activo': totales.inventarioActivo, 'Inventario Pasivo': totales.inventarioPasivo, 'Resultado Perdida': totales.resultadoPerdida, 'Resultado Ganancia': totales.resultadoGanancia });
+    const hoja = XLSX.utils.json_to_sheet(datos); hoja['!cols'] = [{ wch: 18 }, { wch: 42 }, ...Array(8).fill({ wch: 16 })];
+    const libro = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(libro, hoja, 'Balance 8 Columnas');
+    XLSX.writeFile(libro, `Balance_8_Columnas_${fechaFin}.xlsx`);
+  };
 
-  // ── Balance General ──────────────────────────────────────────────────────────
-
-  const balanceGeneral = useMemo(() => {
-    const saldoNeto = (f: FilaBalance) => f.saldoAct.debe - f.saldoAct.haber;
-    const activos    = filas.filter((f) => f.tipo === 'activo').map((f) => ({ nombre: f.nombre, monto: saldoNeto(f) }));
-    const pasivos    = filas.filter((f) => f.tipo === 'pasivo').map((f) => ({ nombre: f.nombre, monto: -(saldoNeto(f)) }));
-    const patrimonio = filas.filter((f) => f.tipo === 'patrimonio').map((f) => ({ nombre: f.nombre, monto: -(saldoNeto(f)) }));
-    const totalActivos    = activos.reduce((s, x) => s + x.monto, 0);
-    const totalPasivos    = pasivos.reduce((s, x) => s + x.monto, 0);
-    const totalPatrimonio = patrimonio.reduce((s, x) => s + x.monto, 0) + estadoResultados.utilidad;
-    return { activos, pasivos, patrimonio, totalActivos, totalPasivos, totalPatrimonio };
-  }, [filas, estadoResultados.utilidad]);
-
-  const balanceCuadra = Math.abs(totales.saldoAct.debe - totales.saldoAct.haber) <= 1;
-
-  // ── Render ───────────────────────────────────────────────────────────────────
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Balance de 8 Columnas</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Calculado desde los asientos del Libro Diario
-          </p>
-        </div>
-        <Button onClick={() => window.print()} icon={<Download size={16} />} variant="secondary">
-          Exportar PDF
-        </Button>
-      </div>
-
-      {/* Filtros */}
-      <Card>
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-[160px]">
-            <Input
-              type="date"
-              label="Fecha inicio del período"
-              value={fechaInicio}
-              onChange={(e) => setFechaInicio(e.target.value)}
-            />
-          </div>
-          <div className="flex-1 min-w-[160px]">
-            <Input
-              type="date"
-              label="Fecha fin del período"
-              value={fechaFin}
-              onChange={(e) => setFechaFin(e.target.value)}
-            />
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 self-end pb-2">
-            <strong>Saldo Anterior</strong> = movimientos antes de la fecha inicio<br />
-            <strong>Movimiento</strong> = movimientos dentro del período
-          </div>
-        </div>
-      </Card>
-
-      {/* Sin datos */}
-      {filas.length === 0 && (
-        <Card>
-          <div className="flex flex-col items-center py-12 text-gray-400 dark:text-gray-500 gap-3">
-            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-              <AlertCircle size={22} className="text-gray-400 dark:text-gray-500" />
-            </div>
-            <p className="font-medium text-gray-500 dark:text-gray-400">No hay asientos en el período seleccionado</p>
-            <p className="text-sm text-gray-400 dark:text-gray-500">Ingresa asientos en el Libro Diario para ver el balance.</p>
-          </div>
-        </Card>
-      )}
-
-      {/* Tabla de 8 Columnas */}
-      {filas.length > 0 && (
-        <Card padding="none">
-          <div className="overflow-x-auto overflow-y-auto max-h-[65vh] rounded-xl">
-            <table className="w-full text-xs border-separate border-spacing-0">
-              <thead>
-                <tr className="sticky top-0 z-10 bg-gray-900 dark:bg-black text-white">
-                  <th className="py-3 px-2 text-left border border-gray-700 dark:border-gray-800" colSpan={2}>Cuenta</th>
-                  <th className="py-3 px-2 text-center border border-gray-700 dark:border-gray-800" colSpan={2}>Saldo Anterior</th>
-                  <th className="py-3 px-2 text-center border border-gray-700 dark:border-gray-800" colSpan={2}>Movimiento del Período</th>
-                  <th className="py-3 px-2 text-center border border-gray-700 dark:border-gray-800" colSpan={2}>Saldo Acumulado</th>
-                </tr>
-                <tr className="sticky top-[45px] z-10 bg-gray-800 dark:bg-gray-900 text-white/90 text-right">
-                  <th className="py-2 px-2 text-left border border-gray-700 dark:border-gray-800">Código</th>
-                  <th className="py-2 px-2 text-left border border-gray-700 dark:border-gray-800">Nombre</th>
-                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Debe</th>
-                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Haber</th>
-                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Debe</th>
-                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Haber</th>
-                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Debe</th>
-                  <th className="py-2 px-2 border border-gray-700 dark:border-gray-800">Haber</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filas.map((f, i) => (
-                  <tr
-                    key={f.codigo}
-                    className={`transition-colors duration-100 hover:bg-blue-50/40 dark:hover:bg-gray-800/50 ${
-                      i % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/60 dark:bg-gray-800/30'
-                    }`}
-                  >
-                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 font-data text-gray-600 dark:text-gray-400">{f.codigo}</td>
-                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200">{f.nombre}</td>
-                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data text-blue-700 dark:text-blue-400">
-                      {f.saldoAnt.debe > 0 ? formatCurrency(f.saldoAnt.debe) : ''}
-                    </td>
-                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data text-blue-700 dark:text-blue-400">
-                      {f.saldoAnt.haber > 0 ? formatCurrency(f.saldoAnt.haber) : ''}
-                    </td>
-                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data text-gray-700 dark:text-gray-300">
-                      {f.movimiento.debe > 0 ? formatCurrency(f.movimiento.debe) : ''}
-                    </td>
-                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data text-gray-700 dark:text-gray-300">
-                      {f.movimiento.haber > 0 ? formatCurrency(f.movimiento.haber) : ''}
-                    </td>
-                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data font-semibold text-gray-900 dark:text-gray-100">
-                      {f.saldoAct.debe > 0 ? formatCurrency(f.saldoAct.debe) : ''}
-                    </td>
-                    <td className="py-2 px-2 border border-gray-200 dark:border-gray-800 text-right font-data font-semibold text-gray-900 dark:text-gray-100">
-                      {f.saldoAct.haber > 0 ? formatCurrency(f.saldoAct.haber) : ''}
-                    </td>
-                  </tr>
-                ))}
-
-              </tbody>
-              {/* Fila de totales al pie */}
-              <tfoot>
-                <tr className="bg-gray-900 dark:bg-black text-white font-bold text-right">
-                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 text-left" colSpan={2}>TOTALES</td>
-                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.saldoAnt.debe)}</td>
-                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.saldoAnt.haber)}</td>
-                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.movimiento.debe)}</td>
-                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.movimiento.haber)}</td>
-                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.saldoAct.debe)}</td>
-                  <td className="py-3 px-2 border border-gray-700 dark:border-gray-800 font-data">{formatCurrency(totales.saldoAct.haber)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {/* Indicador cuadre */}
-          <div className="px-5 py-3">
-            {balanceCuadra ? (
-              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg px-4 py-2 text-sm">
-                <CheckCircle size={16} />
-                Balance cuadrado correctamente
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-2 text-sm">
-                <AlertCircle size={16} />
-                El saldo acumulado no cuadra (Debe ≠ Haber). Revisa que todos los asientos estén balanceados.
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Estado de Resultados + Balance General */}
-      {filas.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-          {/* Estado de Resultados */}
-          <Card title="Estado de Resultados">
-            {estadoResultados.ingresos.length === 0 && estadoResultados.gastos.length === 0 ? (
-              <p className="text-sm text-gray-400 dark:text-gray-500 italic">
-                Sin cuentas de ingreso/gasto en el período.<br />
-                Asegúrate de que las cuentas en el Plan de Cuentas tengan tipo &quot;ingreso&quot; o &quot;gasto&quot;.
-              </p>
-            ) : (
-              <div className="space-y-1 text-sm">
-                {estadoResultados.ingresos.length > 0 && (
-                  <>
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Ingresos</p>
-                    {estadoResultados.ingresos.map((x) => (
-                      <div key={x.nombre} className="flex justify-between py-0.5">
-                        <span className="text-gray-600 dark:text-gray-300 truncate pr-2">{x.nombre}</span>
-                        <span className="font-data font-medium text-emerald-700 dark:text-emerald-400 shrink-0">{formatCurrency(x.monto)}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 mt-1 font-semibold text-emerald-700 dark:text-emerald-400">
-                      <span>Total Ingresos</span>
-                      <span className="font-data">{formatCurrency(estadoResultados.totalIngresos)}</span>
-                    </div>
-                  </>
-                )}
-
-                {estadoResultados.gastos.length > 0 && (
-                  <>
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mt-4 mb-2">Gastos</p>
-                    {estadoResultados.gastos.map((x) => (
-                      <div key={x.nombre} className="flex justify-between py-0.5">
-                        <span className="text-gray-600 dark:text-gray-300 truncate pr-2">{x.nombre}</span>
-                        <span className="font-data font-medium text-red-600 dark:text-red-400 shrink-0">({formatCurrency(x.monto)})</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 mt-1 font-semibold text-red-600 dark:text-red-400">
-                      <span>Total Gastos</span>
-                      <span className="font-data">({formatCurrency(estadoResultados.totalGastos)})</span>
-                    </div>
-                  </>
-                )}
-
-                <div
-                  className={`flex justify-between border-t-2 border-gray-300 dark:border-gray-600 pt-3 mt-2 font-bold text-base ${
-                    estadoResultados.utilidad >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'
-                  }`}
-                >
-                  <span>
-                    {estadoResultados.utilidad >= 0 ? 'Utilidad del Ejercicio' : 'Pérdida del Ejercicio'}
-                  </span>
-                  <span className="font-data">{formatCurrency(Math.abs(estadoResultados.utilidad))}</span>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Balance General */}
-          <Card title="Balance General">
-            {balanceGeneral.activos.length === 0 && balanceGeneral.pasivos.length === 0 ? (
-              <p className="text-sm text-gray-400 dark:text-gray-500 italic">
-                Sin cuentas de activo/pasivo/patrimonio en el período.<br />
-                Verifica los tipos de cuenta en el Plan de Cuentas.
-              </p>
-            ) : (
-              <div className="space-y-1 text-sm">
-                {/* Activos */}
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Activos</p>
-                {balanceGeneral.activos.map((x) => (
-                  <div key={x.nombre} className="flex justify-between py-0.5">
-                    <span className="text-gray-600 dark:text-gray-300 truncate pr-2">{x.nombre}</span>
-                    <span className="font-data font-medium text-gray-800 dark:text-gray-200 shrink-0">{formatCurrency(x.monto)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 mt-1 font-semibold text-blue-700 dark:text-blue-400">
-                  <span>Total Activos</span>
-                  <span className="font-data">{formatCurrency(balanceGeneral.totalActivos)}</span>
-                </div>
-
-                {/* Pasivos */}
-                {balanceGeneral.pasivos.length > 0 && (
-                  <>
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mt-4 mb-2">Pasivos</p>
-                    {balanceGeneral.pasivos.map((x) => (
-                      <div key={x.nombre} className="flex justify-between py-0.5">
-                        <span className="text-gray-600 dark:text-gray-300 truncate pr-2">{x.nombre}</span>
-                        <span className="font-data font-medium text-gray-800 dark:text-gray-200 shrink-0">{formatCurrency(x.monto)}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 mt-1 font-semibold text-red-600 dark:text-red-400">
-                      <span>Total Pasivos</span>
-                      <span className="font-data">{formatCurrency(balanceGeneral.totalPasivos)}</span>
-                    </div>
-                  </>
-                )}
-
-                {/* Patrimonio */}
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mt-4 mb-2">Patrimonio</p>
-                {balanceGeneral.patrimonio.map((x) => (
-                  <div key={x.nombre} className="flex justify-between py-0.5">
-                    <span className="text-gray-600 dark:text-gray-300 truncate pr-2">{x.nombre}</span>
-                    <span className="font-data font-medium text-gray-800 dark:text-gray-200 shrink-0">{formatCurrency(x.monto)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between py-0.5">
-                  <span className="text-gray-600 dark:text-gray-300">
-                    {estadoResultados.utilidad >= 0 ? 'Utilidad del Ejercicio' : 'Pérdida del Ejercicio'}
-                  </span>
-                  <span
-                    className={`font-data font-medium shrink-0 ${
-                      estadoResultados.utilidad >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-                    }`}
-                  >
-                    {formatCurrency(estadoResultados.utilidad)}
-                  </span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 mt-1 font-semibold text-emerald-700 dark:text-emerald-400">
-                  <span>Total Patrimonio</span>
-                  <span className="font-data">{formatCurrency(balanceGeneral.totalPatrimonio)}</span>
-                </div>
-
-                {/* Total Pasivo + Patrimonio */}
-                <div className="flex justify-between border-t-2 border-blue-300 dark:border-blue-700 mt-3 pt-3 font-bold text-blue-700 dark:text-blue-400">
-                  <span>Total Pasivo + Patrimonio</span>
-                  <span className="font-data">{formatCurrency(balanceGeneral.totalPasivos + balanceGeneral.totalPatrimonio)}</span>
-                </div>
-
-                {/* Alerta cuadre */}
-                {Math.abs(balanceGeneral.totalActivos - (balanceGeneral.totalPasivos + balanceGeneral.totalPatrimonio)) > 100 && (
-                  <div className="mt-3 flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
-                    <AlertCircle size={13} />
-                    El balance no cuadra. Activos ≠ Pasivo + Patrimonio.
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
-    </div>
-  );
+  return <div className="space-y-6">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Balance de 8 Columnas</h1><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Balance de comprobacion y saldos del periodo</p></div><div className="flex gap-2"><Button variant="secondary" icon={<FileSpreadsheet size={16}/>} onClick={exportarExcel} disabled={!filas.length}>Traspasar a Excel</Button><Button icon={<Download size={16}/>} onClick={exportarPDF} disabled={!filas.length}>Descargar PDF</Button></div></div>
+    <Card><div className="grid gap-4 sm:grid-cols-2"><Input type="date" label="Desde" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)}/><Input type="date" label="Hasta" value={fechaFin} onChange={e => setFechaFin(e.target.value)}/></div></Card>
+    {!filas.length ? <Card><div className="flex flex-col items-center gap-3 py-12 text-gray-400"><AlertCircle size={36}/><p>No hay movimientos en el periodo seleccionado.</p></div></Card> : <Card padding="none">
+      <div className="max-h-[68vh] overflow-auto"><table className="w-full min-w-[1280px] border-collapse text-xs"><thead className="sticky top-0 z-10 text-white"><tr className="bg-primary"><th rowSpan={2} className="border border-white/20 px-2 py-3 text-left">Codigo</th><th rowSpan={2} className="min-w-64 border border-white/20 px-2 py-3 text-left">Cuenta</th>{['Sumas','Saldos','Inventario','Resultados'].map(x=><th key={x} colSpan={2} className="border border-white/20 px-2 py-2">{x}</th>)}</tr><tr className="bg-[var(--brand-dark)]">{['Debe','Haber','Deudor','Acreedor','Activo','Pasivo','Perdida','Ganancia'].map(x=><th key={x} className="border border-white/20 px-2 py-2 text-right">{x}</th>)}</tr></thead>
+      <tbody>{filas.map((f,i)=><tr key={f.codigo} className={i%2?'bg-gray-50 dark:bg-gray-800/40':'bg-white dark:bg-gray-900'}><td className="border px-2 py-2 font-data dark:border-gray-700">{f.codigo}</td><td className="border px-2 py-2 dark:border-gray-700">{f.nombre}</td>{valores(f).map((v,j)=><td key={j} className="border px-2 py-2 text-right font-data tabular-nums dark:border-gray-700">{celda(v)}</td>)}</tr>)}</tbody>
+      <tfoot><tr className="bg-primary font-bold text-white"><td colSpan={2} className="border border-white/20 px-2 py-3">TOTALES</td>{valoresTotales.map((v,j)=><td key={j} className="border border-white/20 px-2 py-3 text-right font-data">{celda(v)}</td>)}</tr></tfoot></table></div>
+      <div className="grid gap-3 border-t p-4 md:grid-cols-3 dark:border-gray-700"><div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800"><p className="text-xs text-gray-500">Resultado del ejercicio</p><p className="font-data text-lg font-bold">{formatCurrency(Math.abs(resultado))} {resultado>=0?'ganancia':'perdida'}</p></div><div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800"><p className="text-xs text-gray-500">Diferencia Debe / Haber</p><p className={`font-data text-lg font-bold ${diferenciaSumas?'text-red-600':'text-emerald-600'}`}>{formatCurrency(diferenciaSumas)}</p></div><div className={`flex items-center gap-2 rounded-lg border p-3 ${cuadrado?'border-emerald-200 bg-emerald-50 text-emerald-700':'border-red-200 bg-red-50 text-red-700'}`}>{cuadrado?<CheckCircle size={18}/>:<AlertCircle size={18}/>}<span className="font-semibold">{cuadrado?'Balance cuadrado':`Descuadre: ${formatCurrency(diferenciaFinal)}`}</span></div></div>
+    </Card>}
+  </div>;
 }

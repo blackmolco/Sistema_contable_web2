@@ -313,6 +313,13 @@ export async function reversarAsiento(id: string, fecha: string, motivo: string)
   await apiFetch(`/api/asientos/${id}/reversar`, { method: 'POST', body: JSON.stringify({ fecha, motivo }) });
 }
 
+export async function corregirAsiento(id: string, asiento: AsientoContable, motivo: string): Promise<void> {
+  await apiFetch(`/api/asientos/${id}/corregir`, {
+    method: 'POST',
+    body: JSON.stringify({ fecha: toValidFecha(asiento.fecha), glosa: asiento.glosa, detalles: asiento.detalles, motivo }),
+  });
+}
+
 export interface AplicacionPagoCobro {
   documentoId: string;
   rut: string;

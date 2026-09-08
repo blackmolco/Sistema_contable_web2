@@ -8,13 +8,14 @@ import { Modal, ConfirmDialog } from '../components/ui/Modal';
 import { AsientoContable, DetalleAsiento, PlantillaAsiento } from '../types';
 import { formatCurrency, formatDate, generateId } from '../utils/calculos';
 import { AsientoContableSchema, formatZodErrors } from '../utils/schemas';
-import { reversarAsiento } from '../services/apiSync';
+import { corregirAsiento, reversarAsiento } from '../services/apiSync';
 
 export default function AsientosContables() {
   const { state, dispatch, showToast } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const asientoIdEnlace = searchParams.get('asientoId');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [numeroBusqueda, setNumeroBusqueda] = useState('');
+  const [glosaBusqueda, setGlosaBusqueda] = useState('');
   // Sin esto la lista mezclaba asientos de todos los años seguidos, sin
   // forma de acotar a un ejercicio. Se arma con los años que realmente
   // tienen asientos, e incluye siempre el año en curso.
@@ -24,11 +25,14 @@ export default function AsientosContables() {
   ).sort((a, b) => b - a);
   if (!aniosDisponibles.includes(anioActual)) aniosDisponibles.unshift(anioActual);
   const [anioFiltro, setAnioFiltro] = useState(String(anioActual));
+  const [mesFiltro, setMesFiltro] = useState(String(new Date().getMonth() + 1));
   const [showModal, setShowModal] = useState(false);
   const [editingAsiento, setEditingAsiento] = useState<AsientoContable | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [reversoId, setReversoId] = useState<string | null>(null);
   const [motivoReverso, setMotivoReverso] = useState('');
+  const [motivoCorreccion, setMotivoCorreccion] = useState('');
+  const [guardandoCorreccion, setGuardandoCorreccion] = useState(false);
   const [asientoConsultado, setAsientoConsultado] = useState<AsientoContable | null>(null);
 
   const [formData, setFormData] = useState({
@@ -76,11 +80,10 @@ export default function AsientosContables() {
   // Filtrar asientos
   const asientosFiltrados = (state.asientos ?? []).filter((a) => {
     const coincideAnio = String(new Date(a.fecha).getFullYear()) === anioFiltro;
-    const coincideBusqueda =
-      searchTerm === '' ||
-      a.glosa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.numero.toString().includes(searchTerm);
-    return coincideAnio && coincideBusqueda;
+    const coincideMes = mesFiltro === 'todos' || String(new Date(a.fecha).getMonth() + 1) === mesFiltro;
+    const coincideNumero = numeroBusqueda === '' || a.numero.toString().includes(numeroBusqueda.trim());
+    const coincideGlosa = glosaBusqueda === '' || a.glosa.toLowerCase().includes(glosaBusqueda.trim().toLowerCase());
+    return coincideAnio && coincideMes && coincideNumero && coincideGlosa;
   });
 
   // Cuentas disponibles como options para Select
@@ -264,7 +267,7 @@ export default function AsientosContables() {
 
   const balanceado = Math.abs(totales.debe - totales.haber) < 1;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const result = AsientoContableSchema.safeParse({
       fecha: formData.fecha,
       descripcion: formData.glosa,
@@ -291,6 +294,25 @@ export default function AsientosContables() {
       totalHaber: totales.haber,
       estado: 'pendiente',
     };
+
+    if (editingAsiento?.estado === 'contabilizado') {
+      if (motivoCorreccion.trim().length < 3) {
+        showToast('error', 'Motivo requerido', 'Indique por qué se corrige el comprobante contabilizado.');
+        return;
+      }
+      try {
+        setGuardandoCorreccion(true);
+        await corregirAsiento(editingAsiento.id, nuevoAsiento, motivoCorreccion.trim());
+        showToast('success', 'Comprobante corregido', 'Se generaron el reverso y el nuevo comprobante corregido.');
+        setShowModal(false); setMotivoCorreccion('');
+        window.dispatchEvent(new Event('scc:login'));
+      } catch (e) {
+        showToast('error', 'No se pudo corregir', e instanceof Error ? e.message : 'Error inesperado');
+      } finally {
+        setGuardandoCorreccion(false);
+      }
+      return;
+    }
 
     if (editingAsiento) {
       dispatch({ type: 'UPDATE_ASIENTO', payload: nuevoAsiento });
@@ -391,28 +413,36 @@ export default function AsientosContables() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Filtros */}
       <Card padding="sm">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="flex-1">
+        <div className="grid gap-3 md:grid-cols-[160px_1fr_150px_130px]">
+          <div>
             <Input
-              placeholder="Buscar por número o glosa..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              label="N° comprobante"
+              placeholder="Ej.: 125"
+              value={numeroBusqueda}
+              onChange={(e) => setNumeroBusqueda(e.target.value.replace(/\D/g, ''))}
               leftIcon={<Search size={16} />}
             />
           </div>
-          <div className="w-full md:w-32">
+          <div>
+            <Input label="Glosa" placeholder="Buscar texto de la glosa..." value={glosaBusqueda} onChange={(e) => setGlosaBusqueda(e.target.value)} leftIcon={<Search size={16} />} />
+          </div>
+          <div>
+            <Select label="Mes" value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} options={[{ value: 'todos', label: 'Todos los meses' }, ...['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((label, i) => ({ value: String(i + 1), label }))]} />
+          </div>
+          <div>
             <Select
+              label="Año"
               value={anioFiltro}
               onChange={(e) => setAnioFiltro(e.target.value)}
               options={aniosDisponibles.map((a) => ({ value: String(a), label: String(a) }))}
             />
           </div>
         </div>
-        {searchTerm && (
+        {(numeroBusqueda || glosaBusqueda) && (
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            {asientosFiltrados.length} resultado{asientosFiltrados.length !== 1 ? 's' : ''} para &quot;{searchTerm}&quot;
+            {asientosFiltrados.length} comprobante{asientosFiltrados.length !== 1 ? 's' : ''} encontrado{asientosFiltrados.length !== 1 ? 's' : ''}
           </p>
         )}
       </Card>
@@ -483,11 +513,11 @@ export default function AsientosContables() {
                       </button>
                       <button
                         onClick={() => abrirModalEditar(asiento)}
-                        disabled={asiento.estado !== 'pendiente'}
+                        disabled={asiento.estado === 'anulado'}
                         className="p-2 text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg
                           transition-[background-color,color] duration-150 active:scale-[0.95]"
-                        title="Editar"
-                        aria-label={`Editar asiento #${asiento.numero}`}
+                        title={asiento.estado === 'contabilizado' ? 'Corregir mediante reverso automático' : 'Editar comprobante'}
+                        aria-label={`${asiento.estado === 'contabilizado' ? 'Corregir' : 'Editar'} asiento #${asiento.numero}`}
                       >
                         <Edit2 size={16} />
                       </button>
@@ -574,7 +604,7 @@ export default function AsientosContables() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editingAsiento ? `Editar Asiento #${editingAsiento.numero}` : 'Nuevo Asiento'}
+        title={editingAsiento ? `${editingAsiento.estado === 'contabilizado' ? 'Corregir' : 'Editar'} Asiento #${editingAsiento.numero}` : 'Nuevo Asiento'}
         size="full"
         closeOnBackdrop={false}
         footer={
@@ -584,7 +614,7 @@ export default function AsientosContables() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!balanceado || formData.detalles.length === 0}
+              disabled={guardandoCorreccion || !balanceado || formData.detalles.length === 0}
               title={
                 formData.detalles.length === 0
                   ? 'Agrega al menos una línea'
@@ -593,7 +623,7 @@ export default function AsientosContables() {
                   : undefined
               }
             >
-              {editingAsiento ? 'Actualizar' : 'Crear Asiento'}
+              {guardandoCorreccion ? 'Guardando...' : editingAsiento?.estado === 'contabilizado' ? 'Generar corrección' : editingAsiento ? 'Actualizar' : 'Crear Asiento'}
             </Button>
           </>
         }
@@ -627,6 +657,12 @@ export default function AsientosContables() {
               error={formErrors.descripcion}
             />
           </div>
+          {editingAsiento?.estado === 'contabilizado' && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+              <p className="mb-2 text-sm text-amber-800 dark:text-amber-300">El comprobante ya está contabilizado. Al guardar se crearán un reverso y un comprobante corregido para conservar la trazabilidad.</p>
+              <Textarea label="Motivo de la corrección" value={motivoCorreccion} onChange={e => setMotivoCorreccion(e.target.value)} placeholder="Ej.: corrección de cuenta o monto" rows={2} />
+            </div>
+          )}
 
           {/* Líneas del asiento */}
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
