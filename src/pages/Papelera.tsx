@@ -33,7 +33,7 @@ export default function Papelera() {
     if (item.tipo === 'Documento') {
       dispatch({ type: 'UPDATE_DOCUMENTO', payload: { ...item.raw, estado: 'emitido' } });
     } else {
-      dispatch({ type: 'UPDATE_ASIENTO', payload: { ...item.raw, estado: 'pendiente' } });
+      dispatch({ type: 'SET_ESTADO_ASIENTO', payload: { id: item.raw.id, estado: 'pendiente' } });
     }
     showToast('success', 'Registro restaurado', `${item.titulo} volvió a estar disponible.`);
   };

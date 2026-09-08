@@ -271,7 +271,7 @@ router.put('/:id', authenticateToken, writeLimiter, async (req, res) => {
         if (actual.estado === 'anulado') {
             return res.status(409).json({ error: 'Un asiento anulado no puede modificarse' });
         }
-        if (actual.estado === 'contabilizado' && estado !== 'contabilizado') {
+        if (actual.estado === 'contabilizado' && estado === 'pendiente') {
             return res.status(409).json({ error: 'Un asiento contabilizado debe corregirse mediante reverso' });
         }
         const asiento = await prisma.asientoContable.update({

@@ -389,7 +389,7 @@ export default function AsientosContables() {
     if (!confirmAnularId) return;
     const asiento = state.asientos.find(a => a.id === confirmAnularId);
     if (!asiento) return;
-    dispatch({ type: 'UPDATE_ASIENTO', payload: { ...asiento, estado: 'anulado' } });
+    dispatch({ type: 'SET_ESTADO_ASIENTO', payload: { id: asiento.id, estado: 'anulado' } });
     showToast('success', 'Comprobante anulado', `El asiento #${asiento.numero} quedó fuera de los informes activos y conserva su historial.`);
     setConfirmAnularId(null);
   };
@@ -595,7 +595,7 @@ export default function AsientosContables() {
                       {asiento.estado === 'pendiente' && (
                         <button
                           onClick={() => {
-                            dispatch({ type: 'UPDATE_ASIENTO', payload: { ...asiento, estado: 'contabilizado' } });
+                            dispatch({ type: 'SET_ESTADO_ASIENTO', payload: { id: asiento.id, estado: 'contabilizado' } });
                             showToast('success', 'Comprobante contabilizado', `Asiento #${asiento.numero}`);
                           }}
                           className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-[background-color,color] duration-150"

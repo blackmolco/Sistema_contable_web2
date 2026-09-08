@@ -58,6 +58,7 @@ export type ContabilidadAction =
   | { type: 'DELETE_CUENTA'; payload: string }
   | { type: 'ADD_ASIENTO'; payload: AsientoContable }
   | { type: 'UPDATE_ASIENTO'; payload: AsientoContable }
+  | { type: 'SET_ESTADO_ASIENTO'; payload: { id: string; estado: AsientoContable['estado'] } }
   | { type: 'DELETE_ASIENTO'; payload: string }
   | { type: 'ADD_REGISTRO_VENTA'; payload: RegistroLibro }
   | { type: 'ADD_REGISTRO_COMPRA'; payload: RegistroLibro }
@@ -81,6 +82,8 @@ function reducer(state: ContabilidadState, action: ContabilidadAction): Contabil
       return { ...state, asientos: [...state.asientos, action.payload], numeroAsiento: state.numeroAsiento + 1 };
     case 'UPDATE_ASIENTO':
       return { ...state, asientos: state.asientos.map(a => a.id === action.payload.id ? action.payload : a) };
+    case 'SET_ESTADO_ASIENTO':
+      return { ...state, asientos: state.asientos.map(a => a.id === action.payload.id ? { ...a, estado: action.payload.estado } : a) };
     case 'DELETE_ASIENTO':
       return { ...state, asientos: state.asientos.filter(a => a.id !== action.payload) };
     case 'ADD_REGISTRO_VENTA':
@@ -216,6 +219,9 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
         // estado hacía que la pantalla pareciera guardar una edición que se
         // perdía al recargar.
         saveAsiento(action.payload).catch(e => reportSyncError('actualizar asiento', e));
+        break;
+      case 'SET_ESTADO_ASIENTO':
+        updateAsientoEstado(action.payload.id, action.payload.estado).catch(e => reportSyncError('actualizar estado del asiento', e));
         break;
       case 'DELETE_ASIENTO':
         deleteAsiento(action.payload).catch(e => reportSyncError('eliminar asiento', e));
