@@ -99,7 +99,7 @@ export default function CentroControl() {
     try {
       const resultado = await contabilizarDocumento(d.id, esCompraDocumento(d) ? { cuentaGastoId: cuentaId } : { cuentaIngresoId: cuentaId });
       const asiento = resultado.asiento as any;
-      dispatch({ type: 'ADD_ASIENTO', payload: {
+      const asientoLocal = {
         id: asiento.id,
         numero: asiento.numero,
         fecha: String(asiento.fecha).slice(0, 10),
@@ -109,8 +109,10 @@ export default function CentroControl() {
         totalHaber: (asiento.detalles || []).reduce((s: number, linea: any) => s + Number(linea.haber || 0), 0),
         estado: 'contabilizado',
         tipo: asiento.tipo,
-      } });
+      };
+      dispatch({ type: state.asientos.some(a => a.id === asientoLocal.id) ? 'UPDATE_ASIENTO' : 'ADD_ASIENTO', payload: asientoLocal });
       dispatch({ type: 'UPDATE_DOCUMENTO', payload: { ...d, asientoId: resultado.documento.asientoId, estado: resultado.documento.estado } });
+      window.dispatchEvent(new Event('scc:login'));
       showToast('success', 'Documento contabilizado', `Se generó el asiento N° ${resultado.asiento.numero}.`);
       return true;
     } catch (error) {

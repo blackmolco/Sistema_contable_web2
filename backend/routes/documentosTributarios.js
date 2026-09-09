@@ -141,7 +141,13 @@ router.post('/:id/contabilizar', authenticateToken, writeLimiter, async (req, re
         if (!actual) return res.status(404).json({ error: 'Documento no encontrado' });
         if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         if (actual.estado === 'anulado') return res.status(409).json({ error: 'No se puede contabilizar un documento anulado' });
-        if (actual.asientoId) return res.status(409).json({ error: 'El documento ya tiene un asiento asociado' });
+        if (actual.asientoId) {
+            const asientoExistente = await prisma.asientoContable.findUnique({
+                where: { id: actual.asientoId },
+                include: { detalles: true },
+            });
+            if (asientoExistente) return res.json({ documento: actual, asiento: asientoExistente, yaExistia: true });
+        }
 
         const cuentaGastoId = typeof req.body?.cuentaGastoId === 'string' ? req.body.cuentaGastoId : undefined;
         const cuentaIngresoId = typeof req.body?.cuentaIngresoId === 'string' ? req.body.cuentaIngresoId : undefined;
