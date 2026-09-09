@@ -63,7 +63,12 @@ export default function CentroControl() {
   const cuentasCobrar = (state.cuentasCobrar ?? []) as any[];
   const cuentasPagar = (state.cuentasPagar ?? []) as any[];
 
-  const desbalanceados = useMemo(() => asientos.filter(a => a.estado !== 'anulado' && Math.abs(Number(a.totalDebe ?? 0) - Number(a.totalHaber ?? 0)) > 0), [asientos]);
+  const desbalanceados = useMemo(() => asientos.filter(a => {
+    if (a.estado === 'anulado') return false;
+    const debe = (a.detalles ?? []).reduce((sum: number, d: any) => sum + Number(d.debe || 0), 0);
+    const haber = (a.detalles ?? []).reduce((sum: number, d: any) => sum + Number(d.haber || 0), 0);
+    return Math.abs(debe - haber) >= 1;
+  }), [asientos]);
   const pendientes = useMemo(() => documentos.filter(d => d.estado !== 'anulado' && (d.estado === 'pendiente' || !d.asientoId)), [documentos]);
   const duplicados = useMemo(() => {
     const seen = new Map<string, number>();
@@ -76,12 +81,32 @@ export default function CentroControl() {
   }, [documentos]);
   const documentosActivos = documentos.filter(d => d.estado !== 'anulado');
   const esCompra = (d: any) => d.libro === 'compras' || d.tipo === 'factura_compra' || d.tipoTransaccion === 'compra';
-  const saldoCobrar = cuentasCobrar.length
+  const documentoPorId = useMemo(() => new Map(documentosActivos.map(d => [d.id, d])), [documentosActivos]);
+  const saldosAuxiliares = useMemo(() => {
+    const saldos = new Map<string, { tipo: 'cliente' | 'proveedor' | 'honorario'; monto: number }>();
+    asientos.filter(a => a.estado !== 'anulado').forEach(a => (a.detalles ?? []).forEach((d: any) => {
+      const doc = d.documentoId ? documentoPorId.get(d.documentoId) : undefined;
+      const rut = d.rutAuxiliar || doc?.receptor?.rut || doc?.rutCliente;
+      if (!rut) return;
+      const cuenta = cuentas.find(c => c.id === d.cuentaId);
+      const tipo = (cuenta?.tipoAuxiliar || (doc && esCompra(doc) ? 'proveedor' : 'cliente')) as 'cliente' | 'proveedor' | 'honorario';
+      const naturaleza = cuenta?.naturaleza || 'deudora';
+      const movimiento = (Number(d.debe || 0) - Number(d.haber || 0)) * (naturaleza === 'deudora' ? 1 : -1);
+      const key = `${tipo}|${rut}|${d.documentoId || a.id}`;
+      const actual = saldos.get(key);
+      saldos.set(key, { tipo, monto: (actual?.monto || 0) + movimiento });
+    }));
+    return [...saldos.values()].reduce((totales, item) => {
+      if (Math.abs(item.monto) >= 1) totales[item.tipo] += Math.abs(item.monto);
+      return totales;
+    }, { cliente: 0, proveedor: 0, honorario: 0 });
+  }, [asientos, cuentas, documentoPorId]);
+  const saldoCobrar = saldosAuxiliares.cliente || (cuentasCobrar.length
     ? cuentasCobrar.reduce((sum, c) => sum + Math.max(0, Number(c.monto ?? 0) - Number(c.montoPagado ?? 0)), 0)
-    : documentosActivos.filter(d => !esCompra(d) && (d.estado === 'pendiente' || !d.asientoId)).reduce((sum, d) => sum + Number(d.total ?? 0), 0);
-  const saldoPagar = cuentasPagar.length
+    : documentosActivos.filter(d => !esCompra(d) && (d.estado === 'pendiente' || !d.asientoId)).reduce((sum, d) => sum + Number(d.total ?? 0), 0));
+  const saldoPagar = saldosAuxiliares.proveedor || (cuentasPagar.length
     ? cuentasPagar.reduce((sum, c) => sum + Math.max(0, Number(c.monto ?? 0) - Number(c.montoPagado ?? 0)), 0)
-    : documentosActivos.filter(d => esCompra(d) && (d.estado === 'pendiente' || !d.asientoId)).reduce((sum, d) => sum + Number(d.total ?? 0), 0);
+    : documentosActivos.filter(d => esCompra(d) && (d.estado === 'pendiente' || !d.asientoId)).reduce((sum, d) => sum + Number(d.total ?? 0), 0));
 
   const [importState, setImportState] = useState(() => {
     try { return JSON.parse(localStorage.getItem('scc_importacion_sii_estado') || 'null'); } catch { return null; }
