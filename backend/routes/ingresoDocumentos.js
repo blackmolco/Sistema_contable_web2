@@ -59,6 +59,31 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
     const body = req.body;
     const empresaId = body.empresaId ?? null;
     if (!exigirAccesoEmpresa(req, res, empresaId)) return;
+
+    // El cliente calcula estos montos, pero el servidor no debe confiar en
+    // ellos a ciegas: sin este chequeo, cualquier request (un bug de JS, o
+    // alguien editando el body a mano) podia mandar un total que no tiene
+    // relacion con neto/iva/exento, o un monto liquido que no sale de
+    // bruto-retencion, y quedaba guardado y contabilizado tal cual.
+    if (body.tipoDocumento === 'honorario') {
+        const { montoBruto = 0, retencion = 0, montoLiquido = 0 } = body;
+        if (Math.abs(montoLiquido - (montoBruto - retencion)) > 1) {
+            return res.status(400).json({ error: `El monto líquido (${montoLiquido}) no corresponde a bruto (${montoBruto}) menos retención (${retencion})` });
+        }
+    } else if (body.total != null) {
+        // El total NUNCA puede ser menor que neto+exento+iva (eso es lo que
+        // permitiria mandar, p.ej., neto/iva reales de una factura grande
+        // con total:1). Si es mayor, se acepta: el RCV del SII trae
+        // documentos con un "otro impuesto" (tabaco/combustible/alcohol)
+        // que se suma al total sin aparecer en neto/iva — exigir igualdad
+        // estricta aca rechazaria esas compras reales (ver
+        // services/generarAsiento.js, mismo caso que ya se corrigio ahi).
+        const sumaEsperada = (body.neto || 0) + (body.exento || 0) + (body.iva || 0);
+        if (body.total < sumaEsperada - 1) {
+            return res.status(400).json({ error: `El total (${body.total}) es menor que neto + exento + iva (${sumaEsperada})` });
+        }
+    }
+
     try {
         const resultado = await prisma.$transaction(async (tx) => {
             await exigirPeriodoAbierto(tx, empresaId, body.fecha);
@@ -253,7 +278,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
             return res.status(409).json({ error: 'Documento duplicado: ya existe el mismo RUT, tipo, folio y fecha para esta empresa' });
         }
         logger.error({ err }, 'Error en ingreso de documento');
-        res.status(500).json({ error: err.message || 'Error al ingresar el documento' });
+        res.status(500).json({ error: 'Error al ingresar el documento' });
     }
 });
 

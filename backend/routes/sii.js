@@ -30,7 +30,7 @@ router.get('/semilla', authenticateToken, async (req, res) => {
         res.json({ success: true, semilla });
     } catch (err) {
         logger.error({ err }, 'Error obteniendo semilla SII');
-        res.status(500).json({ success: false, error: err.message });
+        res.status(500).json({ success: false, error: 'Error obteniendo semilla del SII' });
     }
 });
 
@@ -44,7 +44,7 @@ router.post('/consultar-dte', authenticateToken, async (req, res) => {
         res.json(resultado);
     } catch (err) {
         logger.error({ err }, 'Error consultando DTE');
-        res.status(500).json({ success: false, error: err.message });
+        res.status(500).json({ success: false, error: 'Error consultando DTE en el SII' });
     }
 });
 

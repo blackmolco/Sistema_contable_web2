@@ -205,7 +205,12 @@ router.post('/:id/contabilizar', authenticateToken, writeLimiter, async (req, re
     } catch (err) {
         logger.error({ err }, 'Error contabilizando documento pendiente');
         if (err.code === 'P2002') return res.status(409).json({ error: 'Ya existe un asiento o entidad equivalente para este documento. Actualice la pantalla e intente nuevamente.' });
-        res.status(err.status || 500).json({ error: err.message || 'Error contabilizando documento' });
+        // err.status marca un error de negocio controlado (ej. "Falta la
+        // cuenta X en el plan de cuentas") cuyo mensaje es seguro de
+        // mostrar. Sin eso, es una excepcion inesperada (Prisma, TypeError,
+        // etc.) y su .message no deberia llegar al cliente tal cual.
+        if (err.status) return res.status(err.status).json({ error: err.message });
+        res.status(500).json({ error: 'Error contabilizando documento' });
     }
 });
 
