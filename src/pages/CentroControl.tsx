@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDate } from '../utils/calculos';
+import { Modal } from '../components/ui/Modal';
 
 type Hallazgo = {
   id: string;
@@ -55,6 +56,7 @@ export default function CentroControl() {
   const [filtro, setFiltro] = useState<'todos' | 'críticos' | 'pendientes'>('todos');
   const [actualizando, setActualizando] = useState(false);
   const [ultimaActualizacion, setUltimaActualizacion] = useState(() => new Date());
+  const [mostrarPendientes, setMostrarPendientes] = useState(false);
 
   const documentos = (state.documentos ?? []) as any[];
   const asientos = (state.asientos ?? []) as any[];
@@ -63,12 +65,15 @@ export default function CentroControl() {
   const cuentasCobrar = (state.cuentasCobrar ?? []) as any[];
   const cuentasPagar = (state.cuentasPagar ?? []) as any[];
 
-  const desbalanceados = useMemo(() => asientos.filter(a => {
-    if (a.estado === 'anulado') return false;
+  const desbalanceados = useMemo(() => {
+    const idsCorregidos = new Set(asientos.filter(a => String(a.tipo || '').startsWith('correccion:')).map(a => String(a.tipo).slice('correccion:'.length)));
+    return asientos.filter(a => {
+    if (a.estado === 'anulado' || String(a.tipo || '').startsWith('reverso:') || idsCorregidos.has(a.id)) return false;
     const debe = (a.detalles ?? []).reduce((sum: number, d: any) => sum + Number(d.debe || 0), 0);
     const haber = (a.detalles ?? []).reduce((sum: number, d: any) => sum + Number(d.haber || 0), 0);
     return Math.abs(debe - haber) >= 1;
-  }), [asientos]);
+    });
+  }, [asientos]);
   const pendientes = useMemo(() => documentos.filter(d => d.estado !== 'anulado' && (d.estado === 'pendiente' || !d.asientoId)), [documentos]);
   const duplicados = useMemo(() => {
     const seen = new Map<string, number>();
@@ -140,7 +145,7 @@ export default function CentroControl() {
     const items: Hallazgo[] = [];
     if (desbalanceados.length) items.push({ id: 'desbalance', nivel: 'crítico', titulo: 'Asientos descuadrados', detalle: `${desbalanceados.length} asiento(s) requieren revisión antes del cierre.`, ruta: '/control-integridad', accion: 'Abrir control' });
     if (duplicados) items.push({ id: 'duplicados', nivel: 'atención', titulo: 'Posibles documentos duplicados', detalle: `${duplicados} combinación(es) de RUT, fecha, tipo y folio repetidas.`, ruta: '/sincronizacion-sii', accion: 'Revisar cargas' });
-    if (pendientes.length) items.push({ id: 'pendientes', nivel: 'atención', titulo: 'Documentos pendientes de contabilizar', detalle: `${pendientes.length} documento(s) no tienen asiento asociado.`, ruta: '/control-integridad', accion: 'Revisar documentos' });
+    if (pendientes.length) items.push({ id: 'pendientes', nivel: 'atención', titulo: 'Documentos pendientes de contabilizar', detalle: `${pendientes.length} documento(s) no tienen asiento asociado.`, ruta: '/control-integridad', accion: 'Ver documentos' });
     if (importState?.estado === 'procesando') items.push({ id: 'importacion', nivel: 'informativo', titulo: 'Importación SII en curso', detalle: `${importState.hecho ?? 0}/${importState.total ?? 0} registros procesados.`, ruta: '/sincronizacion-sii', accion: 'Ver proceso' });
     return items;
   }, [desbalanceados.length, duplicados, pendientes.length, importState]);
@@ -188,7 +193,7 @@ export default function CentroControl() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Asientos descuadrados" value={desbalanceados.length} detail="Revisar antes de cerrar" tone={desbalanceados.length ? 'red' : 'green'} onClick={() => navigate('/control-integridad')} />
-        <Metric label="Documentos pendientes" value={pendientes.length} detail="Sin asiento o en estado pendiente" tone={pendientes.length ? 'amber' : 'green'} onClick={() => navigate('/ingreso-documento')} />
+        <Metric label="Documentos pendientes" value={pendientes.length} detail="Sin asiento o en estado pendiente" tone={pendientes.length ? 'amber' : 'green'} onClick={() => setMostrarPendientes(true)} />
         <Metric label="Por cobrar" value={formatCurrency(saldoCobrar)} detail={cuentasCobrar.length ? `${cuentasCobrar.length} obligación(es) registradas` : 'Estimado desde documentos pendientes'} tone="blue" onClick={() => navigate('/cuenta-corriente')} />
         <Metric label="Por pagar" value={formatCurrency(saldoPagar)} detail={cuentasPagar.length ? `${cuentasPagar.length} obligación(es) registradas` : 'Estimado desde documentos pendientes'} tone="blue" onClick={() => navigate('/cuenta-corriente')} />
       </div>
@@ -196,7 +201,7 @@ export default function CentroControl() {
       <div className="grid gap-6 xl:grid-cols-[1.3fr_.7fr]">
         <Card>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-display text-lg font-bold text-gray-900 dark:text-white">Revisión prioritaria</h2><p className="text-xs text-gray-500">Alertas calculadas con la información actual de la empresa.</p></div><div className="flex rounded-lg bg-gray-100 p-1 text-xs dark:bg-gray-800">{(['todos', 'críticos', 'pendientes'] as const).map(f => <button key={f} type="button" onClick={() => setFiltro(f)} className={`rounded-md px-3 py-1.5 capitalize ${filtro === f ? 'bg-white font-semibold text-primary shadow-sm dark:bg-gray-700' : 'text-gray-500'}`}>{f}</button>)}</div></div>
-          <div className="space-y-3">{hallazgosFiltrados.length ? hallazgosFiltrados.map(h => <div key={h.id} className="flex items-start gap-3 rounded-xl border border-gray-100 p-3 dark:border-gray-800"><span className={`mt-0.5 rounded-full p-2 ${h.nivel === 'crítico' ? 'bg-red-100 text-red-600' : h.nivel === 'atención' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>{h.nivel === 'crítico' ? <XCircle size={16} /> : h.nivel === 'atención' ? <AlertTriangle size={16} /> : <Activity size={16} />}</span><div className="min-w-0 flex-1"><p className="font-semibold text-gray-800 dark:text-gray-100">{h.titulo}</p><p className="mt-0.5 text-sm text-gray-500">{h.detalle}</p></div><button type="button" onClick={() => navigate(h.ruta)} className="shrink-0 text-xs font-semibold text-primary hover:underline">{h.accion}</button></div>) : <div className="flex flex-col items-center justify-center rounded-xl bg-emerald-50 px-6 py-10 text-center dark:bg-emerald-950/20"><CheckCircle2 size={34} className="text-emerald-600" /><p className="mt-3 font-semibold text-emerald-800 dark:text-emerald-300">No hay pendientes en este filtro</p><p className="mt-1 text-sm text-emerald-700/70">La información actual está lista para continuar.</p></div>}</div>
+          <div className="space-y-3">{hallazgosFiltrados.length ? hallazgosFiltrados.map(h => <div key={h.id} className="flex items-start gap-3 rounded-xl border border-gray-100 p-3 dark:border-gray-800"><span className={`mt-0.5 rounded-full p-2 ${h.nivel === 'crítico' ? 'bg-red-100 text-red-600' : h.nivel === 'atención' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>{h.nivel === 'crítico' ? <XCircle size={16} /> : h.nivel === 'atención' ? <AlertTriangle size={16} /> : <Activity size={16} />}</span><div className="min-w-0 flex-1"><p className="font-semibold text-gray-800 dark:text-gray-100">{h.titulo}</p><p className="mt-0.5 text-sm text-gray-500">{h.detalle}</p></div><button type="button" onClick={() => h.id === 'pendientes' ? setMostrarPendientes(true) : navigate(h.ruta)} className="shrink-0 text-xs font-semibold text-primary hover:underline">{h.accion}</button></div>) : <div className="flex flex-col items-center justify-center rounded-xl bg-emerald-50 px-6 py-10 text-center dark:bg-emerald-950/20"><CheckCircle2 size={34} className="text-emerald-600" /><p className="mt-3 font-semibold text-emerald-800 dark:text-emerald-300">No hay pendientes en este filtro</p><p className="mt-1 text-sm text-emerald-700/70">La información actual está lista para continuar.</p></div>}</div>
         </Card>
 
         <Card>
@@ -216,6 +221,12 @@ export default function CentroControl() {
         <div className="flex items-center justify-between"><div><h2 className="font-display text-lg font-bold text-gray-900 dark:text-white">Resumen de control</h2><p className="text-xs text-gray-500">Información disponible para la empresa activa.</p></div><button type="button" onClick={() => navigate('/control-integridad')} className="text-xs font-semibold text-primary hover:underline">Ejecutar revisión completa</button></div>
         <div className="mt-4 grid gap-4 md:grid-cols-3"><div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800/50"><p className="text-xs text-gray-500">Cuentas activas</p><p className="mt-1 font-data text-xl font-bold text-gray-900 dark:text-white">{cuentas.filter(c => c.activo !== false).length}</p></div><div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800/50"><p className="text-xs text-gray-500">Entidades registradas</p><p className="mt-1 font-data text-xl font-bold text-gray-900 dark:text-white">{entidades.filter(e => e.activo !== false).length}</p></div><div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800/50"><p className="text-xs text-gray-500">Documentos cargados</p><p className="mt-1 font-data text-xl font-bold text-gray-900 dark:text-white">{documentos.length}</p></div></div>
       </Card>
+
+      <Modal isOpen={mostrarPendientes} onClose={() => setMostrarPendientes(false)} title={`Documentos pendientes de contabilizar (${pendientes.length})`} size="full" footer={<button type="button" onClick={() => setMostrarPendientes(false)} className="btn-modern">Cerrar</button>}>
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Estos documentos no tienen un asiento asociado o permanecen pendientes. Revísalos antes de cerrar el período.</div>
+        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700"><table className="w-full min-w-[760px] text-sm"><thead className="bg-gray-50 dark:bg-gray-800"><tr><th className="px-3 py-3 text-left">Tipo</th><th className="px-3 py-3 text-left">Folio</th><th className="px-3 py-3 text-left">RUT / nombre</th><th className="px-3 py-3 text-left">Fecha</th><th className="px-3 py-3 text-right">Total</th><th className="px-3 py-3 text-left">Estado</th></tr></thead><tbody className="divide-y divide-gray-100 dark:divide-gray-800">{pendientes.slice(0, 200).map(d => <tr key={d.id}><td className="px-3 py-3">{String(d.tipo).replaceAll('_', ' ')}</td><td className="px-3 py-3 font-data">{d.numero}</td><td className="px-3 py-3"><strong>{d.receptor?.rut || d.rutCliente || 'Sin RUT'}</strong><br /><span className="text-xs text-gray-500">{d.receptor?.razonSocial || d.razonSocialCliente || 'Sin nombre'}</span></td><td className="px-3 py-3">{formatDate(d.fecha)}</td><td className="px-3 py-3 text-right font-data">{formatCurrency(Number(d.total || 0))}</td><td className="px-3 py-3"><span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">{d.estado || 'Sin asiento'}</span></td></tr>)}</tbody></table></div>
+        {pendientes.length > 200 && <p className="mt-3 text-xs text-gray-500">Se muestran los primeros 200 documentos. Total: {pendientes.length}.</p>}
+      </Modal>
     </div>
   );
 }

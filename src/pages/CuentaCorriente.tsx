@@ -86,6 +86,9 @@ export default function CuentaCorriente() {
       debe: number; haber: number; naturaleza: 'deudora' | 'acreedora'; tipoAuxiliar?: string; cuentaControlId: string;
     }> = [];
     (state.asientos ?? []).forEach((asiento) => {
+      // Los asientos anulados se conservan para trazabilidad, pero no deben
+      // aumentar los saldos pendientes de clientes o proveedores.
+      if (asiento.estado === 'anulado') return;
       asiento.detalles.forEach((d) => {
         const auxiliar = d.rutAuxiliar ? {
           rut: d.rutAuxiliar,
