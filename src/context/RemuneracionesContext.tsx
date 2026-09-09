@@ -87,7 +87,7 @@ export function RemuneracionesProvider({ children }: { children: ReactNode }) {
         // El servidor es siempre la fuente de verdad — no se re-sube la cache
         // local cuando esta vacio, eso resucitaba trabajadores ya borrados.
         baseDispatch({ type: 'LOAD_REMUNERACIONES', payload: { trabajadores } });
-      }).catch(() => {});
+      }).catch(e => reportSyncError('cargar trabajadores desde el servidor', e));
     };
 
     // empresaId/authReady no bastan solos: pueden venir precargados

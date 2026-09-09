@@ -80,7 +80,7 @@ export function EntidadesProvider({ children }: { children: ReactNode }) {
       loadedForEmpresa.current = empresaId;
       fetchEntidades().then(entidades => {
         baseDispatch({ type: 'LOAD_ENTIDADES', payload: { entidades } });
-      }).catch(() => {});
+      }).catch(e => reportSyncError('cargar clientes/proveedores desde el servidor', e));
     };
     const cargarForzado = () => { loadedForEmpresa.current = null; cargar(); };
     if (authReady) cargar();

@@ -120,7 +120,7 @@ export function FacturacionProvider({ children }: { children: ReactNode }) {
               : 1,
           },
         });
-      }).catch(() => {});
+      }).catch(e => reportSyncError('cargar documentos y honorarios desde el servidor', e));
     };
 
     // empresaId/authReady (reactivos via zustand) no bastan solos como

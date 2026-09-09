@@ -171,18 +171,27 @@ export function ContabilidadProvider({ children }: { children: ReactNode }) {
             },
           });
         } else {
-          // API vacía → subir datos locales al servidor (migración única)
+          // API vacía → subir datos locales al servidor (migración única).
+          // Antes cada fallo se tragaba en silencio: la UI ya mostraba las
+          // 300 cuentas/asientos locales (vinieron de localStorage antes de
+          // que esto corriera), pero si la N-esima subida fallaba (rate
+          // limit, validacion) esa fila quedaba fantasma — visible en
+          // pantalla, inexistente en el servidor, sin ningun aviso.
           const local = stateRef.current;
           // Subir cuentas ordenadas por nivel (padres antes que hijos, FK constraint)
           const cuentasOrdenadas = [...local.cuentas].sort((a, b) => (a.nivel ?? 1) - (b.nivel ?? 1));
+          let fallidas = 0;
           for (const c of cuentasOrdenadas) {
-            await saveCuenta(c).catch(() => {});
+            await saveCuenta(c).catch(() => { fallidas++; });
           }
           for (const a of local.asientos) {
-            await saveAsiento(a).catch(() => {});
+            await saveAsiento(a).catch(() => { fallidas++; });
+          }
+          if (fallidas > 0) {
+            reportSyncError(`migrar ${fallidas} registro(s) de contabilidad al servidor`, new Error('fallo la migracion inicial'));
           }
         }
-      }).catch(() => { /* sin conexión — usar localStorage */ });
+      }).catch(e => reportSyncError('cargar contabilidad desde el servidor', e));
     };
 
     // empresaId/authReady (reactivos via zustand) no bastan solos como
