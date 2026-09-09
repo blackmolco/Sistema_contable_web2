@@ -6,6 +6,8 @@ const { parsePagination, paginatedResponse } = require('../middlewares/paginatio
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
 const { exigirAccesoEmpresa, esAdmin } = require('../middlewares/empresaAccess');
+const { lineasParaDocumento, crearAsiento } = require('../services/generarAsiento');
+const { exigirPeriodoAbierto } = require('../services/periodos');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -128,6 +130,70 @@ router.post('/', authenticateToken, writeLimiter, validate(docTributarioSchema),
     } catch (err) {
         logger.error({ err }, 'Error creando documento tributario');
         res.status(500).json({ error: 'Error al crear documento tributario' });
+    }
+});
+
+// Completa un documento antiguo que fue cargado sin asiento. Mantiene el
+// documento original y solo agrega el asiento contable faltante.
+router.post('/:id/contabilizar', authenticateToken, writeLimiter, async (req, res) => {
+    try {
+        const actual = await prisma.documentoTributario.findUnique({ where: { id: req.params.id } });
+        if (!actual) return res.status(404).json({ error: 'Documento no encontrado' });
+        if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
+        if (actual.estado === 'anulado') return res.status(409).json({ error: 'No se puede contabilizar un documento anulado' });
+        if (actual.asientoId) return res.status(409).json({ error: 'El documento ya tiene un asiento asociado' });
+
+        const cuentaGastoId = typeof req.body?.cuentaGastoId === 'string' ? req.body.cuentaGastoId : undefined;
+        const cuentaIngresoId = typeof req.body?.cuentaIngresoId === 'string' ? req.body.cuentaIngresoId : undefined;
+        const resultado = await prisma.$transaction(async (tx) => {
+            await exigirPeriodoAbierto(tx, actual.empresaId, actual.fechaEmision.toISOString().slice(0, 10));
+            const entidadRut = actual.rutReceptor || 'SIN-RUT';
+            let entidad = await tx.entidad.findFirst({ where: { rut: entidadRut, empresaId: actual.empresaId } });
+            if (!entidad) {
+                entidad = await tx.entidad.create({
+                    data: {
+                        id: require('crypto').randomUUID(),
+                        rut: entidadRut,
+                        razonSocial: actual.razonSocialReceptor || 'Sin nombre',
+                        giro: actual.giroReceptor || null,
+                        direccion: actual.direccionReceptor || null,
+                        tipo: actual.tipoTransaccion === 'compra' ? 'proveedor' : 'cliente',
+                        empresaId: actual.empresaId,
+                    },
+                });
+            }
+            const detalles = await lineasParaDocumento(tx, actual.empresaId, {
+                tipo: actual.tipo,
+                tipoTransaccion: actual.tipoTransaccion,
+                neto: actual.montoNeto,
+                exento: actual.montoExento,
+                iva: actual.iva,
+                total: actual.montoTotal,
+                cuentaGastoId,
+                cuentaIngresoId,
+                entidad,
+                documentoId: actual.id,
+            });
+            const asiento = await crearAsiento(tx, {
+                empresaId: actual.empresaId,
+                fecha: actual.fechaEmision,
+                glosa: `${actual.tipo} N° ${actual.folio} — ${actual.razonSocialReceptor}`,
+                tipo: actual.tipoTransaccion,
+                detalles,
+                usuarioId: req.usuario.id,
+                importacionId: actual.importacionId,
+            });
+            const documento = await tx.documentoTributario.update({
+                where: { id: actual.id },
+                data: { asientoId: asiento.id, estado: actual.tipoTransaccion === 'compra' ? 'recibido' : 'emitido' },
+            });
+            return { documento, asiento };
+        }, { timeout: 15000 });
+        await auditLog(req.usuario.id, 'CONTABILIZAR', 'DocumentoTributario', actual.id, { asientoId: resultado.asiento.id }, req.ip, req.headers['user-agent']);
+        res.status(201).json(resultado);
+    } catch (err) {
+        logger.error({ err }, 'Error contabilizando documento pendiente');
+        res.status(err.status || 500).json({ error: err.message || 'Error contabilizando documento' });
     }
 });
 

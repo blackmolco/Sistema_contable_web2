@@ -19,6 +19,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDate } from '../utils/calculos';
 import { Modal } from '../components/ui/Modal';
+import { contabilizarDocumento } from '../services/apiSync';
 
 type Hallazgo = {
   id: string;
@@ -51,12 +52,14 @@ function Metric({ label, value, detail, tone, onClick }: { label: string; value:
 
 export default function CentroControl() {
   const navigate = useNavigate();
-  const { state } = useApp();
+  const { state, dispatch, showToast } = useApp();
   const [query, setQuery] = useState('');
   const [filtro, setFiltro] = useState<'todos' | 'críticos' | 'pendientes'>('todos');
   const [actualizando, setActualizando] = useState(false);
   const [ultimaActualizacion, setUltimaActualizacion] = useState(() => new Date());
   const [mostrarPendientes, setMostrarPendientes] = useState(false);
+  const [cuentasPendientes, setCuentasPendientes] = useState<Record<string, string>>({});
+  const [procesandoDocumento, setProcesandoDocumento] = useState<string | null>(null);
 
   const documentos = (state.documentos ?? []) as any[];
   const asientos = (state.asientos ?? []) as any[];
@@ -75,6 +78,51 @@ export default function CentroControl() {
     });
   }, [asientos]);
   const pendientes = useMemo(() => documentos.filter(d => d.estado !== 'anulado' && (d.estado === 'pendiente' || !d.asientoId)), [documentos]);
+  const esCompraDocumento = (d: any) => d.libro === 'compras' || d.tipo === 'factura_compra' || d.tipoTransaccion === 'compra';
+  const cuentaSugerida = (d: any) => {
+    const rut = d.receptor?.rut || d.rutCliente || '';
+    const entidad = entidades.find(e => e.rut?.replace(/[^0-9kK]/g, '').toUpperCase() === rut.replace(/[^0-9kK]/g, '').toUpperCase());
+    if (entidad?.cuentaDefaultId && cuentas.some(c => c.id === entidad.cuentaDefaultId && c.permiteMovimiento)) return entidad.cuentaDefaultId;
+    const codigo = esCompraDocumento(d) ? '5-03-004-0001' : '4-01-001-0001';
+    return cuentas.find(c => c.codigo === codigo && c.permiteMovimiento)?.id || '';
+  };
+  const opcionesCuenta = (d: any) => cuentas
+    .filter(c => c.permiteMovimiento && (esCompraDocumento(d) ? ['gasto', 'activo', 'pasivo'].includes(c.tipo) : c.tipo === 'ingreso'))
+    .map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }));
+  const contabilizarPendiente = async (d: any) => {
+    const cuentaId = cuentasPendientes[d.id] || cuentaSugerida(d);
+    if (!cuentaId) {
+      showToast('error', 'Falta cuenta contable', 'Seleccione una cuenta antes de contabilizar.');
+      return false;
+    }
+    setProcesandoDocumento(d.id);
+    try {
+      const resultado = await contabilizarDocumento(d.id, esCompraDocumento(d) ? { cuentaGastoId: cuentaId } : { cuentaIngresoId: cuentaId });
+      const asiento = resultado.asiento as any;
+      dispatch({ type: 'ADD_ASIENTO', payload: {
+        id: asiento.id,
+        numero: asiento.numero,
+        fecha: String(asiento.fecha).slice(0, 10),
+        glosa: asiento.glosa,
+        detalles: (asiento.detalles || []).map((linea: any) => ({ ...linea, debe: Number(linea.debe || 0), haber: Number(linea.haber || 0) })),
+        totalDebe: (asiento.detalles || []).reduce((s: number, linea: any) => s + Number(linea.debe || 0), 0),
+        totalHaber: (asiento.detalles || []).reduce((s: number, linea: any) => s + Number(linea.haber || 0), 0),
+        estado: 'contabilizado',
+        tipo: asiento.tipo,
+      } });
+      dispatch({ type: 'UPDATE_DOCUMENTO', payload: { ...d, asientoId: resultado.documento.asientoId, estado: resultado.documento.estado } });
+      showToast('success', 'Documento contabilizado', `Se generó el asiento N° ${resultado.asiento.numero}.`);
+      return true;
+    } catch (error) {
+      showToast('error', 'No se pudo contabilizar', error instanceof Error ? error.message : 'Revise la cuenta sugerida y vuelva a intentar.');
+      return false;
+    } finally {
+      setProcesandoDocumento(null);
+    }
+  };
+  const contabilizarTodosSugeridos = async () => {
+    for (const documento of pendientes) await contabilizarPendiente(documento);
+  };
   const duplicados = useMemo(() => {
     const seen = new Map<string, number>();
     documentos.forEach(d => {
@@ -222,9 +270,9 @@ export default function CentroControl() {
         <div className="mt-4 grid gap-4 md:grid-cols-3"><div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800/50"><p className="text-xs text-gray-500">Cuentas activas</p><p className="mt-1 font-data text-xl font-bold text-gray-900 dark:text-white">{cuentas.filter(c => c.activo !== false).length}</p></div><div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800/50"><p className="text-xs text-gray-500">Entidades registradas</p><p className="mt-1 font-data text-xl font-bold text-gray-900 dark:text-white">{entidades.filter(e => e.activo !== false).length}</p></div><div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800/50"><p className="text-xs text-gray-500">Documentos cargados</p><p className="mt-1 font-data text-xl font-bold text-gray-900 dark:text-white">{documentos.length}</p></div></div>
       </Card>
 
-      <Modal isOpen={mostrarPendientes} onClose={() => setMostrarPendientes(false)} title={`Documentos pendientes de contabilizar (${pendientes.length})`} size="full" footer={<button type="button" onClick={() => setMostrarPendientes(false)} className="btn-modern">Cerrar</button>}>
-        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Estos documentos no tienen un asiento asociado o permanecen pendientes. Revísalos antes de cerrar el período.</div>
-        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700"><table className="w-full min-w-[760px] text-sm"><thead className="bg-gray-50 dark:bg-gray-800"><tr><th className="px-3 py-3 text-left">Tipo</th><th className="px-3 py-3 text-left">Folio</th><th className="px-3 py-3 text-left">RUT / nombre</th><th className="px-3 py-3 text-left">Fecha</th><th className="px-3 py-3 text-right">Total</th><th className="px-3 py-3 text-left">Estado</th></tr></thead><tbody className="divide-y divide-gray-100 dark:divide-gray-800">{pendientes.slice(0, 200).map(d => <tr key={d.id}><td className="px-3 py-3">{String(d.tipo).replaceAll('_', ' ')}</td><td className="px-3 py-3 font-data">{d.numero}</td><td className="px-3 py-3"><strong>{d.receptor?.rut || d.rutCliente || 'Sin RUT'}</strong><br /><span className="text-xs text-gray-500">{d.receptor?.razonSocial || d.razonSocialCliente || 'Sin nombre'}</span></td><td className="px-3 py-3">{formatDate(d.fecha)}</td><td className="px-3 py-3 text-right font-data">{formatCurrency(Number(d.total || 0))}</td><td className="px-3 py-3"><span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">{d.estado || 'Sin asiento'}</span></td></tr>)}</tbody></table></div>
+      <Modal isOpen={mostrarPendientes} onClose={() => setMostrarPendientes(false)} title={`Resolver documentos pendientes (${pendientes.length})`} size="full" footer={<div className="flex w-full items-center justify-between gap-3"><span className="text-xs text-gray-500">La cuenta sugerida puede cambiarse antes de contabilizar.</span><div className="flex gap-2"><button type="button" onClick={contabilizarTodosSugeridos} disabled={!!procesandoDocumento} className="btn-primary">Contabilizar todos los sugeridos</button><button type="button" onClick={() => setMostrarPendientes(false)} className="btn-modern">Cerrar</button></div></div>}>
+        <div className="mb-4 grid gap-3 md:grid-cols-2"><div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><strong>Qué hacer:</strong> revise la cuenta sugerida por tipo de documento y memoria del proveedor. Si es correcta, pulse <strong>Contabilizar</strong>; si no, elija otra cuenta.</div><div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800"><strong>Regla aplicada:</strong> compras → gasto/activo sugerido; ventas → Ventas. El asiento se genera balanceado y alimenta Cuenta Corriente.</div></div>
+        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700"><table className="w-full min-w-[1120px] text-sm"><thead className="bg-gray-50 dark:bg-gray-800"><tr><th className="px-3 py-3 text-left">Tipo</th><th className="px-3 py-3 text-left">Folio</th><th className="px-3 py-3 text-left">RUT / nombre</th><th className="px-3 py-3 text-left">Fecha</th><th className="px-3 py-3 text-right">Total</th><th className="px-3 py-3 text-left">Cuenta sugerida / selección</th><th className="px-3 py-3 text-left">Acción</th></tr></thead><tbody className="divide-y divide-gray-100 dark:divide-gray-800">{pendientes.slice(0, 200).map(d => { const cuentaId = cuentasPendientes[d.id] || cuentaSugerida(d); return <tr key={d.id}><td className="px-3 py-3">{String(d.tipo).replaceAll('_', ' ')}</td><td className="px-3 py-3 font-data">{d.numero}</td><td className="px-3 py-3"><strong>{d.receptor?.rut || d.rutCliente || 'Sin RUT'}</strong><br /><span className="text-xs text-gray-500">{d.receptor?.razonSocial || d.razonSocialCliente || 'Sin nombre'}</span></td><td className="px-3 py-3">{formatDate(d.fecha)}</td><td className="px-3 py-3 text-right font-data">{formatCurrency(Number(d.total || 0))}</td><td className="px-3 py-3"><select value={cuentaId} onChange={e => setCuentasPendientes(actual => ({ ...actual, [d.id]: e.target.value }))} className="min-w-[330px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900">{!cuentaId && <option value="">Seleccione una cuenta...</option>}{opcionesCuenta(d).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>{cuentaId && !cuentasPendientes[d.id] && <p className="mt-1 text-[11px] text-emerald-600">Sugerida automáticamente</p>}</td><td className="px-3 py-3"><button type="button" onClick={() => contabilizarPendiente(d)} disabled={!!procesandoDocumento} className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{procesandoDocumento === d.id ? 'Procesando...' : 'Contabilizar'}</button></td></tr>; })}</tbody></table></div>
         {pendientes.length > 200 && <p className="mt-3 text-xs text-gray-500">Se muestran los primeros 200 documentos. Total: {pendientes.length}.</p>}
       </Modal>
     </div>

@@ -642,6 +642,13 @@ export async function updateDocumento(id: string, estado: string): Promise<void>
   });
 }
 
+export async function contabilizarDocumento(id: string, opciones: { cuentaGastoId?: string; cuentaIngresoId?: string }): Promise<{ documento: DocumentoTributario; asiento: AsientoContable }> {
+  return apiFetch<{ documento: DocumentoTributario; asiento: AsientoContable }>(`/api/documentosTributarios/${id}/contabilizar`, {
+    method: 'POST',
+    body: JSON.stringify(opciones),
+  });
+}
+
 export async function deleteDocumento(id: string): Promise<void> {
   await apiFetch(`/api/documentosTributarios/${id}`, { method: 'DELETE' });
 }
