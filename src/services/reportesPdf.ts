@@ -24,7 +24,7 @@ function obtenerEmpresaConfig(config?: ConfiguracionEmpresa) {
         return parsed.configuracion;
       }
     }
-  } catch (e) {}
+  } catch { /* datos corruptos — usar el fallback de abajo */ }
   // 3. Fallback al store multi-empresa (puede tener datos demo)
   return useAppStore.getState().empresaActiva;
 }
@@ -195,7 +195,7 @@ export function generarPDFLiquidacionDesdeLinea(
     totalDescuentos: linea.totalDescuentos, sueldoLiquido: linea.sueldoLiquido
   }, indicadores);
 
-  const rutSafe = linea.rut.replace(/[.\-]/g, '');
+  const rutSafe = linea.rut.replace(/[.-]/g, '');
   const perSafe = periodo.replace(/\s/g, '_');
   doc.save(`liquidacion_${rutSafe}_${perSafe}.pdf`);
 }
@@ -333,7 +333,7 @@ export function generarPDFLiquidacion(
     totalDescuentos: totalDescuentos, sueldoLiquido: liquidoPagar
   }, indicadores);
 
-  const rutSafe = trabajador.rut.replace(/[.\-]/g, '');
+  const rutSafe = trabajador.rut.replace(/[.-]/g, '');
   const perSafe = periodo.replace(/\s/g, '_');
   doc.save(`liquidacion_${rutSafe}_${perSafe}.pdf`);
 }

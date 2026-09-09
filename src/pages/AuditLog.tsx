@@ -165,7 +165,7 @@ export default function AuditLog() {
     // 2. Hash Chain Simulation (Simula hashing encadenado tipo blockchain)
     let currentHash = 'genesis-seed-0000000000000000';
     const computedHashes: string[] = [];
-    let chainBroken = false;
+    const chainBroken = false;
 
     eventos.forEach((e) => {
       // El bloque contiene el hash del anterior + la data del actual

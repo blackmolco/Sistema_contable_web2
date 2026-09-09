@@ -6,6 +6,11 @@ import { useApp } from '../context/AppContext';
 import { RETENCION_HONORARIOS } from '../data/normativa';
 import { DetalleAsiento } from '../types';
 
+// Carga manual de CSV y su mapeo de cuentas: reemplazados por "Cargar desde
+// Libros del Sistema" (arriba) e Ingreso de Documentos — el codigo queda
+// por si hace falta volver a mostrarlos, pero no se renderizan.
+const MOSTRAR_CARGA_MANUAL_CSV = false;
+
 interface RCVLine {
   id: string;
   rut: string;
@@ -434,7 +439,7 @@ export default function F29() {
       </div>
 
       {/* Zona de Carga de Archivos */}
-      {false && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
+      {MOSTRAR_CARGA_MANUAL_CSV && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
         <Card title="Libro de Ventas (CSV SII)">
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors">
             <Upload className="mx-auto text-gray-400 mb-2" size={32} />
@@ -473,7 +478,7 @@ export default function F29() {
       </div>}
 
       {/* Mapeo Automático de Cuentas para Compras */}
-      {false && detallesCompras.length > 0 && (
+      {MOSTRAR_CARGA_MANUAL_CSV && detallesCompras.length > 0 && (
         <Card title="Contabilización Inteligente de Compras" className="no-print">
           <p className="text-xs text-gray-500 mb-4">
             Selecciona a qué cuenta contable (Gasto/Activo) corresponde cada factura. ¡El sistema lo aprenderá para el próximo mes!

@@ -105,9 +105,9 @@ describe('calcularHonorariosDesdeLiquido – reverso del cálculo', () => {
 describe('calcularCotizaciones', () => {
   const sueldo = 1_000_000;
 
-  it('calcula SIS correctamente (1.49% del imponible — tasa vigente mayo 2026)', () => {
+  it('SIS es $0 para el trabajador (desde 2021 lo paga el empleador, no se descuenta al dependiente)', () => {
     const { afpSis } = calcularCotizaciones(sueldo, 1.44, 'indefinido');
-    expect(afpSis).toBe(Math.round(sueldo * 0.0149));
+    expect(afpSis).toBe(0);
   });
 
   it('calcula salud correctamente (7%)', () => {
@@ -256,9 +256,14 @@ describe('calcularSueldoLiquido', () => {
     expect(sueldoLiquido).toBeGreaterThan(0);
   });
 
-  it('líquido es menor que bruto (hay descuentos)', () => {
-    const { sueldoBruto, sueldoLiquido } = calcularSueldoLiquido(params);
-    expect(sueldoLiquido).toBeLessThan(sueldoBruto + params.colacion + params.movilizacion);
+  it('líquido es menor que el total de haberes (hay descuentos)', () => {
+    // sueldoBruto es solo el sueldo base — el total de haberes ya incluye
+    // ademas la gratificacion legal (25%, Art. 50 Codigo del Trabajo) y los
+    // no imponibles, asi que compararlo contra sueldoBruto+colacion+
+    // movilizacion (sin la gratificacion) daba un limite mas bajo que el
+    // liquido real y el test fallaba con datos correctos.
+    const { totalHaberes, sueldoLiquido } = calcularSueldoLiquido(params);
+    expect(sueldoLiquido).toBeLessThan(totalHaberes);
   });
 
   it('total cotizaciones = AFP + salud + AFC', () => {
@@ -271,10 +276,12 @@ describe('calcularSueldoLiquido', () => {
   it('desglose incluye todos los conceptos principales', () => {
     const { desglose } = calcularSueldoLiquido(params);
     const conceptos = desglose.map(d => d.concepto);
-    expect(conceptos).toContain('Sueldo base');
-    expect(conceptos).toContain('Cotización AFP (10%)');
-    expect(conceptos).toContain('Cotización Salud (7%)');
-    expect(conceptos).toContain('Impuesto Único');
+    expect(conceptos).toContain('Sueldo Base (imponible)');
+    // El % de AFP incluye la comision de la AFP elegida (10 + comisionAfp),
+    // asi que no es un string fijo — se busca el concepto por prefijo.
+    expect(conceptos.some(c => c.startsWith('AFP ('))).toBe(true);
+    expect(conceptos).toContain('Salud (7%)');
+    expect(conceptos).toContain('Impuesto Único 2ª Categoría');
   });
 
   it('todos los montos del desglose son enteros', () => {

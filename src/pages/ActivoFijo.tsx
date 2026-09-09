@@ -31,7 +31,7 @@ function loadActivos(): Activo[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch { /* datos corruptos — usar defaults */ }
   return [];
 }
 

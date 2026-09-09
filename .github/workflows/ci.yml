@@ -1,0 +1,90 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # OJO: no se corre "tsc -b" (typecheck real, project references) aca —
+  # tiene ~80 errores preexistentes repartidos en paginas viejas/ocultas
+  # (ClientesProveedores, CuentasCobrar/Pagar, Dashboard, F22, Documentos,
+  # etc.), acumulados antes de esta sesion. Vercel despliega con
+  # "npm run build" (vite build, sin tsc -b), asi que esos errores nunca
+  # bloquearon nada en produccion -- pero agregarlo aca tal cual dejaria
+  # el pipeline en rojo desde el primer push. Queda pendiente una pasada
+  # aparte para limpiarlos y recien ahi sumar un paso de typecheck real.
+  lint-and-typecheck:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production
+        run: npm run build:prod
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # backend-test y docker se sacaron a proposito: el primero corria
+  # "prisma migrate deploy" y "npm run seed" contra la base de datos que
+  # sea que tenga configurada la corrida (si alguna vez se cargaron
+  # secrets de GitHub Actions apuntando a produccion, esto sembraria datos
+  # demo ahi en cada push); el segundo armaba imagenes Docker que nunca se
+  # publican a ningun lado (push: false) -- no aporta nada, solo gasta
+  # minutos de CI. Ninguno de los dos es necesario: Vercel y Render ya
+  # hacen su propio build/deploy al hacer push a main.

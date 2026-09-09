@@ -68,7 +68,7 @@ export async function handleApiResponse<T>(res: Response): Promise<T> {
       const body = await res.json();
       serverMessage = body.error || body.message;
       detalles = body.detalles;
-    } catch {}
+    } catch { /* respuesta sin cuerpo JSON — se usa el mensaje generico por status */ }
     const msg = getHttpErrorMessage(res.status, serverMessage);
     throw new Error(detalles?.length ? `${msg} | ${detalles.join(' | ')}` : msg);
   }

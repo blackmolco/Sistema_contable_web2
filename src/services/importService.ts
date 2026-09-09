@@ -246,14 +246,14 @@ export class ImportService {
     for (const [k, v] of Object.entries(fila)) {
       const kLimpia = k.toLowerCase().trim()
         .normalize('NFD').replace(/[̀-ͯ]/g, '')
-        .replace(/[\s_\-]/g, '');
+        .replace(/[\s_-]/g, '');
       filaLimpia[kLimpia] = (v ?? '').trim();
     }
 
     // Busca valor por múltiples claves posibles (también normalizadas)
     const get = (...claves: string[]): string => {
       for (const c of claves) {
-        const cNorm = c.toLowerCase().replace(/[\s_\-]/g, '')
+        const cNorm = c.toLowerCase().replace(/[\s_-]/g, '')
           .normalize('NFD').replace(/[̀-ͯ]/g, '');
         const v = filaLimpia[cNorm];
         if (v !== undefined && v !== '') return v;
@@ -289,7 +289,7 @@ export class ImportService {
       advertencias.push('fecha_ingreso vacía — se usó la fecha de hoy como default');
     } else {
       // Normalizar dd/mm/yyyy → yyyy-mm-dd
-      const partes = fechaIngreso.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      const partes = fechaIngreso.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
       if (partes) {
         fechaIngreso = `${partes[3]}-${partes[2].padStart(2,'0')}-${partes[1].padStart(2,'0')}`;
       }
