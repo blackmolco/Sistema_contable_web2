@@ -52,6 +52,10 @@ export function getHttpErrorMessage(status: number, serverMessage?: string): str
     for (const [key, friendly] of Object.entries(ERROR_MESSAGES)) {
       if (serverMessage.includes(key)) return friendly;
     }
+    // Los errores operativos del servidor (período cerrado, documento ya
+    // contabilizado, número de asiento ocupado, etc.) son más útiles que un
+    // mensaje genérico por código HTTP.
+    return serverMessage;
   }
   return HTTP_STATUS_MESSAGES[status] || `Error ${status}`;
 }

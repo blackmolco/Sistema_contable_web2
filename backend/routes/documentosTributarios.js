@@ -148,7 +148,12 @@ router.post('/:id/contabilizar', authenticateToken, writeLimiter, async (req, re
         const resultado = await prisma.$transaction(async (tx) => {
             await exigirPeriodoAbierto(tx, actual.empresaId, actual.fechaEmision.toISOString().slice(0, 10));
             const entidadRut = actual.rutReceptor || 'SIN-RUT';
-            let entidad = await tx.entidad.findFirst({ where: { rut: entidadRut, empresaId: actual.empresaId } });
+            // Algunos datos históricos guardan el mismo RUT con puntos o
+            // espacios. Buscar por la versión normalizada evita intentar
+            // crear una entidad equivalente y chocar con el índice único.
+            const entidadesEmpresa = await tx.entidad.findMany({ where: { empresaId: actual.empresaId } });
+            const rutNormalizado = entidadRut.replace(/[^0-9kK]/g, '').toUpperCase();
+            let entidad = entidadesEmpresa.find(e => e.rut.replace(/[^0-9kK]/g, '').toUpperCase() === rutNormalizado);
             if (!entidad) {
                 entidad = await tx.entidad.create({
                     data: {
@@ -193,6 +198,7 @@ router.post('/:id/contabilizar', authenticateToken, writeLimiter, async (req, re
         res.status(201).json(resultado);
     } catch (err) {
         logger.error({ err }, 'Error contabilizando documento pendiente');
+        if (err.code === 'P2002') return res.status(409).json({ error: 'Ya existe un asiento o entidad equivalente para este documento. Actualice la pantalla e intente nuevamente.' });
         res.status(err.status || 500).json({ error: err.message || 'Error contabilizando documento' });
     }
 });
