@@ -214,14 +214,23 @@ router.post('/:id/contabilizar', authenticateToken, writeLimiter, async (req, re
     }
 });
 
-router.put('/:id', authenticateToken, writeLimiter, async (req, res) => {
+router.put('/:id', authenticateToken, writeLimiter, validate(docTributarioSchema.partial()), async (req, res) => {
     try {
         const actual = await prisma.documentoTributario.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
         if (!actual) return res.status(404).json({ error: 'Documento no encontrado' });
         if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
+        // req.body ya pasó por validate(): solo trae las columnas declaradas
+        // en docTributarioSchema, con sus tipos correctos. Antes se pasaba
+        // req.body directo a Prisma sin ningun filtro ni chequeo de tipos —
+        // cualquier usuario con acceso a la empresa podia escribir CUALQUIER
+        // columna del documento (asientoId, folio, montoTotal, etc.) con
+        // cualquier valor.
+        const { id, empresaId: _empresaId, ...data } = req.body;
         if (req.body.empresaId && req.body.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de un documento' });
-        const doc = await prisma.documentoTributario.update({ where: { id: req.params.id }, data: req.body });
-        await auditLog(req.usuario.id, 'ACTUALIZAR', 'DocumentoTributario', doc.id, req.body, req.ip, req.headers['user-agent']);
+        if (data.fechaEmision) data.fechaEmision = new Date(data.fechaEmision);
+        if (data.fechaVencimiento !== undefined) data.fechaVencimiento = data.fechaVencimiento ? new Date(data.fechaVencimiento) : null;
+        const doc = await prisma.documentoTributario.update({ where: { id: req.params.id }, data });
+        await auditLog(req.usuario.id, 'ACTUALIZAR', 'DocumentoTributario', doc.id, data, req.ip, req.headers['user-agent']);
         res.json(doc);
     } catch (err) {
         logger.error({ err }, 'Error actualizando documento tributario');
