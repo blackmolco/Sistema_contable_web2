@@ -23,6 +23,11 @@ const authRegisterSchema = z.object({
     empresaId: z.string().optional().nullable(),
 });
 
+const changePasswordSchema = z.object({
+    passwordActual: z.string().min(1, 'Ingrese su contrasena actual'),
+    passwordNuevo: z.string().min(8, 'La contrasena nueva debe tener al menos 8 caracteres'),
+});
+
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 50,
@@ -174,6 +179,37 @@ router.post('/refresh', authLimiter, async (req, res) => {
         res.json({ token: newToken });
     } catch (err) {
         res.status(401).json({ error: 'Refresh token invalido' });
+    }
+});
+
+// Cambio de contrasena propia — no existia ningun endpoint para esto; sin
+// el, rotar una contrasena solo se podia hacer editando la base de datos
+// directamente.
+router.post('/change-password', authenticateToken, authLimiter, async (req, res) => {
+    try {
+        const { passwordActual, passwordNuevo } = changePasswordSchema.parse(req.body);
+        const usuario = await prisma.usuario.findUnique({ where: { id: req.usuario.id } });
+        if (!usuario || !usuario.activo) {
+            return res.status(401).json({ error: 'Usuario no encontrado' });
+        }
+        const valido = await bcrypt.compare(passwordActual, usuario.passwordHash);
+        if (!valido) {
+            return res.status(401).json({ error: 'La contrasena actual no es correcta' });
+        }
+        const passwordHash = await bcrypt.hash(passwordNuevo, 10);
+        await prisma.usuario.update({ where: { id: usuario.id }, data: { passwordHash } });
+        // Invalida el resto de sesiones activas de este usuario — una
+        // contrasena recien cambiada no deberia dejar sesiones viejas vivas.
+        await prisma.sesion.deleteMany({ where: { usuarioId: usuario.id } });
+        await auditLog(req.usuario.id, 'ACTUALIZAR', 'Usuario', usuario.id, { accion: 'cambio_password' }, req.ip, req.headers['user-agent']);
+        logger.info({ usuarioId: usuario.id }, 'Contrasena cambiada');
+        res.json({ message: 'Contrasena actualizada' });
+    } catch (err) {
+        if (err instanceof z.ZodError) {
+            return res.status(400).json({ error: 'Datos invalidos', detalles: err.errors.map(e => e.message) });
+        }
+        logger.error({ err }, 'Error cambiando contrasena');
+        res.status(500).json({ error: 'Error al cambiar contrasena' });
     }
 });
 
