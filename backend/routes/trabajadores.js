@@ -90,18 +90,22 @@ router.post('/', authenticateToken, writeLimiter, validate(trabajadorSchema), as
     try {
         const { id, ...rest } = req.body;
         if (!exigirAccesoEmpresa(req, res, rest.empresaId)) return;
-        const trabajadorId = id || require('crypto').randomUUID();
         const data = {
             ...rest,
             fechaNacimiento: rest.fechaNacimiento ? new Date(rest.fechaNacimiento) : null,
             fechaIngreso: new Date(rest.fechaIngreso),
             fechaTermino: rest.fechaTermino ? new Date(rest.fechaTermino) : null,
         };
-        const trabajador = await prisma.trabajador.upsert({
-            where: { id: trabajadorId },
-            create: { id: trabajadorId, ...data },
-            update: data,
-        });
+        // No es un upsert: Trabajador no tiene una clave natural declarada
+        // en el schema (rut no es unico por empresa a nivel de constraint).
+        // Antes se hacia upsert por el id que manda el cliente — si ese id
+        // ya era el de un trabajador de OTRA empresa, la llamada lo
+        // actualizaba directo con los datos nuevos (incluido su empresaId),
+        // reasignandolo silenciosamente. Se crea siempre una fila nueva; el
+        // id del cliente solo se respeta si esta libre.
+        const idOcupado = id ? await prisma.trabajador.findUnique({ where: { id }, select: { id: true } }) : null;
+        const trabajadorId = (id && !idOcupado) ? id : require('crypto').randomUUID();
+        const trabajador = await prisma.trabajador.create({ data: { id: trabajadorId, ...data } });
         await auditLog(req.usuario.id, 'CREAR', 'Trabajador', trabajador.id, req.body, req.ip, req.headers['user-agent']);
         res.status(201).json(trabajador);
     } catch (err) {

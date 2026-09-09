@@ -53,12 +53,20 @@ router.post('/', authenticateToken, requireRole('admin', 'administrador'), write
         }
         const { id, ...rest } = req.body;
         if (rest.email === '') rest.email = null;
-        const empresaId = id || require('crypto').randomUUID();
-        const empresa = await prisma.empresa.upsert({
-            where: { id: empresaId },
-            create: { id: empresaId, ...rest },
-            update: rest,
-        });
+
+        // La identidad real de una empresa es su rut (@unique en el schema).
+        // Antes se hacia upsert por el id que manda el cliente: un admin
+        // podia pasar un id arbitrario y sobrescribir en silencio los datos
+        // de OTRA empresa ya existente con ese id, sin ningun aviso.
+        const existente = await prisma.empresa.findFirst({ where: { rut: rest.rut }, select: { id: true } });
+        let empresa;
+        if (existente) {
+            empresa = await prisma.empresa.update({ where: { id: existente.id }, data: { ...rest, activo: true } });
+        } else {
+            const idOcupado = id ? await prisma.empresa.findUnique({ where: { id }, select: { id: true } }) : null;
+            const empresaId = (id && !idOcupado) ? id : require('crypto').randomUUID();
+            empresa = await prisma.empresa.create({ data: { id: empresaId, ...rest } });
+        }
         await auditLog(req.usuario.id, 'CREAR', 'Empresa', empresa.id, req.body, req.ip, req.headers['user-agent']);
         res.status(201).json(empresa);
     } catch (err) {

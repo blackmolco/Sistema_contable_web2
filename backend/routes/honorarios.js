@@ -53,13 +53,19 @@ router.post('/', authenticateToken, writeLimiter, validate(honorarioCreateSchema
     try {
         const { id, ...rest } = req.body;
         if (!exigirAccesoEmpresa(req, res, rest.empresaId)) return;
-        const honorarioId = id || require('crypto').randomUUID();
         const data = { ...rest, fechaPago: rest.fechaPago ? new Date(rest.fechaPago) : null };
-        const honorario = await prisma.honorario.upsert({
-            where: { id: honorarioId },
-            create: { id: honorarioId, ...data },
-            update: data,
-        });
+        // No es un upsert: honorarios.js no tiene una clave natural propia
+        // (esa la maneja el flujo de Ingreso de Documentos, via
+        // claveImportacion). Antes se hacia upsert por el id que manda el
+        // cliente — si ese id ya era el de un honorario de OTRA empresa, la
+        // llamada lo actualizaba directo con los datos nuevos (incluido su
+        // empresaId), aunque exigirAccesoEmpresa ya hubiera validado al
+        // llamante contra la empresa que EL mando, no contra la dueña real
+        // de esa fila. Se crea siempre una fila nueva; el id del cliente
+        // solo se respeta si esta libre.
+        const idOcupado = id ? await prisma.honorario.findUnique({ where: { id }, select: { id: true } }) : null;
+        const honorarioId = (id && !idOcupado) ? id : require('crypto').randomUUID();
+        const honorario = await prisma.honorario.create({ data: { id: honorarioId, ...data } });
         await auditLog(req.usuario.id, 'CREAR', 'Honorario', honorario.id, req.body, req.ip, req.headers['user-agent']);
         res.status(201).json(honorario);
     } catch (err) {

@@ -97,33 +97,33 @@ router.post('/', authenticateToken, writeLimiter, validate(docTributarioSchema),
     try {
         const { id, ...rest } = req.body;
         if (!exigirAccesoEmpresa(req, res, rest.empresaId)) return;
-        const docId = id || require('crypto').randomUUID();
         const data = {
             ...rest,
             fechaEmision: new Date(rest.fechaEmision),
             fechaVencimiento: rest.fechaVencimiento ? new Date(rest.fechaVencimiento) : null,
         };
+        const empresaId = data.empresaId ?? null;
+
+        // La identidad real de un documento es (tipo, folio, tipoTransaccion,
+        // empresaId) — asi lo declara el unique del schema. Antes se
+        // intentaba primero un upsert por el id que manda el cliente, y solo
+        // se caia a buscar por la clave natural si chocaba el unique (P2002)
+        // — eso significaba que un id de otra empresa (visto antes, o de un
+        // form viejo) actualizaba esa fila ajena directamente, sin pasar
+        // nunca por el chequeo de clave natural. Mismo patron ya corregido
+        // en cuentas.js/entidades.js.
+        const existente = await prisma.documentoTributario.findFirst({
+            where: { tipo: data.tipo, folio: data.folio, tipoTransaccion: data.tipoTransaccion, empresaId },
+            select: { id: true },
+        });
+
         let doc;
-        try {
-            doc = await prisma.documentoTributario.upsert({
-                where: { id: docId },
-                create: { id: docId, ...data },
-                update: data,
-            });
-        } catch (upsertErr) {
-            // P2002: unique constraint on (tipo, folio, tipoTransaccion, empresaId) — document already exists with different id
-            if (upsertErr.code === 'P2002') {
-                const existing = await prisma.documentoTributario.findFirst({
-                    where: { tipo: data.tipo, folio: data.folio, tipoTransaccion: data.tipoTransaccion, empresaId: data.empresaId ?? null },
-                });
-                if (existing) {
-                    doc = await prisma.documentoTributario.update({ where: { id: existing.id }, data });
-                } else {
-                    throw upsertErr;
-                }
-            } else {
-                throw upsertErr;
-            }
+        if (existente) {
+            doc = await prisma.documentoTributario.update({ where: { id: existente.id }, data });
+        } else {
+            const idOcupado = id ? await prisma.documentoTributario.findUnique({ where: { id }, select: { id: true } }) : null;
+            const docId = (id && !idOcupado) ? id : require('crypto').randomUUID();
+            doc = await prisma.documentoTributario.create({ data: { id: docId, ...data } });
         }
         await auditLog(req.usuario.id, 'CREAR', 'DocumentoTributario', doc.id, { tipo: doc.tipo, folio: doc.folio }, req.ip, req.headers['user-agent']);
         res.status(201).json(doc);
