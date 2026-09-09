@@ -290,7 +290,7 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     codigo: "1-02-001-0004",
     nombre: "Provisión Deudores Incobrables",
     tipo: "activo",
-    naturaleza: "acreedora",
+    naturaleza: "deudora",
     nivel: 3,
     padreId: "1-02-001",
     permiteMovimiento: true,
@@ -420,7 +420,7 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     codigo: "1-03-002-0002",
     nombre: "Dep. Acumulada Construcciones",
     tipo: "activo",
-    naturaleza: "acreedora",
+    naturaleza: "deudora",
     nivel: 3,
     padreId: "1-03-002",
     permiteMovimiento: true
@@ -440,7 +440,7 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     codigo: "1-03-003-0002",
     nombre: "Dep. Acumulada Maquinaria",
     tipo: "activo",
-    naturaleza: "acreedora",
+    naturaleza: "deudora",
     nivel: 3,
     padreId: "1-03-003",
     permiteMovimiento: true
@@ -460,7 +460,7 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     codigo: "1-03-004-0002",
     nombre: "Dep. Acumulada Vehículos",
     tipo: "activo",
-    naturaleza: "acreedora",
+    naturaleza: "deudora",
     nivel: 3,
     padreId: "1-03-004",
     permiteMovimiento: true
@@ -480,7 +480,7 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     codigo: "1-03-005-0002",
     nombre: "Dep. Acumulada Muebles y Útiles",
     tipo: "activo",
-    naturaleza: "acreedora",
+    naturaleza: "deudora",
     nivel: 3,
     padreId: "1-03-005",
     permiteMovimiento: true
@@ -500,7 +500,7 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     codigo: "1-03-006-0002",
     nombre: "Depreciacion Acumulada",
     tipo: "activo",
-    naturaleza: "acreedora",
+    naturaleza: "deudora",
     nivel: 3,
     padreId: "1-03-006",
     permiteMovimiento: true
@@ -521,7 +521,7 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     codigo: "1-04-001-0002",
     nombre: "Amortización Acumulada Software",
     tipo: "activo",
-    naturaleza: "acreedora",
+    naturaleza: "deudora",
     nivel: 3,
     padreId: "1-04-001",
     permiteMovimiento: true

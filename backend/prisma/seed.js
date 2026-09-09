@@ -70,7 +70,7 @@ async function main() {
         { codigo: '1230', nombre: 'Mobiliario y Equipos', tipo: 'activo', naturaleza: 'deudora', nivel: 3, padreId: '1200', permiteMovimiento: true },
         { codigo: '1240', nombre: 'Equipos de Computacion', tipo: 'activo', naturaleza: 'deudora', nivel: 3, padreId: '1200', permiteMovimiento: true },
         { codigo: '1250', nombre: 'Vehiculos', tipo: 'activo', naturaleza: 'deudora', nivel: 3, padreId: '1200', permiteMovimiento: true },
-        { codigo: '1260', nombre: 'Depreciacion Acumulada', tipo: 'activo', naturaleza: 'acreedora', nivel: 3, padreId: '1200', permiteMovimiento: true },
+        { codigo: '1260', nombre: 'Depreciacion Acumulada', tipo: 'activo', naturaleza: 'deudora', nivel: 3, padreId: '1200', permiteMovimiento: true },
         { codigo: '1270', nombre: 'Propiedad Intelectual', tipo: 'activo', naturaleza: 'deudora', nivel: 3, padreId: '1200', permiteMovimiento: true },
 
         // PASIVOS (2xx)
