@@ -32,7 +32,12 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const empresaId = req.body.empresaId || 'general';
+        // Igual que categoria: sin sanitizar, un empresaId como
+        // "../../../../algo" arma una ruta fuera de uploads/ antes de que
+        // corra ningun chequeo de autorizacion (multer procesa el
+        // multipart y ya llamo a este callback cuando el handler recien
+        // empieza a ejecutar exigirAccesoEmpresa).
+        const empresaId = (req.body.empresaId || 'general').replace(/[^a-zA-Z0-9_-]/g, '_');
         const categoria = (req.body.categoria || 'Otros').replace(/[^a-zA-Z0-9_-]/g, '_');
         const dir = path.join(UPLOADS_DIR, `empresa_${empresaId}`, categoria);
         fs.mkdirSync(dir, { recursive: true });
@@ -58,7 +63,7 @@ function fileFilter(req, file, cb) {
 
 const upload = multer({ storage, fileFilter, limits: { fileSize: parseInt(process.env.UPLOAD_MAX_SIZE) || 50 * 1024 * 1024 } });
 
-router.get('/categorias', async (req, res) => {
+router.get('/categorias', authenticateToken, async (req, res) => {
     try {
         const categorias = await prisma.categoriaDocumento.findMany({ orderBy: { nombre: 'asc' } });
         res.json(categorias);

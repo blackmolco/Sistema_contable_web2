@@ -55,16 +55,29 @@ export function generateCSV(data: ExportData): string {
   return lines.join('\n');
 }
 
+// Escapa HTML antes de interpolar en generatePDFHTML — sin esto, cualquier
+// dato con caracteres < > & que termine en una fila (p.ej. la razón social
+// de un cliente/proveedor importado del SII) se interpreta como HTML/JS en
+// la ventana de impresión, no como texto.
+function escapeHTML(value: unknown): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Generar HTML para PDF
 export function generatePDFHTML(data: ExportData): string {
   const tableRows = data.rows.map(row => {
-    return `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
+    return `<tr>${row.map(cell => `<td>${escapeHTML(cell)}</td>`).join('')}</tr>`;
   }).join('');
 
   const summaryRows = data.summary?.map(item => `
     <tr class="summary">
-      <td colspan="${data.headers.length - 1}">${item.label}</td>
-      <td class="value">${item.value}</td>
+      <td colspan="${data.headers.length - 1}">${escapeHTML(item.label)}</td>
+      <td class="value">${escapeHTML(item.value)}</td>
     </tr>
   `).join('') || '';
 
@@ -75,7 +88,7 @@ export function generatePDFHTML(data: ExportData): string {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>${data.title}</title>
+  <title>${escapeHTML(data.title)}</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
     h1 { color: ${brand}; font-size: 24px; margin-bottom: 5px; }
@@ -90,12 +103,12 @@ export function generatePDFHTML(data: ExportData): string {
   </style>
 </head>
 <body>
-  <h1>${data.title}</h1>
-  ${data.subtitle ? `<h2>${data.subtitle}</h2>` : ''}
+  <h1>${escapeHTML(data.title)}</h1>
+  ${data.subtitle ? `<h2>${escapeHTML(data.subtitle)}</h2>` : ''}
 
   <table>
     <thead>
-      <tr>${data.headers.map(h => `<th>${h}</th>`).join('')}</tr>
+      <tr>${data.headers.map(h => `<th>${escapeHTML(h)}</th>`).join('')}</tr>
     </thead>
     <tbody>
       ${tableRows}
@@ -104,7 +117,7 @@ export function generatePDFHTML(data: ExportData): string {
   </table>
 
   <div class="footer">
-    ${data.footer || ''}<br/>
+    ${data.footer ? escapeHTML(data.footer) : ''}<br/>
     Generado el ${new Date().toLocaleDateString('es-CL')} ${new Date().toLocaleTimeString('es-CL')}
   </div>
 </body>
