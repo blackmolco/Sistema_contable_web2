@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { LogIn, Mail, Lock, AlertCircle, Shield } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { ApiAuthService, AuthError } from '../../services/apiAuth';
@@ -15,53 +15,31 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const inicializarUsuarios = useAuthStore((s) => s.inicializarUsuarios);
-
-  useEffect(() => {
-    inicializarUsuarios();
-  }, [inicializarUsuarios]);
-
-  const loginLocal = useAuthStore((s) => s.loginLocal);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      // 1) Login real contra el backend (POST /api/auth/login, token JWT en sessionStorage)
-      let success = false;
-      try {
-        const user = await ApiAuthService.login(email, password);
-        useAuthStore.setState({
-          user: {
-            id: user.id,
-            nombre: user.nombre,
-            email: user.email,
-            rut: user.rut || '',
-            rol: user.rol === 'administrador' ? 'admin' : (user.rol as any) || 'contador',
-            empresaId: user.empresaId || '',
-          },
-          isAuthenticated: true,
-        });
-        success = true;
-      } catch (apiErr) {
-        if (apiErr instanceof AuthError) {
-          // El backend respondió: la contraseña/cuenta está mal. No caer al modo local
-          // (eso dejaría al usuario "adentro" sin sesión real contra el servidor).
-          setError(apiErr.message || 'Credenciales inválidas. Verifique su email y contraseña.');
-          setLoading(false);
-          return;
-        }
-        // Backend inalcanzable (sin conexión) → fallback a login local (legacy, offline)
-        success = loginLocal(email, password);
-      }
-
-      if (!success) {
-        setError('Credenciales inválidas. Verifique su email y contraseña.');
-        setLoading(false);
-        return;
-      }
+      // Login real contra el backend (POST /api/auth/login, token JWT en
+      // sessionStorage). Antes, si el backend no respondía por CUALQUIER
+      // motivo (no solo contraseña incorrecta — también un corte de red),
+      // la app caía a un login local guardado en localStorage, con un
+      // administrador por defecto que se recreaba solo si no existía
+      // ninguno. Eso dejaba una puerta de entrada sin pasar por el servidor
+      // real. Se eliminó: si el backend no responde, el login falla.
+      const user = await ApiAuthService.login(email, password);
+      useAuthStore.setState({
+        user: {
+          id: user.id,
+          nombre: user.nombre,
+          email: user.email,
+          rut: user.rut || '',
+          rol: user.rol === 'administrador' ? 'admin' : (user.rol as any) || 'contador',
+          empresaId: user.empresaId || '',
+        },
+        isAuthenticated: true,
+      });
 
       // Señal explicita de "sesion recien iniciada" — los contextos que
       // sincronizan con el servidor (Facturacion, Contabilidad, etc.) la
@@ -71,7 +49,11 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       window.dispatchEvent(new Event('scc:login'));
       onLoginSuccess();
     } catch (err) {
-      setError('Error al iniciar sesión. Intente nuevamente.');
+      if (err instanceof AuthError) {
+        setError(err.message || 'Credenciales inválidas. Verifique su email y contraseña.');
+      } else {
+        setError('No se pudo conectar con el servidor. Intente nuevamente.');
+      }
     }
 
     setLoading(false);

@@ -3,6 +3,7 @@ import { Package, Plus, Calculator, X, Save } from 'lucide-react';
 import { Card } from '../components/ui/Cards';
 import { formatCurrency, formatDate, generateId } from '../utils/calculos';
 import { useApp } from '../context/AppContext';
+import { getToken } from '../services/apiAuth';
 
 interface Activo {
   id: string;
@@ -60,7 +61,7 @@ export default function ActivoFijo() {
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
     fetch(`${apiUrl}/api/activos-fijos`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('auth-storage') ? JSON.parse(localStorage.getItem('auth-storage') || '{}').state?.token : ''}` },
+      headers: { 'Authorization': `Bearer ${getToken() || ''}` },
     })
       .then(r => r.json())
       .then(data => {
