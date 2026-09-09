@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   FileSearch,
   FileWarning,
+  RefreshCw,
   Search,
   ShieldCheck,
   Users,
@@ -52,6 +53,8 @@ export default function CentroControl() {
   const { state } = useApp();
   const [query, setQuery] = useState('');
   const [filtro, setFiltro] = useState<'todos' | 'críticos' | 'pendientes'>('todos');
+  const [actualizando, setActualizando] = useState(false);
+  const [ultimaActualizacion, setUltimaActualizacion] = useState(() => new Date());
 
   const documentos = (state.documentos ?? []) as any[];
   const asientos = (state.asientos ?? []) as any[];
@@ -60,7 +63,7 @@ export default function CentroControl() {
   const cuentasCobrar = (state.cuentasCobrar ?? []) as any[];
   const cuentasPagar = (state.cuentasPagar ?? []) as any[];
 
-  const desbalanceados = useMemo(() => asientos.filter(a => Math.abs(Number(a.totalDebe ?? 0) - Number(a.totalHaber ?? 0)) > 0), [asientos]);
+  const desbalanceados = useMemo(() => asientos.filter(a => a.estado !== 'anulado' && Math.abs(Number(a.totalDebe ?? 0) - Number(a.totalHaber ?? 0)) > 0), [asientos]);
   const pendientes = useMemo(() => documentos.filter(d => d.estado !== 'anulado' && (d.estado === 'pendiente' || !d.asientoId)), [documentos]);
   const duplicados = useMemo(() => {
     const seen = new Map<string, number>();
@@ -80,9 +83,33 @@ export default function CentroControl() {
     ? cuentasPagar.reduce((sum, c) => sum + Math.max(0, Number(c.monto ?? 0) - Number(c.montoPagado ?? 0)), 0)
     : documentosActivos.filter(d => esCompra(d) && (d.estado === 'pendiente' || !d.asientoId)).reduce((sum, d) => sum + Number(d.total ?? 0), 0);
 
-  const [importState] = useState(() => {
+  const [importState, setImportState] = useState(() => {
     try { return JSON.parse(localStorage.getItem('scc_importacion_sii_estado') || 'null'); } catch { return null; }
   });
+
+  React.useEffect(() => {
+    const actualizar = () => {
+      try { setImportState(JSON.parse(localStorage.getItem('scc_importacion_sii_estado') || 'null')); } catch { setImportState(null); }
+      setUltimaActualizacion(new Date());
+    };
+    window.addEventListener('scc:login', actualizar);
+    window.addEventListener('scc:importacion-sii', actualizar);
+    return () => {
+      window.removeEventListener('scc:login', actualizar);
+      window.removeEventListener('scc:importacion-sii', actualizar);
+    };
+  }, []);
+
+  const recargarDatos = () => {
+    setActualizando(true);
+    // Los proveedores escuchan esta señal y vuelven a consultar la empresa
+    // activa en el backend, sin perder la navegación actual.
+    window.dispatchEvent(new Event('scc:login'));
+    window.setTimeout(() => {
+      setActualizando(false);
+      setUltimaActualizacion(new Date());
+    }, 1200);
+  };
 
   const hallazgos = useMemo<Hallazgo[]>(() => {
     const items: Hallazgo[] = [];
@@ -115,7 +142,9 @@ export default function CentroControl() {
           <h1 className="font-display text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Estado contable de la empresa</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Una vista única para detectar pendientes, revisar riesgos y continuar el trabajo.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="hidden text-[11px] text-gray-400 sm:inline">Actualizado {ultimaActualizacion.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</span>
+          <button type="button" onClick={recargarDatos} disabled={actualizando} className="btn-modern inline-flex items-center gap-2"><RefreshCw size={16} className={actualizando ? 'animate-spin' : ''} /> {actualizando ? 'Actualizando...' : 'Actualizar'}</button>
           <button type="button" onClick={() => navigate('/sincronizacion-sii')} className="btn-modern inline-flex items-center gap-2"><ClipboardCheck size={16} /> Importar SII</button>
           <button type="button" onClick={() => navigate('/asientos')} className="btn-modern inline-flex items-center gap-2"><BookOpenCheck size={16} /> Nuevo asiento</button>
         </div>
