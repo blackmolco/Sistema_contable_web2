@@ -61,7 +61,7 @@ export default function CentroControl() {
   const cuentasPagar = (state.cuentasPagar ?? []) as any[];
 
   const desbalanceados = useMemo(() => asientos.filter(a => Math.abs(Number(a.totalDebe ?? 0) - Number(a.totalHaber ?? 0)) > 0), [asientos]);
-  const pendientes = useMemo(() => documentos.filter(d => d.estado === 'pendiente' || !d.asientoId), [documentos]);
+  const pendientes = useMemo(() => documentos.filter(d => d.estado !== 'anulado' && (d.estado === 'pendiente' || !d.asientoId)), [documentos]);
   const duplicados = useMemo(() => {
     const seen = new Map<string, number>();
     documentos.forEach(d => {
@@ -71,8 +71,14 @@ export default function CentroControl() {
     });
     return [...seen.values()].filter(n => n > 1).length;
   }, [documentos]);
-  const saldoCobrar = cuentasCobrar.reduce((sum, c) => sum + Math.max(0, Number(c.monto ?? 0) - Number(c.montoPagado ?? 0)), 0);
-  const saldoPagar = cuentasPagar.reduce((sum, c) => sum + Math.max(0, Number(c.monto ?? 0) - Number(c.montoPagado ?? 0)), 0);
+  const documentosActivos = documentos.filter(d => d.estado !== 'anulado');
+  const esCompra = (d: any) => d.libro === 'compras' || d.tipo === 'factura_compra' || d.tipoTransaccion === 'compra';
+  const saldoCobrar = cuentasCobrar.length
+    ? cuentasCobrar.reduce((sum, c) => sum + Math.max(0, Number(c.monto ?? 0) - Number(c.montoPagado ?? 0)), 0)
+    : documentosActivos.filter(d => !esCompra(d) && (d.estado === 'pendiente' || !d.asientoId)).reduce((sum, d) => sum + Number(d.total ?? 0), 0);
+  const saldoPagar = cuentasPagar.length
+    ? cuentasPagar.reduce((sum, c) => sum + Math.max(0, Number(c.monto ?? 0) - Number(c.montoPagado ?? 0)), 0)
+    : documentosActivos.filter(d => esCompra(d) && (d.estado === 'pendiente' || !d.asientoId)).reduce((sum, d) => sum + Number(d.total ?? 0), 0);
 
   const [importState] = useState(() => {
     try { return JSON.parse(localStorage.getItem('scc_importacion_sii_estado') || 'null'); } catch { return null; }
@@ -82,7 +88,7 @@ export default function CentroControl() {
     const items: Hallazgo[] = [];
     if (desbalanceados.length) items.push({ id: 'desbalance', nivel: 'crítico', titulo: 'Asientos descuadrados', detalle: `${desbalanceados.length} asiento(s) requieren revisión antes del cierre.`, ruta: '/control-integridad', accion: 'Abrir control' });
     if (duplicados) items.push({ id: 'duplicados', nivel: 'atención', titulo: 'Posibles documentos duplicados', detalle: `${duplicados} combinación(es) de RUT, fecha, tipo y folio repetidas.`, ruta: '/sincronizacion-sii', accion: 'Revisar cargas' });
-    if (pendientes.length) items.push({ id: 'pendientes', nivel: 'atención', titulo: 'Documentos pendientes de contabilizar', detalle: `${pendientes.length} documento(s) no tienen asiento asociado.`, ruta: '/ingreso-documento', accion: 'Revisar documentos' });
+    if (pendientes.length) items.push({ id: 'pendientes', nivel: 'atención', titulo: 'Documentos pendientes de contabilizar', detalle: `${pendientes.length} documento(s) no tienen asiento asociado.`, ruta: '/control-integridad', accion: 'Revisar documentos' });
     if (importState?.estado === 'procesando') items.push({ id: 'importacion', nivel: 'informativo', titulo: 'Importación SII en curso', detalle: `${importState.hecho ?? 0}/${importState.total ?? 0} registros procesados.`, ruta: '/sincronizacion-sii', accion: 'Ver proceso' });
     return items;
   }, [desbalanceados.length, duplicados, pendientes.length, importState]);
@@ -129,8 +135,8 @@ export default function CentroControl() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Asientos descuadrados" value={desbalanceados.length} detail="Revisar antes de cerrar" tone={desbalanceados.length ? 'red' : 'green'} onClick={() => navigate('/control-integridad')} />
         <Metric label="Documentos pendientes" value={pendientes.length} detail="Sin asiento o en estado pendiente" tone={pendientes.length ? 'amber' : 'green'} onClick={() => navigate('/ingreso-documento')} />
-        <Metric label="Por cobrar" value={formatCurrency(saldoCobrar)} detail={`${cuentasCobrar.length} obligación(es) registradas`} tone="blue" onClick={() => navigate('/cuenta-corriente')} />
-        <Metric label="Por pagar" value={formatCurrency(saldoPagar)} detail={`${cuentasPagar.length} obligación(es) registradas`} tone="blue" onClick={() => navigate('/cuenta-corriente')} />
+        <Metric label="Por cobrar" value={formatCurrency(saldoCobrar)} detail={cuentasCobrar.length ? `${cuentasCobrar.length} obligación(es) registradas` : 'Estimado desde documentos pendientes'} tone="blue" onClick={() => navigate('/cuenta-corriente')} />
+        <Metric label="Por pagar" value={formatCurrency(saldoPagar)} detail={cuentasPagar.length ? `${cuentasPagar.length} obligación(es) registradas` : 'Estimado desde documentos pendientes'} tone="blue" onClick={() => navigate('/cuenta-corriente')} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.3fr_.7fr]">

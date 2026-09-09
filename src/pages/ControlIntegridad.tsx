@@ -36,6 +36,9 @@ export default function ControlIntegridad() {
     );
 
     state.asientos.forEach(asiento => {
+      // Los anulados se conservan para trazabilidad, pero no deben generar
+      // alertas activas ni contar como descuadres o referencias huérfanas.
+      if (asiento.estado === 'anulado') return;
       const esReversoTecnico = asiento.tipo?.startsWith('reverso:') ?? false;
       const yaTieneCorreccion = idsCorregidos.has(asiento.id);
       const debe = asiento.detalles.reduce((s, d) => s + Number(d.debe || 0), 0);
@@ -49,6 +52,7 @@ export default function ControlIntegridad() {
     });
 
     state.documentos.forEach(doc => {
+      if (doc.estado === 'anulado') return;
       if (!doc.asientoId) lista.push({ id: `sin-asiento-${doc.id}`, nivel: 'critico', categoria: 'Documento sin asiento', detalle: `${doc.tipo} N° ${doc.numero} no tiene comprobante contable asociado.`, referencia: `${doc.rutCliente || 'Sin RUT'} · ${formatDate(doc.fecha)}`, destino: '/sincronizacion-sii', accion: 'Revisar carga SII' });
     });
 
