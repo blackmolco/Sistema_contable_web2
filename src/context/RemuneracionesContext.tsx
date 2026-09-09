@@ -4,6 +4,7 @@ import { storageKey } from '../utils/empresaStorage';
 import { useAppStore } from '../stores/appStore';
 import { useAuthStore } from '../stores/authStore';
 import { isAuthenticated, fetchTrabajadores, saveTrabajador, updateTrabajador, deleteTrabajador } from '../services/apiSync';
+import { reportSyncError } from '../services/syncEvents';
 
 const STORAGE_KEY = storageKey('scc_remuneraciones');
 
@@ -104,13 +105,13 @@ export function RemuneracionesProvider({ children }: { children: ReactNode }) {
 
     switch (action.type) {
       case 'ADD_TRABAJADOR':
-        saveTrabajador(action.payload).catch(() => {});
+        saveTrabajador(action.payload).catch(e => reportSyncError('crear trabajador', e));
         break;
       case 'UPDATE_TRABAJADOR':
-        updateTrabajador(action.payload).catch(() => {});
+        updateTrabajador(action.payload).catch(e => reportSyncError('actualizar trabajador', e));
         break;
       case 'DELETE_TRABAJADOR':
-        deleteTrabajador(action.payload).catch(() => {});
+        deleteTrabajador(action.payload).catch(e => reportSyncError('eliminar trabajador', e));
         break;
     }
   }, []);
