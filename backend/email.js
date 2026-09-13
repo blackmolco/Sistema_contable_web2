@@ -13,6 +13,12 @@ function getTransporter() {
         port: parseInt(process.env.SMTP_PORT) || 587,
         secure: process.env.SMTP_SECURE === 'true',
         auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+        // Sin esto, un puerto bloqueado o un servidor SMTP que no responde deja
+        // la conexion colgada indefinidamente -- y con ella, la request HTTP
+        // que espera este envio (el usuario ve "Guardando..." para siempre).
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
     });
 }
 
