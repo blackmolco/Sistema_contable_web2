@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme, PRESETS, CATEGORY_COLORS } from '../../context/ThemeContext';
+import { useAuthStore } from '../../stores/authStore';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -122,13 +123,19 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
   const { state } = useApp();
   const { theme } = useTheme();
   const isLight = (PRESETS[theme.preset] ?? PRESETS.tinta).chrome === 'light';
+  const rol = useAuthStore(s => s.user?.rol);
+  const esAdmin = rol === 'admin' || rol === 'administrador';
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
   };
 
-  const categoriasVisibles = menuCategories;
+  // "Usuarios" solo lo administra quien ve todas las empresas — los demás
+  // roles ni siquiera saben que la sección existe.
+  const categoriasVisibles = esAdmin
+    ? menuCategories
+    : menuCategories.map(c => ({ ...c, items: c.items.filter(i => i.path !== '/usuarios') }));
 
   // ── Categorías colapsables (persistidas) ───────────────────────────────
   const [openCategories, setOpenCategories] = React.useState<Record<string, boolean>>(() =>
