@@ -1,12 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { UserPlus, RefreshCw, Shield, User, ChevronDown, Pencil, X, Check } from 'lucide-react';
+import { UserPlus, RefreshCw, Shield, User, ChevronDown, Pencil, X, Check, KeyRound, Dices } from 'lucide-react';
 import { Card } from '../components/ui/Cards';
 import { Button, Input } from '../components/ui/FormElements';
+import { Modal } from '../components/ui/Modal';
 import { apiFetch, apiFetchRaw } from '../services/httpClient';
 import { getErrorMessage } from '../services/errorHandler';
 import { fetchEmpresas } from '../services/apiSync';
 import type { Empresa } from '../stores/appStore';
 import { useAuthStore } from '../stores/authStore';
+
+function generarPasswordAleatoria(): string {
+  const alfabeto = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let out = '';
+  for (let i = 0; i < 12; i++) out += alfabeto[Math.floor(Math.random() * alfabeto.length)];
+  return out;
+}
 
 interface Usuario {
   id: string;
@@ -42,6 +50,12 @@ export default function GestionUsuarios() {
   const [editForm, setEditForm] = useState({ rol: 'usuario', empresaId: '' });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  const [passwordUsuario, setPasswordUsuario] = useState<Usuario | null>(null);
+  const [nuevaPassword, setNuevaPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordOk, setPasswordOk] = useState(false);
 
   const cargarUsuarios = useCallback(async () => {
     setLoading(true);
@@ -92,6 +106,34 @@ export default function GestionUsuarios() {
       setEditError(err instanceof Error ? err.message : 'Error al actualizar usuario');
     } finally {
       setEditSaving(false);
+    }
+  };
+
+  const abrirCambioPassword = (u: Usuario) => {
+    setPasswordUsuario(u);
+    setNuevaPassword(generarPasswordAleatoria());
+    setPasswordError(null);
+    setPasswordOk(false);
+  };
+
+  const guardarPassword = async () => {
+    if (!passwordUsuario) return;
+    setPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      const res = await apiFetchRaw(`/api/usuarios/${passwordUsuario.id}/password`, {
+        method: 'PATCH',
+        body: JSON.stringify({ password: nuevaPassword }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Error ${res.status}`);
+      }
+      setPasswordOk(true);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'Error al cambiar la contraseña');
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
@@ -355,14 +397,24 @@ export default function GestionUsuarios() {
                             </button>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => iniciarEdicion(u)}
-                            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                            title="Editar rol y empresa"
-                          >
-                            <Pencil size={15} />
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => abrirCambioPassword(u)}
+                              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                              title="Cambiar contraseña"
+                            >
+                              <KeyRound size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => iniciarEdicion(u)}
+                              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                              title="Editar rol y empresa"
+                            >
+                              <Pencil size={15} />
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -373,6 +425,63 @@ export default function GestionUsuarios() {
           </div>
         )}
       </Card>
+
+      <Modal
+        isOpen={!!passwordUsuario}
+        onClose={() => setPasswordUsuario(null)}
+        title={`Cambiar contraseña — ${passwordUsuario?.nombre ?? ''}`}
+        size="sm"
+        closeOnBackdrop={!passwordSaving}
+        footer={
+          passwordOk ? (
+            <Button onClick={() => setPasswordUsuario(null)}>Listo</Button>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={() => setPasswordUsuario(null)} disabled={passwordSaving}>
+                Cancelar
+              </Button>
+              <Button onClick={guardarPassword} disabled={passwordSaving || nuevaPassword.length < 8}>
+                {passwordSaving ? 'Guardando...' : 'Cambiar contraseña'}
+              </Button>
+            </>
+          )
+        }
+      >
+        {passwordOk ? (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700">
+            Contraseña actualizada. {passwordUsuario?.email} recibirá un correo con la contraseña nueva (si el envío
+            de correos está configurado en el servidor). Su sesión activa se cerró.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Se le enviará esta contraseña a <strong>{passwordUsuario?.email}</strong> por correo y se cerrará su sesión activa.
+            </p>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <Input
+                  label="Nueva contraseña (mín. 8 caracteres)"
+                  value={nuevaPassword}
+                  onChange={e => setNuevaPassword(e.target.value)}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setNuevaPassword(generarPasswordAleatoria())}
+                title="Generar otra contraseña aleatoria"
+                className="mb-0.5 p-2.5 border border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+              >
+                <Dices size={16} />
+              </button>
+            </div>
+            {passwordError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+                {passwordError}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

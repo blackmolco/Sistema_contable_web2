@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
 const { getJwtSecret } = require('../shared');
+const { sendEmail } = require('../email');
 
 const router = Router();
 
@@ -82,6 +83,20 @@ router.post('/register', authenticateToken, async (req, res) => {
         });
         await auditLog(req.usuario.id, 'CREAR', 'Usuario', usuario.id, { email: usuario.email, rol: usuario.rol }, req.ip, req.headers['user-agent']);
         logger.info({ createdBy: req.usuario.id, newUser: usuario.id }, 'Usuario creado');
+
+        const rolTexto = { admin: 'Administrador', contador: 'Contador', usuario: 'Usuario' }[usuario.rol] || usuario.rol;
+        const empresaTexto = usuario.rol === 'admin' || !usuario.empresaId
+            ? (usuario.rol === 'admin' ? 'todas las empresas' : 'sin empresa asignada')
+            : (await prisma.empresa.findUnique({ where: { id: usuario.empresaId } }))?.razonSocial || 'sin empresa asignada';
+        sendEmail({
+            to: usuario.email,
+            subject: '[Sistema Contable] Se creó tu cuenta',
+            text: `Hola ${usuario.nombre},\n\nSe creó tu acceso al sistema contable.\n\n` +
+                `Email: ${usuario.email}\nContraseña: ${data.password}\nRol: ${rolTexto}\nEmpresa: ${empresaTexto}\n\n` +
+                `Te recomendamos cambiar tu contraseña por una propia apenas ingreses.`,
+        }).then(r => { if (!r.sent) logger.warn({ email: usuario.email, reason: r.reason }, 'No se pudo enviar correo de bienvenida'); })
+          .catch(err => logger.error({ err }, 'Error enviando correo de bienvenida'));
+
         res.status(201).json({
             id: usuario.id,
             nombre: usuario.nombre,
