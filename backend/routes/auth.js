@@ -88,14 +88,14 @@ router.post('/register', authenticateToken, async (req, res) => {
         const empresaTexto = usuario.rol === 'admin' || !usuario.empresaId
             ? (usuario.rol === 'admin' ? 'todas las empresas' : 'sin empresa asignada')
             : (await prisma.empresa.findUnique({ where: { id: usuario.empresaId } }))?.razonSocial || 'sin empresa asignada';
-        sendEmail({
+        const correo = await sendEmail({
             to: usuario.email,
             subject: '[Sistema Contable] Se creó tu cuenta',
             text: `Hola ${usuario.nombre},\n\nSe creó tu acceso al sistema contable.\n\n` +
                 `Email: ${usuario.email}\nContraseña: ${data.password}\nRol: ${rolTexto}\nEmpresa: ${empresaTexto}\n\n` +
                 `Te recomendamos cambiar tu contraseña por una propia apenas ingreses.`,
-        }).then(r => { if (!r.sent) logger.warn({ email: usuario.email, reason: r.reason }, 'No se pudo enviar correo de bienvenida'); })
-          .catch(err => logger.error({ err }, 'Error enviando correo de bienvenida'));
+        }).catch(err => { logger.error({ err }, 'Error enviando correo de bienvenida'); return { sent: false, reason: err.message }; });
+        if (!correo.sent) logger.warn({ email: usuario.email, reason: correo.reason }, 'No se pudo enviar correo de bienvenida');
 
         res.status(201).json({
             id: usuario.id,
@@ -103,6 +103,8 @@ router.post('/register', authenticateToken, async (req, res) => {
             email: usuario.email,
             rol: usuario.rol,
             empresaId: usuario.empresaId,
+            emailEnviado: correo.sent,
+            emailError: correo.sent ? undefined : correo.reason,
         });
     } catch (err) {
         if (err instanceof z.ZodError) {

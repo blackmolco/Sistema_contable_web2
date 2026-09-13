@@ -45,17 +45,20 @@ export default function GestionUsuarios() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState(false);
+  const [formEmailWarning, setFormEmailWarning] = useState<string | null>(null);
 
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ rol: 'usuario', empresaId: '' });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [editEmailWarning, setEditEmailWarning] = useState<string | null>(null);
 
   const [passwordUsuario, setPasswordUsuario] = useState<Usuario | null>(null);
   const [nuevaPassword, setNuevaPassword] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordOk, setPasswordOk] = useState(false);
+  const [passwordEmailWarning, setPasswordEmailWarning] = useState<string | null>(null);
 
   const cargarUsuarios = useCallback(async () => {
     setLoading(true);
@@ -87,6 +90,7 @@ export default function GestionUsuarios() {
   const guardarEdicion = async (id: string) => {
     setEditSaving(true);
     setEditError(null);
+    setEditEmailWarning(null);
     try {
       const body: Record<string, string | null> = { rol: editForm.rol };
       if (editForm.rol !== 'admin') {
@@ -96,9 +100,12 @@ export default function GestionUsuarios() {
         method: 'PATCH',
         body: JSON.stringify(body),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Error ${res.status}`);
+        throw new Error(data.error || `Error ${res.status}`);
+      }
+      if (data.emailEnviado === false) {
+        setEditEmailWarning(`Se guardó el cambio, pero no se pudo avisar por correo al usuario (${data.emailError || 'correo no configurado'}).`);
       }
       setEditandoId(null);
       cargarUsuarios();
@@ -113,6 +120,7 @@ export default function GestionUsuarios() {
     setPasswordUsuario(u);
     setNuevaPassword(generarPasswordAleatoria());
     setPasswordError(null);
+    setPasswordEmailWarning(null);
     setPasswordOk(false);
   };
 
@@ -125,10 +133,11 @@ export default function GestionUsuarios() {
         method: 'PATCH',
         body: JSON.stringify({ password: nuevaPassword }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Error ${res.status}`);
+        throw new Error(data.error || `Error ${res.status}`);
       }
+      setPasswordEmailWarning(data.emailEnviado === false ? (data.emailError || 'correo no configurado') : null);
       setPasswordOk(true);
     } catch (err) {
       setPasswordError(err instanceof Error ? err.message : 'Error al cambiar la contraseña');
@@ -142,6 +151,7 @@ export default function GestionUsuarios() {
     setSaving(true);
     setFormError(null);
     setFormSuccess(false);
+    setFormEmailWarning(null);
     try {
       const body: Record<string, string> = {
         nombre: form.nombre,
@@ -155,9 +165,12 @@ export default function GestionUsuarios() {
         method: 'POST',
         body: JSON.stringify(body),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Error ${res.status}`);
+        throw new Error(data.error || `Error ${res.status}`);
+      }
+      if (data.emailEnviado === false) {
+        setFormEmailWarning(`El usuario se creó, pero no se le pudo enviar el correo de bienvenida (${data.emailError || 'correo no configurado'}). Pásale la contraseña por otro medio.`);
       }
       setFormSuccess(true);
       setForm(initialForm);
@@ -272,15 +285,25 @@ export default function GestionUsuarios() {
         </Card>
       )}
 
-      {formSuccess && (
+      {formSuccess && !formEmailWarning && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700">
           Usuario creado exitosamente.
+        </div>
+      )}
+      {formEmailWarning && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+          {formEmailWarning}
         </div>
       )}
 
       {editError && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
           {editError}
+        </div>
+      )}
+      {editEmailWarning && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+          {editEmailWarning}
         </div>
       )}
 
@@ -448,10 +471,16 @@ export default function GestionUsuarios() {
         }
       >
         {passwordOk ? (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700">
-            Contraseña actualizada. {passwordUsuario?.email} recibirá un correo con la contraseña nueva (si el envío
-            de correos está configurado en el servidor). Su sesión activa se cerró.
-          </div>
+          passwordEmailWarning ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+              La contraseña se cambió y la sesión de {passwordUsuario?.email} se cerró, pero no se le pudo avisar por
+              correo ({passwordEmailWarning}). Pásale la contraseña nueva por otro medio.
+            </div>
+          ) : (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700">
+              Contraseña actualizada. Se le envió un correo a {passwordUsuario?.email} con la contraseña nueva y se cerró su sesión activa.
+            </div>
+          )
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-gray-500">

@@ -27,6 +27,7 @@ async function notificarUsuario(usuario, asunto, mensaje) {
     if (!resultado.sent) {
         logger.warn({ usuarioId: usuario.id, email: usuario.email, reason: resultado.reason }, 'No se pudo notificar por correo al usuario');
     }
+    return resultado;
 }
 
 // Solo admins pueden listar y gestionar usuarios
@@ -113,13 +114,13 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 
         const empresa = usuario.empresaId ? await prisma.empresa.findUnique({ where: { id: usuario.empresaId } }) : null;
         const empresaTexto = usuario.rol === 'admin' ? 'todas las empresas' : (empresa ? empresa.razonSocial : 'sin empresa asignada');
-        notificarUsuario(usuario, 'Se actualizó tu acceso',
+        const correo = await notificarUsuario(usuario, 'Se actualizó tu acceso',
             `Hola ${usuario.nombre},\n\nUn administrador actualizó tu acceso al sistema contable:\n` +
             `- Rol: ${ROL_LABEL[usuario.rol] || usuario.rol}\n- Empresa: ${empresaTexto}\n\n` +
             `Si no esperabas este cambio, contacta a tu administrador.`
-        ).catch(err => logger.error({ err }, 'Error notificando cambio de acceso'));
+        ).catch(err => { logger.error({ err }, 'Error notificando cambio de acceso'); return { sent: false, reason: err.message }; });
 
-        res.json(usuario);
+        res.json({ ...usuario, emailEnviado: correo.sent, emailError: correo.sent ? undefined : correo.reason });
     } catch (err) {
         if (err instanceof z.ZodError) {
             return res.status(400).json({ error: 'Datos invalidos', detalles: err.errors.map(e => e.message) });
@@ -146,13 +147,13 @@ router.patch('/:id/password', authenticateToken, async (req, res) => {
         await prisma.sesion.deleteMany({ where: { usuarioId: objetivo.id } });
         await auditLog(req.usuario.id, 'ACTUALIZAR', 'Usuario', objetivo.id, { accion: 'cambio_password_por_admin' }, req.ip, req.headers['user-agent']);
 
-        notificarUsuario(objetivo, 'Tu contraseña fue actualizada',
+        const correo = await notificarUsuario(objetivo, 'Tu contraseña fue actualizada',
             `Hola ${objetivo.nombre},\n\nUn administrador cambió tu contraseña de acceso al sistema contable.\n\n` +
             `Nueva contraseña: ${password}\n\n` +
             `Te recomendamos cambiarla por una propia apenas ingreses. Si no esperabas este cambio, contacta a tu administrador.`
-        ).catch(err => logger.error({ err }, 'Error notificando cambio de contraseña'));
+        ).catch(err => { logger.error({ err }, 'Error notificando cambio de contraseña'); return { sent: false, reason: err.message }; });
 
-        res.json({ id: objetivo.id, email: objetivo.email });
+        res.json({ id: objetivo.id, email: objetivo.email, emailEnviado: correo.sent, emailError: correo.sent ? undefined : correo.reason });
     } catch (err) {
         if (err instanceof z.ZodError) {
             return res.status(400).json({ error: 'Datos invalidos', detalles: err.errors.map(e => e.message) });
