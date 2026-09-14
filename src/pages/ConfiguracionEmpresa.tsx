@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Building2,
   Plus,
@@ -52,6 +52,16 @@ export default function ConfiguracionEmpresa() {
 
   const [empresas, setEmpresas] = useState<Empresa[]>(appEmpresas);
   const [empresaActiva, setEmpresaActiva] = useState<Empresa | null>(appEmpresaActiva);
+
+  // El useState de arriba solo lee el store una vez, al montar. Si la lista
+  // real llega despues (login en curso, fetchEmpresas() todavia resolviendo,
+  // o el store se corrigio en otra parte de la app) esta pagina se quedaba
+  // mostrando lo que hubiera en el store en ese primer instante — incluidas
+  // las empresas demo si el usuario navega aca antes de que el fetch al
+  // backend termine. Se mantiene sincronizado con el store de ahi en mas.
+  useEffect(() => { setEmpresas(appEmpresas); }, [appEmpresas]);
+  useEffect(() => { setEmpresaActiva(appEmpresaActiva); }, [appEmpresaActiva]);
+
   const [editando, setEditando] = useState<string | null>(null);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [nuevaEmpresa, setNuevaEmpresa] = useState<Partial<Empresa>>({

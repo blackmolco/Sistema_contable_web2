@@ -12,7 +12,7 @@ import { FacturacionProvider, useFacturacion } from './FacturacionContext';
 import { ClientesProvider, useClientes } from './ClientesContext';
 import { EntidadesProvider, useEntidades } from './EntidadesContext';
 import { AuditProvider, useAudit } from './AuditContext';
-import { useAppStore } from '../stores/appStore';
+import { useAppStore, Empresa } from '../stores/appStore';
 import { storageKey } from '../utils/empresaStorage';
 
 // Re-exportar hooks especializados para acceso directo
@@ -109,6 +109,24 @@ interface UIContextType {
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
 
+// Mapea los campos de una Empresa (store de Zustand, fuente de verdad del
+// backend) a ConfiguracionEmpresa, preservando en `base` los campos que
+// Empresa no tiene (web, logo, actividadEconomica, resoluciones).
+function mapEmpresaToConfiguracion(emp: Empresa, base: ConfiguracionEmpresa): ConfiguracionEmpresa {
+  return {
+    ...base,
+    razonSocial: emp.razonSocial || base.razonSocial,
+    nombreFantasia: emp.nombreFantasia || base.nombreFantasia,
+    rut: emp.rut || base.rut,
+    giro: emp.giro || base.giro,
+    direccion: emp.direccion || base.direccion,
+    comuna: emp.comuna || base.comuna,
+    ciudad: emp.ciudad || base.ciudad,
+    telefono: emp.telefono || base.telefono,
+    email: emp.email || base.email,
+  };
+}
+
 function initUIFromStorage(): UIState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -119,21 +137,7 @@ function initUIFromStorage(): UIState {
       const app = JSON.parse(appRaw);
       const emp = app?.state?.empresaActiva;
       if (emp) {
-        return {
-          ...uiInicial,
-          configuracion: {
-            ...uiInicial.configuracion,
-            razonSocial: emp.razonSocial || uiInicial.configuracion.razonSocial,
-            nombreFantasia: emp.nombreFantasia || uiInicial.configuracion.nombreFantasia,
-            rut: emp.rut || uiInicial.configuracion.rut,
-            giro: emp.giro || uiInicial.configuracion.giro,
-            direccion: emp.direccion || uiInicial.configuracion.direccion,
-            comuna: emp.comuna || uiInicial.configuracion.comuna,
-            ciudad: emp.ciudad || uiInicial.configuracion.ciudad,
-            telefono: emp.telefono || uiInicial.configuracion.telefono,
-            email: emp.email || uiInicial.configuracion.email,
-          },
-        };
+        return { ...uiInicial, configuracion: mapEmpresaToConfiguracion(emp, uiInicial.configuracion) };
       }
     }
   } catch { /* datos corruptos */ }
@@ -143,6 +147,7 @@ function initUIFromStorage(): UIState {
 function UIProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(uiReducer, undefined, initUIFromStorage);
   const isFirstRender = useRef(true);
+  const empresaActiva = useAppStore((s) => s.empresaActiva);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -151,6 +156,18 @@ function UIProvider({ children }: { children: ReactNode }) {
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  // `configuracion` se lee una sola vez al montar (initUIFromStorage), desde
+  // localStorage. Si la empresa activa real cambia después — al iniciar
+  // sesión, al cambiar de empresa en Multi-Empresa, o porque quedó
+  // contaminada con datos demo por una carrera entre el store de Zustand y
+  // este contexto en la primera carga de un dominio nuevo — configuracion
+  // se queda pegada al valor viejo sin este efecto.
+  useEffect(() => {
+    if (!empresaActiva || empresaActiva.rut === state.configuracion.rut) return;
+    dispatch({ type: 'SET_CONFIGURACION', payload: mapEmpresaToConfiguracion(empresaActiva, state.configuracion) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaActiva]);
 
   return (
     <UIContext.Provider value={{ state, dispatch }}>
