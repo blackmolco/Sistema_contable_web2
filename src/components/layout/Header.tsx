@@ -59,6 +59,11 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
 
   const goToPerfil = () => {
     setShowUserMenu(false);
+    navigate('/perfil');
+  };
+
+  const goToPreferencias = () => {
+    setShowUserMenu(false);
     navigate('/configuracion');
   };
 
@@ -175,7 +180,7 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
                     Mi Perfil
                   </button>
                   <button
-                    onClick={goToPerfil}
+                    onClick={goToPreferencias}
                     className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
                   >
                     <Settings size={16} />

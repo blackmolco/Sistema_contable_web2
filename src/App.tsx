@@ -54,6 +54,7 @@ const AnalisisFinanciero = lazy(() => import('./pages/AnalisisFinanciero'));
 const ActivoFijo = lazy(() => import('./pages/ActivoFijo'));
 const Inventario = lazy(() => import('./pages/Inventario'));
 const Configuracion = lazy(() => import('./pages/Configuracion'));
+const MiPerfil = lazy(() => import('./pages/MiPerfil'));
 const Reportes = lazy(() => import('./pages/Reportes'));
 const AlertasTributarias = lazy(() => import('./pages/AlertasTributarias'));
 const CierreTributario = lazy(() => import('./pages/CierreTributario'));
@@ -275,6 +276,7 @@ function AppContent() {
               <Route path="/estados-financieros" element={<ErrorBoundary moduleName="Estados Financieros"><EstadosFinancieros /></ErrorBoundary>} />
               <Route path="/calculadora" element={<ErrorBoundary moduleName="Calculadora"><Calculadora /></ErrorBoundary>} />
               <Route path="/configuracion" element={<ErrorBoundary moduleName="Configuración"><Configuracion /></ErrorBoundary>} />
+              <Route path="/perfil" element={<ErrorBoundary moduleName="Mi Perfil"><MiPerfil /></ErrorBoundary>} />
               <Route path="/tesoreria" element={<ErrorBoundary moduleName="Tesorería"><Tesoreria /></ErrorBoundary>} />
               <Route path="/reportes" element={<ErrorBoundary moduleName="Reportes"><Reportes /></ErrorBoundary>} />
               <Route path="/multi-empresa" element={<ErrorBoundary moduleName="Multi-Empresa"><ConfiguracionEmpresa /></ErrorBoundary>} />
