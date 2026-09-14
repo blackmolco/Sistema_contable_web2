@@ -204,6 +204,27 @@
   }
   .rule-ledger::after { content: ''; display: block; height: 2px; background: var(--brand-color); margin-top: 3px; opacity: .35; }
 
+  /* ── Panel del login — mismo motivo "libro contable", a mayor escala ──── */
+  .login-ledger-panel {
+    background-color: var(--brand-color);
+    background-image:
+      radial-gradient(60% 50% at 15% 15%, color-mix(in srgb, var(--brand-secondary) 30%, transparent), transparent 70%),
+      repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,.05) 0,
+        rgba(255,255,255,.05) 1px,
+        transparent 1px,
+        transparent 44px
+      );
+    background-attachment: fixed, scroll;
+    animation: login-glow-drift 22s ease-in-out infinite;
+  }
+  @keyframes login-glow-drift {
+    0%, 100% { background-position: 0% 0%, 0 0; }
+    50% { background-position: 8% 4%, 0 0; }
+  }
+  .login-indicador-row + .login-indicador-row { border-top: 1px solid rgba(255,255,255,.12); }
+
   /* Columnas Debe/Haber — neutras salvo bajo el tema "doble_partida" */
   .cell-debe, .cell-haber { transition: background-color 150ms ease; }
   [data-theme-preset="doble_partida"] .cell-debe {
