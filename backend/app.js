@@ -2,13 +2,12 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const { logger, createRequestLogger } = require('./logger');
 const { prisma } = require('./shared');
 const { runBackup, getLastBackupInfo } = require('./backup');
+const storageService = require('./storage');
 
 // ============ STARTUP SECURITY CHECKS ============
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -92,12 +91,6 @@ app.use(createRequestLogger());
 
 // Global rate limiter removed — internal app with 3 users, per-route limiters on writes/auth are sufficient
 
-// ============ UPLOADS DIR ============
-const UPLOADS_DIR = path.join(__dirname, process.env.UPLOAD_DIR || 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
-
 // ============ INIT CATEGORIAS ============
 const CATEGORIAS_POR_DEFECTO = [
     { nombre: 'Contratos', color: '#3b82f6', icono: 'FileText' },
@@ -167,7 +160,7 @@ app.get('/api/health', async (req, res) => {
         checks.db = true;
     } catch {}
     try {
-        checks.uploads = fs.existsSync(UPLOADS_DIR);
+        checks.uploads = storageService.isConfigured();
     } catch {}
     try {
         checks.lastBackup = getLastBackupInfo();

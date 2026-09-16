@@ -5,10 +5,10 @@ const { parsePagination, paginatedResponse } = require('../middlewares/paginatio
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const mime = require('mime-types');
 const { v4: uuidv4 } = require('uuid');
 const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
+const storageService = require('../storage');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -16,8 +16,6 @@ const writeLimiter = rateLimit({
     max: parseInt(process.env.RATE_LIMIT_WRITE_MAX) || 500,
     message: { error: 'Limite de operaciones alcanzado' },
 });
-
-const UPLOADS_DIR = path.join(__dirname, '..', process.env.UPLOAD_DIR || 'uploads');
 
 const ALLOWED_MIME_TYPES = new Set([
     'application/pdf', 'application/msword',
@@ -30,24 +28,9 @@ const ALLOWED_MIME_TYPES = new Set([
     'image/jpeg', 'image/png', 'image/gif', 'text/plain', 'text/csv',
 ]);
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        // Igual que categoria: sin sanitizar, un empresaId como
-        // "../../../../algo" arma una ruta fuera de uploads/ antes de que
-        // corra ningun chequeo de autorizacion (multer procesa el
-        // multipart y ya llamo a este callback cuando el handler recien
-        // empieza a ejecutar exigirAccesoEmpresa).
-        const empresaId = (req.body.empresaId || 'general').replace(/[^a-zA-Z0-9_-]/g, '_');
-        const categoria = (req.body.categoria || 'Otros').replace(/[^a-zA-Z0-9_-]/g, '_');
-        const dir = path.join(UPLOADS_DIR, `empresa_${empresaId}`, categoria);
-        fs.mkdirSync(dir, { recursive: true });
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        cb(null, `${uuidv4()}${ext}`);
-    },
-});
+// En memoria, no en disco: el archivo va directo de la request a Supabase
+// Storage sin tocar el filesystem del servidor (efímero en Render).
+const storage = multer.memoryStorage();
 
 function fileFilter(req, file, cb) {
     const allowedExtensions = ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.jpg', '.jpeg', '.png', '.gif', '.zip', '.odt', '.pptx', '.ppt', '.txt', '.csv'];
@@ -105,12 +88,18 @@ router.post('/upload', authenticateToken, writeLimiter, upload.single('archivo')
         if (!req.file) {
             return res.status(400).json({ error: 'No se encontro archivo' });
         }
-        if (!exigirAccesoEmpresa(req, res, req.body.empresaId)) {
-            if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-            return;
-        }
+        if (!exigirAccesoEmpresa(req, res, req.body.empresaId)) return;
+
         const sanitizeFilename = (name) => path.basename(name).replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 200);
         const nombreOriginal = sanitizeFilename(req.file.originalname);
+        const empresaId = (req.body.empresaId || 'general').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const categoria = (req.body.categoria || 'Otros').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const ext = path.extname(nombreOriginal);
+        const key = `empresa_${empresaId}/${categoria}/${uuidv4()}${ext}`;
+        const mimeType = req.file.mimetype || mime.lookup(nombreOriginal) || 'application/octet-stream';
+
+        await storageService.subirArchivo(key, req.file.buffer, mimeType);
+
         const documento = await prisma.documento.create({
             data: {
                 nombre: nombreOriginal,
@@ -119,9 +108,9 @@ router.post('/upload', authenticateToken, writeLimiter, upload.single('archivo')
                 empresaId: req.body.empresaId || null,
                 trabajadorId: req.body.trabajadorId || null,
                 usuarioId: req.usuario.id,
-                ruta: req.file.path,
+                ruta: key,
                 tamano: req.file.size,
-                mimeType: mime.lookup(req.file.path) || 'application/octet-stream',
+                mimeType,
                 etiquetas: req.body.etiquetas || null,
                 descripcion: req.body.descripcion || null,
                 fechaDoc: req.body.fechaDoc ? new Date(req.body.fechaDoc) : null,
@@ -131,7 +120,6 @@ router.post('/upload', authenticateToken, writeLimiter, upload.single('archivo')
         res.json(documento);
     } catch (err) {
         logger.error({ err }, 'Error subiendo documento');
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         res.status(500).json({ error: 'Error al subir documento' });
     }
 });
@@ -141,10 +129,8 @@ router.get('/:id/descargar', authenticateToken, async (req, res) => {
         const documento = await prisma.documento.findUnique({ where: { id: req.params.id } });
         if (!documento) return res.status(404).json({ error: 'Documento no encontrado' });
         if (!exigirAccesoEmpresa(req, res, documento.empresaId)) return;
-        if (!fs.existsSync(documento.ruta)) {
-            return res.status(404).json({ error: 'Archivo no encontrado' });
-        }
-        res.download(documento.ruta, documento.nombre);
+        const url = await storageService.urlDescarga(documento.ruta);
+        res.redirect(302, url);
     } catch (err) {
         logger.error({ err }, 'Error descargando documento');
         res.status(500).json({ error: 'Error al descargar documento' });
