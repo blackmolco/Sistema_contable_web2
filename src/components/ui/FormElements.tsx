@@ -306,6 +306,13 @@ export function SearchSelect({ value, onChange, options, placeholder = 'Seleccio
     : opciones;
 
   const abrir = () => {
+    // Calcular la posición ANTES de abrir: si el menú se monta con
+    // dropdownStyle todavía en {} (su valor inicial), queda un frame sin
+    // "position: fixed" — un div normal al final de <body> — y al enfocar
+    // el input ahí el navegador hace scroll hasta el fondo de la página
+    // para mostrarlo. Calculándola ya mismo, el primer render sale con la
+    // posición correcta y nunca se ve ese salto.
+    posicionar();
     setOpen(true);
     setQuery('');
     requestAnimationFrame(() => inputRef.current?.focus());
