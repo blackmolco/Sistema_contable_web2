@@ -179,12 +179,17 @@ function calcularLiquidacion(trabajador, entrada, indices, periodo, opciones = {
     const sueldoLiquido = totalHaberes - totalDescuentos;
 
     // --- Costo empresa (aportes patronales, no se descuentan al trabajador) ---
+    // SIS y la Reforma Previsional (Ley 21.735) son aportes atados a que el
+    // trabajador este cotizando efectivamente a su AFP (se calculan sobre la
+    // misma base y alimentan la cuenta individual / el seguro que va con esa
+    // cotizacion) — igual que el descuento de AFP mismo, no aplican si
+    // noCotizaAfp (pensionado tipo '2'/'8', ver arriba).
     const tramoReforma = getTramoReformaPrevisional(periodo);
-    const aporteReformaCuentaIndividual = tramoReforma ? baseAfpSalud * tramoReforma.cuentaIndividualPct : 0;
-    const aporteReformaSegundoComponente = tramoReforma ? baseAfpSalud * tramoReforma.segundoComponentePct : 0;
+    const aporteReformaCuentaIndividual = !noCotizaAfp && tramoReforma ? baseAfpSalud * tramoReforma.cuentaIndividualPct : 0;
+    const aporteReformaSegundoComponente = !noCotizaAfp && tramoReforma ? baseAfpSalud * tramoReforma.segundoComponentePct : 0;
     const aporteReformaPrevisional = aporteReformaCuentaIndividual + aporteReformaSegundoComponente;
     const sisIncluidoEnTramo = tramoReforma && tramoReforma.sisPct != null;
-    const aporteSis = sisIncluidoEnTramo ? baseAfpSalud * tramoReforma.sisPct : baseAfpSalud * tasaSis;
+    const aporteSis = noCotizaAfp ? 0 : (sisIncluidoEnTramo ? baseAfpSalud * tramoReforma.sisPct : baseAfpSalud * tasaSis);
     // Tasa de cotizacion Mutual/ISL (Ley 16.744): piso legal 0.90%, salvo
     // que la empresa tenga registrada su tasa real (base + adicional segun
     // rubro/siniestralidad, propia de cada Mutual — ver Empresa.mutualTasaPct).
