@@ -206,8 +206,10 @@ function calcularLiquidacion(trabajador, entrada, indices, periodo, opciones = {
         colacion: round(colacion),
         movilizacion: round(movilizacion),
         asignacionFamiliar: round(asignacionFamiliar),
-        totalNoImponible: round(totalNoImponible),
-        totalHaberes: round(totalHaberes),
+        // totalNoImponible y totalHaberes NO son columnas de LiquidacionSueldo
+        // (se derivan de totalImponible + colacion + movilizacion +
+        // asignacionFamiliar donde se necesiten) — incluirlas aqui hacia que
+        // Prisma rechazara el create/update entero con "Unknown argument".
         descuentoAFP: round(descuentoAfp),
         descuentoSalud: round(descuentoSalud),
         descuentoAFC: round(descuentoCesantia),
