@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Wallet, Plus, Save, Calculator, Landmark, ChevronDown, ChevronUp, CheckCircle2, Pencil, Trash2, Search, History, FileDown, Undo2 } from 'lucide-react';
 import { Card } from '../components/ui/Cards';
-import { Button, Input } from '../components/ui/FormElements';
+import { Button, Input, SearchSelect } from '../components/ui/FormElements';
 import { Modal } from '../components/ui/Modal';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { formatCurrency } from '../utils/calculos';
@@ -55,6 +55,22 @@ interface EmpresaInfo {
   rut: string;
   mutualNombre: string | null;
   mutualTasaPct: number | null;
+}
+
+interface CuentaConcepto {
+  concepto: string;
+  label: string;
+  codigoDefault: string;
+  cuentaId: string | null;
+  cuentaCodigo: string | null;
+  cuentaNombre: string | null;
+  esPersonalizada: boolean;
+}
+
+interface CuentaOpcion {
+  id: string;
+  codigo: string;
+  nombre: string;
 }
 
 interface Liquidacion {
@@ -148,6 +164,12 @@ export default function Remuneraciones() {
   const [historialLiquidaciones, setHistorialLiquidaciones] = useState<Liquidacion[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [generandoPdfId, setGenerandoPdfId] = useState<string | null>(null);
+  const [eliminandoLiqId, setEliminandoLiqId] = useState<string | null>(null);
+
+  const [cuentasConfig, setCuentasConfig] = useState<CuentaConcepto[]>([]);
+  const [cuentasDisponibles, setCuentasDisponibles] = useState<CuentaOpcion[]>([]);
+  const [mostrarCuentasConfig, setMostrarCuentasConfig] = useState(false);
+  const [guardandoConcepto, setGuardandoConcepto] = useState<string | null>(null);
 
   const cargarTodo = useCallback(async () => {
     if (!empresaId) { setTrabajadores([]); return; }
@@ -173,6 +195,41 @@ export default function Remuneraciones() {
   }, [empresaId, periodo]);
 
   useEffect(() => { cargarTodo(); }, [cargarTodo]);
+
+  const cargarCuentasConfig = useCallback(async () => {
+    if (!empresaId) return;
+    try {
+      const [config, cuentas] = await Promise.all([
+        apiFetch<CuentaConcepto[]>(`/api/empresas/${empresaId}/cuentas-remuneraciones`),
+        apiFetch<CuentaOpcion[] | { data: CuentaOpcion[] }>(`/api/cuentas?empresaId=${encodeURIComponent(empresaId)}&limit=100`),
+      ]);
+      setCuentasConfig(config);
+      setCuentasDisponibles(Array.isArray(cuentas) ? cuentas : (cuentas as { data: CuentaOpcion[] }).data ?? []);
+    } catch (err) {
+      showToast('error', 'Error', `No se pudo cargar la configuración de cuentas: ${getErrorMessage(err)}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaId]);
+
+  useEffect(() => { if (mostrarCuentasConfig) cargarCuentasConfig(); }, [mostrarCuentasConfig, cargarCuentasConfig]);
+
+  const guardarCuentaConcepto = async (concepto: string, cuentaId: string) => {
+    if (!empresaId) return;
+    setGuardandoConcepto(concepto);
+    try {
+      const res = await apiFetchRaw(`/api/empresas/${empresaId}/cuentas-remuneraciones`, {
+        method: 'PATCH',
+        body: JSON.stringify({ [concepto]: cuentaId || null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      cargarCuentasConfig();
+    } catch (err) {
+      showToast('error', 'Error al guardar', getErrorMessage(err));
+    } finally {
+      setGuardandoConcepto(null);
+    }
+  };
 
   const guardarTrabajador = async () => {
     if (!formTrabajador.rut || !formTrabajador.nombres || !formTrabajador.apellidos || !formTrabajador.sueldoBase) {
@@ -407,6 +464,28 @@ export default function Remuneraciones() {
     }
   };
 
+  const eliminarLiquidacion = async (t: Trabajador, liq: Liquidacion) => {
+    const ok = await confirmDialog({
+      title: 'Eliminar liquidación',
+      message: `¿Eliminar la liquidación de ${liq.periodo} de ${t.nombres} ${t.apellidos}? Se puede volver a calcular después si hace falta.`,
+      confirmText: 'Eliminar',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    setEliminandoLiqId(liq.id);
+    try {
+      const res = await apiFetchRaw(`/api/trabajadores/liquidaciones/${liq.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setLiquidaciones(ls => { const next = { ...ls }; delete next[t.id]; return next; });
+      showToast('success', 'Liquidación eliminada', `Se eliminó la liquidación de ${liq.periodo}.`);
+    } catch (err) {
+      showToast('error', 'Error al eliminar', getErrorMessage(err));
+    } finally {
+      setEliminandoLiqId(null);
+    }
+  };
+
   const totalCalculadas = trabajadores.filter(t => liquidaciones[t.id]).length;
   const totalPendientesCentralizar = trabajadores.filter(t => liquidaciones[t.id] && !liquidaciones[t.id].asientoId).length;
   const totalCentralizados = trabajadores.filter(t => liquidaciones[t.id]?.asientoId).length;
@@ -487,6 +566,53 @@ export default function Remuneraciones() {
             Usando el piso legal <strong>0,90%</strong> (Ley 16.744) — si esta empresa tiene una tasa adicional propia con su Mutual (según rubro o siniestralidad),
             {puedeConfigurarMutual ? ' configúrala con el botón de arriba.' : ' pide a tu administrador que la configure.'}
           </p>
+        )}
+      </Card>
+
+      {/* Cuentas usadas al centralizar */}
+      <Card>
+        <button type="button" onClick={() => setMostrarCuentasConfig(v => !v)} className="w-full flex items-center justify-between text-left">
+          <div className="flex items-center gap-2">
+            <Landmark size={18} className="text-gray-500" />
+            <h3 className="font-semibold text-gray-800">Cuentas de Centralización</h3>
+          </div>
+          {mostrarCuentasConfig ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+        </button>
+        {mostrarCuentasConfig && (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs text-gray-500 mb-2">
+              Qué cuenta de tu plan de cuentas se usa por cada concepto al centralizar. Por defecto usa el código estándar
+              {puedeConfigurarMutual ? ' — puedes cambiarla si tu plan de cuentas es distinto.' : '.'}
+            </p>
+            {cuentasConfig.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">Cargando...</p>
+            ) : (
+              cuentasConfig.map(cc => (
+                <div key={cc.concepto} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
+                  <div className="w-1/3 min-w-0">
+                    <p className="text-sm text-gray-800 truncate">{cc.label}</p>
+                    <p className="text-[10px] text-gray-400">Por defecto: {cc.codigoDefault}</p>
+                  </div>
+                  {puedeConfigurarMutual ? (
+                    <div className="flex-1">
+                      <SearchSelect
+                        value={cc.cuentaId ?? ''}
+                        onChange={(cuentaId) => guardarCuentaConcepto(cc.concepto, cuentaId)}
+                        options={cuentasDisponibles.map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }))}
+                        placeholder="Buscar cuenta..."
+                      />
+                    </div>
+                  ) : (
+                    <p className="flex-1 text-sm text-gray-600">
+                      {cc.cuentaCodigo ? `${cc.cuentaCodigo} — ${cc.cuentaNombre}` : <span className="text-amber-600">No existe en el plan de cuentas</span>}
+                    </p>
+                  )}
+                  {cc.esPersonalizada && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 flex-shrink-0">Personalizada</span>}
+                  {guardandoConcepto === cc.concepto && <span className="text-[10px] text-gray-400 flex-shrink-0">Guardando...</span>}
+                </div>
+              ))
+            )}
+          </div>
         )}
       </Card>
 
@@ -606,15 +732,27 @@ export default function Remuneraciones() {
                             Imponible {formatCurrency(liq.totalImponible)} · Descuentos {formatCurrency(liq.totalDescuentos)} · <strong>Líquido {formatCurrency(liq.sueldoLiquido)}</strong>
                           </p>
                         )}
-                        <Button
-                          size="sm"
-                          icon={<Calculator size={14} />}
-                          disabled={!indice || calculando === t.id || Boolean(liq?.asientoId)}
-                          onClick={() => calcularLiquidacion(t.id)}
-                          className="ml-auto"
-                        >
-                          {calculando === t.id ? 'Calculando...' : liq ? 'Recalcular' : 'Calcular liquidación'}
-                        </Button>
+                        <div className="ml-auto flex items-center gap-2">
+                          {liq && !liq.asientoId && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              icon={<Trash2 size={14} />}
+                              disabled={eliminandoLiqId === liq.id}
+                              onClick={() => eliminarLiquidacion(t, liq)}
+                            >
+                              {eliminandoLiqId === liq.id ? 'Eliminando...' : 'Eliminar'}
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            icon={<Calculator size={14} />}
+                            disabled={!indice || calculando === t.id || Boolean(liq?.asientoId)}
+                            onClick={() => calcularLiquidacion(t.id)}
+                          >
+                            {calculando === t.id ? 'Calculando...' : liq ? 'Recalcular' : 'Calcular liquidación'}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}

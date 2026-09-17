@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const { validarRut } = require('../lib/rut');
 const { requireRole } = require('../middlewares/requireRole');
 const { esAdmin } = require('../middlewares/empresaAccess');
+const { CODIGOS_REMUNERACIONES, CAMPO_CONFIG_POR_CONCEPTO } = require('../services/generarAsiento');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -98,6 +99,98 @@ router.patch('/:id/mutual', authenticateToken, writeLimiter, validate(mutualSche
     } catch (err) {
         logger.error({ err }, 'Error actualizando Mutual de la empresa');
         res.status(500).json({ error: 'Error al actualizar la Mutual' });
+    }
+});
+
+// Etiquetas legibles para cada concepto de la centralizacion de
+// remuneraciones — ver services/generarAsiento.js (CODIGOS_REMUNERACIONES).
+const LABELS_REMUNERACIONES = {
+    remuneracionesGasto: 'Sueldos y Salarios (gasto)',
+    cotizacionesGasto: 'Cotizaciones Previsionales Empleador (gasto)',
+    remuneracionesPorPagar: 'Sueldos Líquidos por Pagar',
+    imposicionesPorPagar: 'AFP por Pagar',
+    saludPorPagar: 'Salud por Pagar (Fonasa/Isapre)',
+    cesantiaPorPagar: 'Seguro de Cesantía por Pagar',
+    impuestoUnicoPorPagar: 'Impuesto Único por Pagar',
+    mutualPorPagar: 'Mutual de Seguridad por Pagar',
+    reformaPrevisionalPorPagar: 'Reforma Previsional por Pagar (Ley 21.735)',
+    deudoresVarios: 'Reverso Anticipos/Préstamos al Personal',
+};
+
+function puedeConfigurarCentralizacion(req, empresaId) {
+    return esAdmin(req.usuario) || (req.usuario.rol === 'supervisor' && req.usuario.empresaId === empresaId);
+}
+
+// Muestra, por cada concepto, la cuenta que se va a usar al centralizar:
+// la personalizada si existe, si no la que resuelve el codigo por defecto
+// (o null si esa tampoco existe en el plan de cuentas de esta empresa).
+router.get('/:id/cuentas-remuneraciones', authenticateToken, async (req, res) => {
+    try {
+        if (!esAdmin(req.usuario) && req.usuario.empresaId !== req.params.id) {
+            return res.status(403).json({ error: 'No tiene acceso a esta empresa' });
+        }
+        const [config, cuentasPorDefecto] = await Promise.all([
+            prisma.configCentralizacionRemuneraciones.findUnique({ where: { empresaId: req.params.id } }),
+            prisma.cuenta.findMany({ where: { empresaId: req.params.id, codigo: { in: Object.values(CODIGOS_REMUNERACIONES) }, activo: true } }),
+        ]);
+        const porCodigo = Object.fromEntries(cuentasPorDefecto.map(c => [c.codigo, c]));
+
+        const personalizadasIds = Object.values(CAMPO_CONFIG_POR_CONCEPTO)
+            .map(campo => config?.[campo]).filter(Boolean);
+        const cuentasPersonalizadas = personalizadasIds.length
+            ? await prisma.cuenta.findMany({ where: { id: { in: personalizadasIds }, empresaId: req.params.id, activo: true } })
+            : [];
+        const personalizadaPorId = Object.fromEntries(cuentasPersonalizadas.map(c => [c.id, c]));
+
+        const resultado = Object.entries(CODIGOS_REMUNERACIONES).map(([concepto, codigoDefault]) => {
+            const campoConfig = CAMPO_CONFIG_POR_CONCEPTO[concepto];
+            const idPersonalizado = config?.[campoConfig];
+            const cuentaPersonalizada = idPersonalizado ? personalizadaPorId[idPersonalizado] : null;
+            const cuenta = cuentaPersonalizada || porCodigo[codigoDefault] || null;
+            return {
+                concepto,
+                label: LABELS_REMUNERACIONES[concepto],
+                codigoDefault,
+                cuentaId: cuenta?.id ?? null,
+                cuentaCodigo: cuenta?.codigo ?? null,
+                cuentaNombre: cuenta?.nombre ?? null,
+                esPersonalizada: Boolean(cuentaPersonalizada),
+            };
+        });
+        res.json(resultado);
+    } catch (err) {
+        logger.error({ err }, 'Error obteniendo cuentas de centralización de remuneraciones');
+        res.status(500).json({ error: 'Error al obtener la configuración' });
+    }
+});
+
+const cuentasRemuneracionesSchema = z.object(
+    Object.fromEntries(Object.keys(CODIGOS_REMUNERACIONES).map(concepto => [concepto, z.string().min(1).nullable().optional()]))
+);
+
+// Guarda, concepto por concepto, que cuenta usar al centralizar en vez del
+// codigo fijo por defecto. null en un concepto = volver a usar el codigo
+// por defecto para ese concepto.
+router.patch('/:id/cuentas-remuneraciones', authenticateToken, writeLimiter, validate(cuentasRemuneracionesSchema), async (req, res) => {
+    try {
+        if (!puedeConfigurarCentralizacion(req, req.params.id)) {
+            return res.status(403).json({ error: 'No tiene permiso para configurar la centralización de esta empresa' });
+        }
+        const data = {};
+        for (const [concepto, cuentaId] of Object.entries(req.body)) {
+            if (cuentaId === undefined) continue;
+            data[CAMPO_CONFIG_POR_CONCEPTO[concepto]] = cuentaId;
+        }
+        const config = await prisma.configCentralizacionRemuneraciones.upsert({
+            where: { empresaId: req.params.id },
+            create: { empresaId: req.params.id, ...data },
+            update: data,
+        });
+        await auditLog(req.usuario.id, 'ACTUALIZAR', 'ConfigCentralizacionRemuneraciones', req.params.id, req.body, req.ip, req.headers['user-agent']);
+        res.json(config);
+    } catch (err) {
+        logger.error({ err }, 'Error guardando cuentas de centralización de remuneraciones');
+        res.status(500).json({ error: 'Error al guardar la configuración' });
     }
 });
 

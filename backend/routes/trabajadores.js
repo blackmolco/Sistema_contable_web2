@@ -235,6 +235,30 @@ router.post('/liquidaciones/calcular', authenticateToken, writeLimiter, validate
     }
 });
 
+// Borra una liquidación calculada por error, antes de centralizar — una vez
+// centralizada (asientoId seteado) hay que descentralizar el período
+// primero (libera TODAS las del período, no una sola: el asiento es uno
+// solo para todo el período, no se puede tocar a medias).
+router.delete('/liquidaciones/:id', authenticateToken, writeLimiter, async (req, res) => {
+    try {
+        const liquidacion = await prisma.liquidacionSueldo.findUnique({
+            where: { id: req.params.id },
+            include: { trabajador: { select: { empresaId: true } } },
+        });
+        if (!liquidacion) return res.status(404).json({ error: 'Liquidación no encontrada' });
+        if (!exigirAccesoEmpresa(req, res, liquidacion.trabajador.empresaId)) return;
+        if (liquidacion.asientoId) {
+            return res.status(409).json({ error: 'Esta liquidación ya está centralizada — descentraliza el período primero para poder borrarla.' });
+        }
+        await prisma.liquidacionSueldo.delete({ where: { id: req.params.id } });
+        await auditLog(req.usuario.id, 'ELIMINAR', 'LiquidacionSueldo', req.params.id, { periodo: liquidacion.periodo }, req.ip, req.headers['user-agent']);
+        res.json({ message: 'Liquidación eliminada' });
+    } catch (err) {
+        logger.error({ err }, 'Error eliminando liquidacion');
+        res.status(500).json({ error: 'Error al eliminar la liquidación' });
+    }
+});
+
 // Centraliza TODAS las liquidaciones no centralizadas de una empresa/período
 // en un solo asiento contable — atómico: todo o nada, con numeración segura
 // (ver services/generarAsiento.js).

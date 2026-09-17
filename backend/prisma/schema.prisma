@@ -246,6 +246,27 @@ model LiquidacionSueldo {
   @@index([periodo])
 }
 
+// Que cuenta usar por cada concepto al centralizar remuneraciones — por
+// defecto usa los codigos fijos de services/generarAsiento.js
+// (CODIGOS_REMUNERACIONES), pero cada empresa puede tener un plan de
+// cuentas distinto, asi que se puede pisar concepto por concepto. Un solo
+// registro por empresa (empresaId como PK); null en un campo = seguir
+// usando el codigo por defecto para ese concepto.
+model ConfigCentralizacionRemuneraciones {
+  empresaId                          String   @id
+  cuentaRemuneracionesGastoId        String?
+  cuentaCotizacionesGastoId          String?
+  cuentaRemuneracionesPorPagarId     String?
+  cuentaImposicionesPorPagarId       String?
+  cuentaSaludPorPagarId              String?
+  cuentaCesantiaPorPagarId           String?
+  cuentaImpuestoUnicoPorPagarId      String?
+  cuentaMutualPorPagarId             String?
+  cuentaReformaPrevisionalPorPagarId String?
+  cuentaDeudoresVariosId             String?
+  actualizadoEn                      DateTime @updatedAt
+}
+
 // Indices previsionales publicados por Previred cada mes — son nacionales
 // (una sola tabla, no por empresa): UF/UTM del periodo, sueldo minimo, topes
 // imponibles y tasa SIS del momento. Se cargan a mano una vez al mes (no hay

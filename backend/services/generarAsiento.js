@@ -164,6 +164,23 @@ async function crearAsiento(tx, { empresaId, fecha, glosa, tipo, detalles, usuar
  * `liquidaciones` son filas de LiquidacionSueldo ya calculadas por
  * motorRemuneraciones.calcularLiquidacion().
  */
+// Que columna de ConfigCentralizacionRemuneraciones corresponde a cada
+// concepto de CODIGOS_REMUNERACIONES — el admin/supervisor de la empresa
+// puede pisar el codigo fijo por una cuenta propia de su plan de cuentas
+// (ver routes/empresas.js: GET/PATCH /:id/cuentas-remuneraciones).
+const CAMPO_CONFIG_POR_CONCEPTO = {
+    remuneracionesGasto: 'cuentaRemuneracionesGastoId',
+    cotizacionesGasto: 'cuentaCotizacionesGastoId',
+    remuneracionesPorPagar: 'cuentaRemuneracionesPorPagarId',
+    imposicionesPorPagar: 'cuentaImposicionesPorPagarId',
+    saludPorPagar: 'cuentaSaludPorPagarId',
+    cesantiaPorPagar: 'cuentaCesantiaPorPagarId',
+    impuestoUnicoPorPagar: 'cuentaImpuestoUnicoPorPagarId',
+    mutualPorPagar: 'cuentaMutualPorPagarId',
+    reformaPrevisionalPorPagar: 'cuentaReformaPrevisionalPorPagarId',
+    deudoresVarios: 'cuentaDeudoresVariosId',
+};
+
 async function lineasParaRemuneraciones(tx, empresaId, liquidaciones) {
     const totales = liquidaciones.reduce((t, l) => ({
         totalHaberes: t.totalHaberes + l.totalImponible + l.colacion + l.movilizacion + l.asignacionFamiliar,
@@ -178,9 +195,17 @@ async function lineasParaRemuneraciones(tx, empresaId, liquidaciones) {
         liquido: t.liquido + l.sueldoLiquido,
     }), { totalHaberes: 0, aportesPatronales: 0, afp: 0, salud: 0, cesantia: 0, impuesto: 0, mutual: 0, reforma: 0, deudoresVarios: 0, liquido: 0 });
 
+    const config = await tx.configCentralizacionRemuneraciones.findUnique({ where: { empresaId } });
     const codigosUsados = Object.entries(CODIGOS_REMUNERACIONES);
     const cuentasPorCodigo = {};
     await Promise.all(codigosUsados.map(async ([clave, codigo]) => {
+        const cuentaIdPersonalizada = config?.[CAMPO_CONFIG_POR_CONCEPTO[clave]];
+        if (cuentaIdPersonalizada) {
+            const cuenta = await tx.cuenta.findFirst({ where: { id: cuentaIdPersonalizada, empresaId, activo: true } });
+            if (cuenta) { cuentasPorCodigo[clave] = cuenta; return; }
+            // La cuenta personalizada ya no existe (se borro/desactivo) —
+            // se cae al codigo por defecto en vez de fallar silenciosamente.
+        }
         cuentasPorCodigo[clave] = await buscarCuenta(tx, empresaId, codigo);
     }));
 
@@ -206,4 +231,4 @@ async function lineasParaRemuneraciones(tx, empresaId, liquidaciones) {
     return detalles;
 }
 
-module.exports = { CODIGOS, CODIGOS_REMUNERACIONES, lineasParaDocumento, lineasParaHonorario, lineasParaRemuneraciones, crearAsiento };
+module.exports = { CODIGOS, CODIGOS_REMUNERACIONES, CAMPO_CONFIG_POR_CONCEPTO, lineasParaDocumento, lineasParaHonorario, lineasParaRemuneraciones, crearAsiento };
