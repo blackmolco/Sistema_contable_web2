@@ -438,7 +438,7 @@ export default function Remuneraciones() {
     setHistorialTrabajador(t);
     setCargandoHistorial(true);
     try {
-      const data = await apiFetch<Liquidacion[] | { data: Liquidacion[] }>(`/api/trabajadores/liquidaciones?trabajadorId=${t.id}`);
+      const data = await apiFetch<Liquidacion[] | { data: Liquidacion[] }>(`/api/trabajadores/liquidaciones?trabajadorId=${t.id}&empresaId=${encodeURIComponent(empresaId ?? '')}`);
       setHistorialLiquidaciones(Array.isArray(data) ? data : (data as { data: Liquidacion[] }).data ?? []);
     } catch (err) {
       showToast('error', 'Error', `No se pudo cargar el historial: ${getErrorMessage(err)}`);
