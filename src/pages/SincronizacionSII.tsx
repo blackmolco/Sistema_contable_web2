@@ -2,16 +2,18 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CloudCog, Download, CheckCircle,
-  Upload, FileText, Trash2, Info,
+  Upload, FileText, Trash2, Info, Plus,
   Loader2, ShieldCheck, DatabaseZap, FileDown, CheckCheck,
   ShoppingBag, Receipt, FileBadge2,
 } from 'lucide-react';
 import { Card, Badge } from '../components/ui/Cards';
-import { SearchSelect } from '../components/ui/FormElements';
+import { SearchSelect, Input, Select, Button } from '../components/ui/FormElements';
+import { Modal } from '../components/ui/Modal';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useApp } from '../context/AppContext';
 import { formatRUT, formatCurrency, generateId } from '../utils/calculos';
 import { cerrarImportacionInterrumpida, fetchImportacionesSII, finalizarImportacionSII, ingresoDocumento, iniciarImportacionSII, ImportacionSII, IngresoDocumentoPayload, revertirImportacionSII } from '../services/apiSync';
+import { Cuenta, TipoCuenta } from '../types';
 
 // ─── Tipo interno ──────────────────────────────────────────────────────────────
 interface FilaRCV {
@@ -327,6 +329,53 @@ export default function SincronizacionSII() {
   const [cuentaIngresoId, setCuentaIngresoId] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Crear cuenta contable sin salir de esta pantalla — antes había que abrir
+  // Plan de Cuentas en otra pestaña, lo que perdía el archivo ya cargado y
+  // las cuentas ya asignadas a otros proveedores (el estado de este wizard
+  // vive solo en memoria, no en localStorage).
+  const [cuentaModalTarget, setCuentaModalTarget] = useState<
+    { tipo: 'venta' } | { tipo: 'proveedor'; claveRut: string; rut: string; razonSocial: string } | null
+  >(null);
+  const [nuevaCuentaForm, setNuevaCuentaForm] = useState({ codigo: '', nombre: '', tipo: 'gasto' as TipoCuenta });
+
+  const naturalezaPorTipo = (tipo: TipoCuenta): 'deudora' | 'acreedora' =>
+    tipo === 'activo' || tipo === 'gasto' ? 'deudora' : 'acreedora';
+
+  const abrirCrearCuenta = (target: NonNullable<typeof cuentaModalTarget>) => {
+    setNuevaCuentaForm({ codigo: '', nombre: '', tipo: target.tipo === 'venta' ? 'ingreso' : 'gasto' });
+    setCuentaModalTarget(target);
+  };
+
+  const confirmarCrearCuenta = () => {
+    const codigo = nuevaCuentaForm.codigo.trim();
+    const nombre = nuevaCuentaForm.nombre.trim();
+    if (!codigo || !nombre) {
+      showToast('error', 'Datos incompletos', 'Código y nombre son requeridos.');
+      return;
+    }
+    if (state.cuentas.some(c => c.codigo.trim().toLowerCase() === codigo.toLowerCase())) {
+      showToast('error', 'Código repetido', `Ya existe una cuenta con el código ${codigo}.`);
+      return;
+    }
+    const nuevaCuenta: Cuenta = {
+      id: generateId(),
+      codigo,
+      nombre,
+      tipo: nuevaCuentaForm.tipo,
+      naturaleza: naturalezaPorTipo(nuevaCuentaForm.tipo),
+      permiteMovimiento: true,
+      nivel: 1,
+    };
+    dispatch({ type: 'ADD_CUENTA', payload: nuevaCuenta });
+    if (cuentaModalTarget?.tipo === 'venta') {
+      setCuentaIngresoId(nuevaCuenta.id);
+    } else if (cuentaModalTarget?.tipo === 'proveedor') {
+      setCuentasPorRut(actual => ({ ...actual, [cuentaModalTarget.claveRut]: nuevaCuenta.id }));
+    }
+    showToast('success', 'Cuenta creada', `${codigo} — ${nombre} ya está disponible para asignar.`);
+    setCuentaModalTarget(null);
+  };
+
   // Auto-sync state
   const [rut, setRut]         = useState(state.configuracion?.rut ?? '');
   const [clave, setClave]     = useState('');
@@ -546,7 +595,7 @@ export default function SincronizacionSII() {
       try {
         await finalizarImportacionSII(importacionId, {
           nuevos: exitosos,
-          duplicados,
+          duplicados: duplicadas,
           errores: errores.length,
           estado: errores.length ? (exitosos ? 'con_errores' : 'fallida') : 'completada',
           detalleErrores: errores.length ? errores.slice(0, 20).join('\n') : undefined,
@@ -912,7 +961,19 @@ export default function SincronizacionSII() {
                   </div>
 
                   {tipoArchivo === 'venta' ? (
-                    <SearchSelect label="Cuenta contable de las ventas" value={cuentaIngresoId} onChange={setCuentaIngresoId} options={opcionesVenta} placeholder="Buscar cuenta de ingreso..." />
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <SearchSelect label="Cuenta contable de las ventas" value={cuentaIngresoId} onChange={setCuentaIngresoId} options={opcionesVenta} placeholder="Buscar cuenta de ingreso..." />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => abrirCrearCuenta({ tipo: 'venta' })}
+                        title="Crear cuenta contable nueva"
+                        className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg border border-gray-300 text-gray-500 hover:text-primary hover:border-primary transition-colors"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
                   ) : proveedores.length > 0 ? (
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-gray-700">{tipoArchivo === 'honorario' ? 'Cuenta de gasto de honorarios por prestador' : 'Cuenta de gasto, activo o pasivo por proveedor'}</p>
@@ -920,7 +981,19 @@ export default function SincronizacionSII() {
                         {proveedores.map(proveedor => (
                           <div key={proveedor.claveRut} className="rounded-lg border border-gray-200 p-2">
                             <p className="mb-1.5 truncate text-xs font-medium text-gray-700">{formatRUT(proveedor.rut)} · {proveedor.razonSocial}</p>
-                            <SearchSelect value={cuentasPorRut[proveedor.claveRut] || ''} onChange={cuentaId => setCuentasPorRut(actual => ({ ...actual, [proveedor.claveRut]: cuentaId }))} options={tipoArchivo === 'honorario' ? opcionesHonorario : opcionesCompra} placeholder="Asignar cuenta contable..." />
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1">
+                                <SearchSelect value={cuentasPorRut[proveedor.claveRut] || ''} onChange={cuentaId => setCuentasPorRut(actual => ({ ...actual, [proveedor.claveRut]: cuentaId }))} options={tipoArchivo === 'honorario' ? opcionesHonorario : opcionesCompra} placeholder="Asignar cuenta contable..." />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => abrirCrearCuenta({ tipo: 'proveedor', claveRut: proveedor.claveRut, rut: proveedor.rut, razonSocial: proveedor.razonSocial })}
+                                title="Crear cuenta contable nueva"
+                                className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg border border-gray-300 text-gray-500 hover:text-primary hover:border-primary transition-colors"
+                              >
+                                <Plus size={16} />
+                              </button>
+                            </div>
                             {cuentasPorRut[proveedor.claveRut] && <p className="mt-1 text-[11px] text-emerald-600">Cuenta recordada o seleccionada para este proveedor</p>}
                           </div>
                         ))}
@@ -983,6 +1056,60 @@ export default function SincronizacionSII() {
           </div>
         </div>
       )}
+
+      <Modal
+        isOpen={cuentaModalTarget !== null}
+        onClose={() => setCuentaModalTarget(null)}
+        title="Crear cuenta contable"
+        size="sm"
+        closeOnBackdrop={false}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setCuentaModalTarget(null)}>Cancelar</Button>
+            <Button onClick={confirmarCrearCuenta}>Crear y asignar</Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          {cuentaModalTarget?.tipo === 'proveedor' && (
+            <p className="text-xs text-gray-500">
+              Para {formatRUT(cuentaModalTarget.rut)} · {cuentaModalTarget.razonSocial}
+            </p>
+          )}
+          <Input
+            label="Código"
+            value={nuevaCuentaForm.codigo}
+            onChange={(e) => setNuevaCuentaForm(f => ({ ...f, codigo: e.target.value }))}
+            placeholder="Ej: 5-03-004-0012"
+            autoFocus
+          />
+          <Input
+            label="Nombre"
+            value={nuevaCuentaForm.nombre}
+            onChange={(e) => setNuevaCuentaForm(f => ({ ...f, nombre: e.target.value }))}
+            placeholder="Ej: Arriendo de bodega"
+          />
+          <Select
+            label="Tipo de cuenta"
+            value={nuevaCuentaForm.tipo}
+            onChange={(e) => setNuevaCuentaForm(f => ({ ...f, tipo: e.target.value as TipoCuenta }))}
+            options={
+              cuentaModalTarget?.tipo === 'venta'
+                ? [{ value: 'ingreso', label: 'Ingreso' }]
+                : cuentaModalTarget?.tipo === 'proveedor' && tipoArchivo === 'honorario'
+                ? [{ value: 'gasto', label: 'Gasto' }]
+                : [
+                    { value: 'gasto', label: 'Gasto' },
+                    { value: 'activo', label: 'Activo' },
+                    { value: 'pasivo', label: 'Pasivo' },
+                  ]
+            }
+          />
+          <p className="text-[11px] text-gray-400">
+            La cuenta queda disponible de inmediato para asignarla aquí — no hace falta salir de esta pantalla.
+          </p>
+        </div>
+      </Modal>
 
     </div>
   );

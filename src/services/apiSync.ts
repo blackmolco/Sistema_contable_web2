@@ -524,6 +524,7 @@ export interface IngresoDocumentoPayload {
   montoBruto?: number;
   retencion?: number;
   montoLiquido?: number;
+  importacionId?: string;
 }
 
 export interface IngresoDocumentoResultado {
