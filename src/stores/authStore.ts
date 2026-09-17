@@ -20,7 +20,7 @@ export interface User {
   nombre: string;
   email: string;
   rut: string;
-  rol: 'admin' | 'contador' | 'supervisor' | 'viewer';
+  rol: 'admin' | 'administrador' | 'supervisor' | 'contador' | 'usuario';
   empresaId: string;
   avatar?: string;
 }

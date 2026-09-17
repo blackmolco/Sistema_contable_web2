@@ -14,6 +14,20 @@ const CODIGOS = {
     retencionHonorarios: '2-01-002-0005',
 };
 
+// Centralización de remuneraciones — ver lineasParaRemuneraciones() abajo.
+const CODIGOS_REMUNERACIONES = {
+    remuneracionesGasto: '5-02-001-0001',       // Remuneraciones del Personal
+    cotizacionesGasto: '5-02-002-0001',         // Cotizaciones Previsionales Empleador (aportes patronales)
+    remuneracionesPorPagar: '2-01-003-0001',    // líquido a pagar a los trabajadores
+    imposicionesPorPagar: '2-01-003-0002',      // AFP (trabajador)
+    saludPorPagar: '2-01-003-0003',             // Fonasa/Isapre (trabajador)
+    cesantiaPorPagar: '2-01-003-0004',          // AFC, trabajador + empleador
+    impuestoUnicoPorPagar: '2-01-003-0007',
+    mutualPorPagar: '2-01-003-0008',
+    reformaPrevisionalPorPagar: '2-01-003-0009', // SIS + cotización adicional Ley 21.735
+    deudoresVarios: '1-02-001-0003',            // reverso de anticipos/préstamos al personal descontados este mes
+};
+
 async function buscarCuenta(tx, empresaId, codigo) {
     return tx.cuenta.findFirst({ where: { codigo, empresaId, activo: true } });
 }
@@ -142,4 +156,54 @@ async function crearAsiento(tx, { empresaId, fecha, glosa, tipo, detalles, usuar
     });
 }
 
-module.exports = { CODIGOS, lineasParaDocumento, lineasParaHonorario, crearAsiento };
+/**
+ * Arma las líneas del asiento de centralización de remuneraciones de un
+ * período: suma los conceptos de un conjunto de liquidaciones ya calculadas
+ * (una fila por concepto agregado, no una línea por trabajador — igual que
+ * hace el sistema de remuneraciones dedicado en su propia centralización).
+ * `liquidaciones` son filas de LiquidacionSueldo ya calculadas por
+ * motorRemuneraciones.calcularLiquidacion().
+ */
+async function lineasParaRemuneraciones(tx, empresaId, liquidaciones) {
+    const totales = liquidaciones.reduce((t, l) => ({
+        totalHaberes: t.totalHaberes + l.totalImponible + l.colacion + l.movilizacion + l.asignacionFamiliar,
+        aportesPatronales: t.aportesPatronales + l.aporteSis + l.aporteReformaPrevisional + l.aporteMutual + l.aporteAfcEmpresa,
+        afp: t.afp + l.descuentoAFP,
+        salud: t.salud + l.descuentoSalud,
+        cesantia: t.cesantia + l.descuentoAFC + l.aporteAfcEmpresa,
+        impuesto: t.impuesto + l.descuentoImpuesto,
+        mutual: t.mutual + l.aporteMutual,
+        reforma: t.reforma + l.aporteSis + l.aporteReformaPrevisional,
+        deudoresVarios: t.deudoresVarios + l.anticipos + l.prestamos + l.otrosDescuentos,
+        liquido: t.liquido + l.sueldoLiquido,
+    }), { totalHaberes: 0, aportesPatronales: 0, afp: 0, salud: 0, cesantia: 0, impuesto: 0, mutual: 0, reforma: 0, deudoresVarios: 0, liquido: 0 });
+
+    const codigosUsados = Object.entries(CODIGOS_REMUNERACIONES);
+    const cuentasPorCodigo = {};
+    await Promise.all(codigosUsados.map(async ([clave, codigo]) => {
+        cuentasPorCodigo[clave] = await buscarCuenta(tx, empresaId, codigo);
+    }));
+
+    const detalles = [];
+    const agregar = (clave, monto, lado) => {
+        if (monto <= 0) return;
+        const cuenta = cuentasPorCodigo[clave];
+        if (!cuenta) throw new Error(`Falta la cuenta ${CODIGOS_REMUNERACIONES[clave]} en el plan de cuentas`);
+        detalles.push({ ...base(cuenta), [lado]: Math.round(monto) });
+    };
+
+    agregar('remuneracionesGasto', totales.totalHaberes, 'debe');
+    agregar('cotizacionesGasto', totales.aportesPatronales, 'debe');
+    agregar('imposicionesPorPagar', totales.afp, 'haber');
+    agregar('saludPorPagar', totales.salud, 'haber');
+    agregar('cesantiaPorPagar', totales.cesantia, 'haber');
+    agregar('impuestoUnicoPorPagar', totales.impuesto, 'haber');
+    agregar('mutualPorPagar', totales.mutual, 'haber');
+    agregar('reformaPrevisionalPorPagar', totales.reforma, 'haber');
+    agregar('deudoresVarios', totales.deudoresVarios, 'haber');
+    agregar('remuneracionesPorPagar', totales.liquido, 'haber');
+
+    return detalles;
+}
+
+module.exports = { CODIGOS, CODIGOS_REMUNERACIONES, lineasParaDocumento, lineasParaHonorario, lineasParaRemuneraciones, crearAsiento };

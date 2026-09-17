@@ -27,15 +27,20 @@ interface Usuario {
 }
 
 const ROL_LABELS: Record<string, { label: string; color: string }> = {
-  admin:    { label: 'Admin',    color: 'bg-purple-100 text-purple-700' },
-  contador: { label: 'Contador', color: 'bg-blue-100 text-blue-700' },
-  usuario:  { label: 'Usuario',  color: 'bg-gray-100 text-gray-600' },
+  admin:      { label: 'Admin',      color: 'bg-purple-100 text-purple-700' },
+  supervisor: { label: 'Supervisor', color: 'bg-amber-100 text-amber-700' },
+  contador:   { label: 'Contador',   color: 'bg-blue-100 text-blue-700' },
+  usuario:    { label: 'Usuario',    color: 'bg-gray-100 text-gray-600' },
 };
 
 const initialForm = { nombre: '', email: '', password: '', rol: 'usuario', empresaId: '' };
 
 export default function GestionUsuarios() {
   const currentUserId = useAuthStore(s => s.user?.id);
+  const rolPropio = useAuthStore(s => s.user?.rol);
+  const empresaIdPropia = useAuthStore(s => s.user?.empresaId);
+  const esAdminGlobal = rolPropio === 'admin' || rolPropio === 'administrador';
+  const esSupervisor = rolPropio === 'supervisor';
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(false);
@@ -196,7 +201,17 @@ export default function GestionUsuarios() {
           <Button variant="secondary" icon={<RefreshCw size={16} />} onClick={cargarUsuarios} disabled={loading}>
             Actualizar
           </Button>
-          <Button icon={<UserPlus size={16} />} onClick={() => { setShowForm(!showForm); setFormError(null); setFormSuccess(false); }}>
+          <Button
+            icon={<UserPlus size={16} />}
+            onClick={() => {
+              // Un supervisor solo crea usuarios para su propia empresa —
+              // se la precargamos ya que no tiene otra para elegir.
+              if (!showForm && esSupervisor) setForm(f => ({ ...f, empresaId: empresaIdPropia ?? '' }));
+              setShowForm(!showForm);
+              setFormError(null);
+              setFormSuccess(false);
+            }}
+          >
             Nuevo Usuario
           </Button>
         </div>
@@ -236,7 +251,8 @@ export default function GestionUsuarios() {
                 >
                   <option value="usuario">Usuario</option>
                   <option value="contador">Contador</option>
-                  <option value="admin">Administrador</option>
+                  {esAdminGlobal && <option value="supervisor">Supervisor (admin de su empresa)</option>}
+                  {esAdminGlobal && <option value="admin">Administrador</option>}
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
@@ -245,6 +261,10 @@ export default function GestionUsuarios() {
               {form.rol === 'admin' ? (
                 <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                   Los administradores ven todas las empresas — no se asigna una en particular.
+                </p>
+              ) : esSupervisor ? (
+                <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                  Se crea para tu misma empresa.
                 </p>
               ) : (
                 <div>
@@ -334,13 +354,17 @@ export default function GestionUsuarios() {
                   const { label, color } = rolInfo(u.rol);
                   const editando = editandoId === u.id;
                   const esUnoMismo = u.id === currentUserId;
+                  // Un supervisor no puede tocar una fila que ya es admin o
+                  // supervisor (ni la propia, por esUnoMismo) — se le ocultan
+                  // los botones de acción para que no choque con un 403.
+                  const puedeActuar = esAdminGlobal || (esSupervisor && (u.rol === 'contador' || u.rol === 'usuario'));
                   return (
                     <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 font-medium text-gray-900">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            {u.rol === 'admin'
-                              ? <Shield size={14} className="text-purple-600" />
+                            {u.rol === 'admin' || u.rol === 'supervisor'
+                              ? <Shield size={14} className={u.rol === 'admin' ? 'text-purple-600' : 'text-amber-600'} />
                               : <User size={14} className="text-blue-600" />}
                           </div>
                           {u.nombre}
@@ -358,7 +382,8 @@ export default function GestionUsuarios() {
                           >
                             <option value="usuario">Usuario</option>
                             <option value="contador">Contador</option>
-                            <option value="admin">Administrador</option>
+                            {esAdminGlobal && <option value="supervisor">Supervisor</option>}
+                            {esAdminGlobal && <option value="admin">Administrador</option>}
                           </select>
                         ) : (
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${color}`}>
@@ -419,7 +444,7 @@ export default function GestionUsuarios() {
                               <X size={15} />
                             </button>
                           </div>
-                        ) : (
+                        ) : puedeActuar ? (
                           <div className="flex items-center justify-end gap-1">
                             <button
                               type="button"
@@ -438,6 +463,8 @@ export default function GestionUsuarios() {
                               <Pencil size={15} />
                             </button>
                           </div>
+                        ) : (
+                          <span className="text-gray-300">—</span>
                         )}
                       </td>
                     </tr>

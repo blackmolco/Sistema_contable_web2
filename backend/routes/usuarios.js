@@ -8,7 +8,7 @@ const { sendEmail } = require('../email');
 const router = Router();
 
 const actualizarUsuarioSchema = z.object({
-    rol: z.enum(['admin', 'contador', 'usuario']).optional(),
+    rol: z.enum(['admin', 'supervisor', 'contador', 'usuario']).optional(),
     empresaId: z.string().min(1).nullable().optional(),
 });
 
@@ -16,7 +16,32 @@ const cambiarPasswordAdminSchema = z.object({
     password: z.string().min(8, 'La contrasena debe tener al menos 8 caracteres'),
 });
 
-const ROL_LABEL = { admin: 'Administrador', administrador: 'Administrador', contador: 'Contador', usuario: 'Usuario' };
+const ROL_LABEL = { admin: 'Administrador', administrador: 'Administrador', supervisor: 'Supervisor', contador: 'Contador', usuario: 'Usuario' };
+
+// Admin global (ve todas las empresas) vs Supervisor (admin de SU empresa,
+// ver nota en gestionarUsuarios abajo).
+function esAdminGlobal(rol) {
+    return rol === 'admin' || rol === 'administrador';
+}
+
+// Un supervisor administra usuarios, pero solo los de su propia empresa, y
+// nunca puede crear/ascender a alguien a admin o supervisor (evitaria que
+// se autoescale a superadmin o cree otro supervisor a su antojo). Esas dos
+// reglas se aplican en cada endpoint de abajo, no solo en el gate de entrada.
+function puedeGestionarUsuarios(rol) {
+    return esAdminGlobal(rol) || rol === 'supervisor';
+}
+
+// Un supervisor solo puede tocar usuarios de SU MISMA empresa, y nunca uno
+// que ya sea admin o supervisor (evita que se ataque entre supervisores o
+// se le quite el acceso a un admin global). Devuelve el mensaje de error si
+// la operación no está permitida, o null si puede seguir.
+function errorSiSupervisorNoPuede(req, objetivo) {
+    if (esAdminGlobal(req.usuario.rol)) return null; // admin global no tiene restricciones
+    if (objetivo.empresaId !== req.usuario.empresaId) return 'No tiene acceso a ese usuario';
+    if (objetivo.rol !== 'contador' && objetivo.rol !== 'usuario') return 'No puede modificar una cuenta de administrador o supervisor';
+    return null;
+}
 
 async function notificarUsuario(usuario, asunto, mensaje) {
     const resultado = await sendEmail({
@@ -30,13 +55,16 @@ async function notificarUsuario(usuario, asunto, mensaje) {
     return resultado;
 }
 
-// Solo admins pueden listar y gestionar usuarios
+// Admin global ve todos los usuarios; supervisor solo los de su propia
+// empresa (nunca los de otros clientes ni los de otras empresas).
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        if (req.usuario.rol !== 'admin' && req.usuario.rol !== 'administrador') {
-            return res.status(403).json({ error: 'Solo administradores pueden ver los usuarios' });
+        if (!puedeGestionarUsuarios(req.usuario.rol)) {
+            return res.status(403).json({ error: 'No tiene permiso para ver los usuarios' });
         }
+        const where = esAdminGlobal(req.usuario.rol) ? {} : { empresaId: req.usuario.empresaId };
         const usuarios = await prisma.usuario.findMany({
+            where,
             select: {
                 id: true,
                 nombre: true,
@@ -59,12 +87,16 @@ router.get('/', authenticateToken, async (req, res) => {
 // Activar / desactivar usuario
 router.patch('/:id/activo', authenticateToken, async (req, res) => {
     try {
-        if (req.usuario.rol !== 'admin' && req.usuario.rol !== 'administrador') {
-            return res.status(403).json({ error: 'Solo administradores pueden modificar usuarios' });
+        if (!puedeGestionarUsuarios(req.usuario.rol)) {
+            return res.status(403).json({ error: 'No tiene permiso para modificar usuarios' });
         }
         if (req.params.id === req.usuario.id) {
             return res.status(400).json({ error: 'No puedes desactivarte a ti mismo' });
         }
+        const objetivo = await prisma.usuario.findUnique({ where: { id: req.params.id }, select: { empresaId: true, rol: true } });
+        if (!objetivo) return res.status(404).json({ error: 'Usuario no encontrado' });
+        const errorSupervisor = errorSiSupervisorNoPuede(req, objetivo);
+        if (errorSupervisor) return res.status(403).json({ error: errorSupervisor });
         const { activo } = req.body;
         const usuario = await prisma.usuario.update({
             where: { id: req.params.id },
@@ -81,8 +113,8 @@ router.patch('/:id/activo', authenticateToken, async (req, res) => {
 // Cambiar rol y/o empresa asignada de un usuario existente
 router.patch('/:id', authenticateToken, async (req, res) => {
     try {
-        if (req.usuario.rol !== 'admin' && req.usuario.rol !== 'administrador') {
-            return res.status(403).json({ error: 'Solo administradores pueden modificar usuarios' });
+        if (!puedeGestionarUsuarios(req.usuario.rol)) {
+            return res.status(403).json({ error: 'No tiene permiso para modificar usuarios' });
         }
         const datos = actualizarUsuarioSchema.parse(req.body);
         if (datos.rol === undefined && datos.empresaId === undefined) {
@@ -94,6 +126,21 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 
         if (req.params.id === req.usuario.id && datos.rol && datos.rol !== 'admin') {
             return res.status(400).json({ error: 'No puedes quitarte tu propio rol de administrador' });
+        }
+
+        const errorSupervisor = errorSiSupervisorNoPuede(req, objetivo);
+        if (errorSupervisor) return res.status(403).json({ error: errorSupervisor });
+        if (!esAdminGlobal(req.usuario.rol)) {
+            // Un supervisor no puede ascender a nadie a admin/supervisor (se
+            // autoescalaría o crearía otro supervisor a su antojo) ni mover
+            // al usuario a otra empresa — solo alternar contador <-> usuario
+            // dentro de su propia empresa.
+            if (datos.rol && datos.rol !== 'contador' && datos.rol !== 'usuario') {
+                return res.status(403).json({ error: 'No puede asignar ese rol' });
+            }
+            if (datos.empresaId !== undefined && datos.empresaId !== req.usuario.empresaId) {
+                return res.status(403).json({ error: 'No puede asignar usuarios a otra empresa' });
+            }
         }
 
         if (datos.empresaId) {
@@ -133,13 +180,15 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 // Cambiar la contraseña de un usuario (solo administradores)
 router.patch('/:id/password', authenticateToken, async (req, res) => {
     try {
-        if (req.usuario.rol !== 'admin' && req.usuario.rol !== 'administrador') {
-            return res.status(403).json({ error: 'Solo administradores pueden cambiar contraseñas' });
+        if (!puedeGestionarUsuarios(req.usuario.rol)) {
+            return res.status(403).json({ error: 'No tiene permiso para cambiar contraseñas' });
         }
         const { password } = cambiarPasswordAdminSchema.parse(req.body);
 
         const objetivo = await prisma.usuario.findUnique({ where: { id: req.params.id } });
         if (!objetivo) return res.status(404).json({ error: 'Usuario no encontrado' });
+        const errorSupervisor = errorSiSupervisorNoPuede(req, objetivo);
+        if (errorSupervisor) return res.status(403).json({ error: errorSupervisor });
 
         const passwordHash = await bcrypt.hash(password, 10);
         await prisma.usuario.update({ where: { id: objetivo.id }, data: { passwordHash } });

@@ -6,6 +6,8 @@ const { parsePagination, paginatedResponse } = require('../middlewares/paginatio
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
 const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
+const { calcularLiquidacion } = require('../services/motorRemuneraciones');
+const { lineasParaRemuneraciones, crearAsiento } = require('../services/generarAsiento');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -29,34 +31,41 @@ const trabajadorSchema = z.object({
     movilizacion: z.number().min(0).default(0),
     bonificacion: z.number().min(0).default(0),
     afp: z.string().min(2),
+    // Tasa de cotización AFP como fracción (0.1144 = 11.44%), no porcentaje.
+    tasaAfp: z.number().min(0).max(0.3).default(0.10),
     isapre: z.string().optional().nullable(),
-    saludPactado: z.number().min(0).max(10).default(7),
+    // Fonasa (isapre null): se ignora, siempre 7%. Isapre: plan pactado en UF.
+    saludPactado: z.number().min(0).default(0),
     afc: z.number().min(0).default(0),
     cargasFamiliares: z.number().int().min(0).default(0),
+    tramoAsignacionFamiliar: z.enum(['A', 'B', 'C', 'D']).default('D'),
+    cargasSimples: z.number().int().min(0).default(0),
+    cargasMaternales: z.number().int().min(0).default(0),
+    cargasInvalidez: z.number().int().min(0).default(0),
+    tipoTrabajadorPrevired: z.enum(['0', '1', '2', '3', '8']).default('0'),
     cargo: z.string().max(100).optional().nullable(),
     departamento: z.string().max(100).optional().nullable(),
     estado: z.enum(['activo', 'suspendido', 'desvinculado']).default('activo'),
     empresaId: z.string().uuid().optional().nullable(),
 });
 
-const liquidacionSchema = z.object({
+// Datos de ENTRADA de un período — lo único que cambia mes a mes; todo lo
+// previsional/permanente vive en el propio Trabajador (arriba).
+const calcularLiquidacionSchema = z.object({
     trabajadorId: z.string().uuid(),
     periodo: z.string().regex(/^\d{4}-\d{2}$/),
-    sueldoBase: z.number().positive(),
+    diasTrabajados: z.number().min(0).max(31).default(30),
+    sueldoBase: z.number().positive().optional(), // si no viene, se usa el del contrato
     bonos: z.number().min(0).default(0),
-    horasExtras: z.number().min(0).default(0),
-    montoHorasExtras: z.number().min(0).default(0),
-    gratificacion: z.number().min(0).default(0),
-    descuentoAFP: z.number().min(0),
-    descuentoSalud: z.number().min(0),
-    descuentoAFC: z.number().min(0).default(0),
-    descuentoImpuesto: z.number().min(0),
-    otrosDescuentos: z.number().min(0).default(0),
-    asignacionFamiliar: z.number().min(0).default(0),
-    estado: z.enum(['calculada', 'pagada', 'anulada']).default('calculada'),
-    fechaPago: z.string().date().optional().nullable(),
-    ufValor: z.number().optional().nullable(),
-    utmValor: z.number().optional().nullable(),
+    aguinaldo: z.number().min(0).default(0),
+    horasExtra: z.number().min(0).default(0),
+    horasSemanales: z.number().min(1).max(45).optional(),
+    colacion: z.number().min(0).optional(),
+    movilizacion: z.number().min(0).optional(),
+    viaticos: z.number().min(0).default(0),
+    anticipos: z.number().min(0).default(0),
+    prestamos: z.number().min(0).default(0),
+    empresaId: z.string().min(1).optional().nullable(),
 });
 
 // === TRABAJADORES ===
@@ -168,29 +177,85 @@ router.get('/liquidaciones', authenticateToken, async (req, res) => {
     }
 });
 
-router.post('/liquidaciones', authenticateToken, writeLimiter, validate(liquidacionSchema), async (req, res) => {
+// Calcula una liquidación con el motor legal real (antes este endpoint solo
+// guardaba montos que el cliente ya mandaba calculados — no habia ninguna
+// validacion de que fueran correctos). Se puede recalcular mientras siga
+// 'calculada' (no 'pagada' ni ya centralizada); una vez centralizada
+// (asientoId seteado) hay que descentralizar primero para tocarla.
+router.post('/liquidaciones/calcular', authenticateToken, writeLimiter, validate(calcularLiquidacionSchema), async (req, res) => {
     try {
-        const trabajador = await prisma.trabajador.findUnique({ where: { id: req.body.trabajadorId }, select: { empresaId: true } });
+        const trabajador = await prisma.trabajador.findUnique({ where: { id: req.body.trabajadorId } });
         if (!trabajador) return res.status(404).json({ error: 'Trabajador no encontrado' });
-        if (!exigirAccesoEmpresa(req, res, trabajador.empresaId)) return;
-        const totalImponible = req.body.sueldoBase + req.body.bonos + req.body.montoHorasExtras + req.body.gratificacion;
-        const totalDescuentos = req.body.descuentoAFP + req.body.descuentoSalud + req.body.descuentoAFC + req.body.descuentoImpuesto + req.body.otrosDescuentos;
-        const sueldoLiquido = totalImponible - totalDescuentos + req.body.asignacionFamiliar;
-        const liquidacion = await prisma.liquidacionSueldo.create({
-            data: {
-                ...req.body,
-                totalImponible,
-                totalDescuentos,
-                sueldoLiquido,
-                fechaPago: req.body.fechaPago ? new Date(req.body.fechaPago) : null,
-            },
+        if (!exigirAccesoEmpresa(req, res, req.body.empresaId ?? trabajador.empresaId)) return;
+
+        const existente = await prisma.liquidacionSueldo.findUnique({
+            where: { trabajadorId_periodo: { trabajadorId: req.body.trabajadorId, periodo: req.body.periodo } },
+        });
+        if (existente?.asientoId) {
+            return res.status(409).json({ error: 'Esta liquidación ya fue centralizada — no se puede recalcular sin descentralizarla primero.' });
+        }
+
+        const indices = await prisma.indicePrevisional.findUnique({ where: { periodo: req.body.periodo } });
+        if (!indices) {
+            return res.status(400).json({ error: `No hay índices previsionales cargados para ${req.body.periodo}. Cárgalos primero.` });
+        }
+
+        const resultado = calcularLiquidacion(trabajador, req.body, indices, req.body.periodo);
+        const liquidacion = await prisma.liquidacionSueldo.upsert({
+            where: { trabajadorId_periodo: { trabajadorId: req.body.trabajadorId, periodo: req.body.periodo } },
+            create: { trabajadorId: req.body.trabajadorId, periodo: req.body.periodo, ...resultado },
+            update: resultado,
             include: { trabajador: true },
         });
-        await auditLog(req.usuario.id, 'CREAR', 'LiquidacionSueldo', liquidacion.id, { periodo: liquidacion.periodo, sueldoLiquido }, req.ip, req.headers['user-agent']);
+        await auditLog(req.usuario.id, 'CREAR', 'LiquidacionSueldo', liquidacion.id, { periodo: liquidacion.periodo, sueldoLiquido: liquidacion.sueldoLiquido }, req.ip, req.headers['user-agent']);
         res.status(201).json(liquidacion);
     } catch (err) {
-        logger.error({ err }, 'Error creando liquidacion');
-        res.status(500).json({ error: 'Error al crear liquidacion' });
+        if (err.status) return res.status(err.status).json({ error: err.message });
+        logger.error({ err }, 'Error calculando liquidacion');
+        res.status(500).json({ error: 'Error al calcular la liquidación' });
+    }
+});
+
+// Centraliza TODAS las liquidaciones no centralizadas de una empresa/período
+// en un solo asiento contable — atómico: todo o nada, con numeración segura
+// (ver services/generarAsiento.js).
+router.post('/liquidaciones/centralizar', authenticateToken, writeLimiter, async (req, res) => {
+    try {
+        const { empresaId, periodo } = req.body || {};
+        if (!empresaId || !periodo) return res.status(400).json({ error: "Faltan 'empresaId' y 'periodo'" });
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
+
+        const resultado = await prisma.$transaction(async (tx) => {
+            const liquidaciones = await tx.liquidacionSueldo.findMany({
+                where: { periodo, asientoId: null, trabajador: { empresaId } },
+            });
+            if (liquidaciones.length === 0) {
+                const err = new Error('No hay liquidaciones pendientes de centralizar para ese período.');
+                err.status = 404;
+                throw err;
+            }
+            const detalles = await lineasParaRemuneraciones(tx, empresaId, liquidaciones);
+            const asiento = await crearAsiento(tx, {
+                empresaId,
+                fecha: `${periodo}-01`,
+                glosa: `Centralización Remuneraciones ${periodo}`,
+                tipo: 'traspaso',
+                detalles,
+                usuarioId: req.usuario.id,
+            });
+            await tx.liquidacionSueldo.updateMany({
+                where: { id: { in: liquidaciones.map(l => l.id) } },
+                data: { asientoId: asiento.id, estado: 'pagada' },
+            });
+            return asiento;
+        });
+
+        await auditLog(req.usuario.id, 'CREAR', 'AsientoContable', resultado.id, { origen: 'centralizacion_remuneraciones', periodo }, req.ip, req.headers['user-agent']);
+        res.status(201).json(resultado);
+    } catch (err) {
+        if (err.status) return res.status(err.status).json({ error: err.message });
+        logger.error({ err }, 'Error centralizando remuneraciones');
+        res.status(500).json({ error: err.message || 'Error al centralizar remuneraciones' });
     }
 });
 

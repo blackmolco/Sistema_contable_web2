@@ -706,6 +706,40 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     permiteMovimiento: true
   },
   {
+    id: "2-01-003-0007",
+    codigo: "2-01-003-0007",
+    nombre: "Impuesto Único por Pagar",
+    tipo: "pasivo",
+    naturaleza: "acreedora",
+    nivel: 3,
+    padreId: "2-01-003",
+    permiteMovimiento: true,
+    refSII: "F29",
+    descripcion: "Retención 2ª categoría trabajadores dependientes"
+  },
+  {
+    id: "2-01-003-0008",
+    codigo: "2-01-003-0008",
+    nombre: "Mutual de Seguridad por Pagar",
+    tipo: "pasivo",
+    naturaleza: "acreedora",
+    nivel: 3,
+    padreId: "2-01-003",
+    permiteMovimiento: true,
+    descripcion: "Ley 16.744"
+  },
+  {
+    id: "2-01-003-0009",
+    codigo: "2-01-003-0009",
+    nombre: "Cotización Adicional Reforma Previsional por Pagar",
+    tipo: "pasivo",
+    naturaleza: "acreedora",
+    nivel: 3,
+    padreId: "2-01-003",
+    permiteMovimiento: true,
+    descripcion: "Ley 21.735 — SIS y cotización adicional del empleador"
+  },
+  {
     id: "2-01-004-0001",
     codigo: "2-01-004-0001",
     nombre: "Préstamos Bancarios Corto Plazo",

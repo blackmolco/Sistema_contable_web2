@@ -11,6 +11,7 @@ import { fetchEmpresas } from '../services/apiSync';
 const ROL_LABEL: Record<string, string> = {
   admin: 'Administrador',
   administrador: 'Administrador',
+  supervisor: 'Supervisor',
   contador: 'Contador',
   usuario: 'Usuario',
 };

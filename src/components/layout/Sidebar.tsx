@@ -32,6 +32,7 @@ import {
   ClipboardCheck,
   ArchiveRestore,
   Scale,
+  History,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme, PRESETS, CATEGORY_COLORS } from '../../context/ThemeContext';
@@ -81,8 +82,12 @@ const menuCategories = [
       { path: '/cuenta-corriente', icon: Wallet, label: 'Cuenta Corriente' },
     ]
   },
-  // Remuneraciones: oculto del menú — se está migrando a un sistema dedicado aparte.
-  // Las rutas y páginas siguen existiendo, solo no aparecen en esta navegación.
+  {
+    title: 'Remuneraciones',
+    items: [
+      { path: '/remuneraciones', icon: Wallet, label: 'Liquidaciones' },
+    ]
+  },
   {
     title: 'Activos',
     items: [
@@ -97,6 +102,7 @@ const menuCategories = [
       { path: '/backup',              icon: Download,      label: 'Backup' },
       { path: '/papelera',            icon: ArchiveRestore, label: 'Papelera y Anulados' },
       { path: '/control-integridad',  icon: ShieldCheck,   label: 'Control de Integridad' },
+      { path: '/auditoria',           icon: History,       label: 'Log de Auditoría' },
       { path: '/usuarios',             icon: UserCog,       label: 'Usuarios' },
     ]
   }
@@ -125,17 +131,22 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
   const isLight = (PRESETS[theme.preset] ?? PRESETS.tinta).chrome === 'light';
   const rol = useAuthStore(s => s.user?.rol);
   const esAdmin = rol === 'admin' || rol === 'administrador';
+  // Supervisor: "administrador" de su propia empresa — ve Usuarios y
+  // Auditoría igual que un admin, pero acotado a su empresa (lo aplica el
+  // backend; aquí solo se decide si el ítem del menú aparece).
+  const esAdminOSupervisor = esAdmin || rol === 'supervisor';
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
   };
 
-  // "Usuarios" solo lo administra quien ve todas las empresas — los demás
-  // roles ni siquiera saben que la sección existe.
-  const categoriasVisibles = esAdmin
+  // "Usuarios" y "Log de Auditoría" solo los ve quien administra (admin
+  // global o supervisor de su empresa) — el resto de roles ni sabe que
+  // existen.
+  const categoriasVisibles = esAdminOSupervisor
     ? menuCategories
-    : menuCategories.map(c => ({ ...c, items: c.items.filter(i => i.path !== '/usuarios') }));
+    : menuCategories.map(c => ({ ...c, items: c.items.filter(i => i.path !== '/usuarios' && i.path !== '/auditoria') }));
 
   // ── Categorías colapsables (persistidas) ───────────────────────────────
   const [openCategories, setOpenCategories] = React.useState<Record<string, boolean>>(() =>

@@ -20,7 +20,7 @@ const authRegisterSchema = z.object({
     email: z.string().email('Email invalido'),
     password: z.string().min(8, 'La contrasena debe tener al menos 8 caracteres'),
     rut: z.string().optional().nullable(),
-    rol: z.enum(['admin', 'usuario', 'contador']).default('usuario'),
+    rol: z.enum(['admin', 'supervisor', 'usuario', 'contador']).default('usuario'),
     empresaId: z.string().optional().nullable(),
 });
 
@@ -58,13 +58,24 @@ const authLimiter = rateLimit({
  *       401:
  *         description: Credenciales inválidas
  */
-// Solo admins pueden crear usuarios
+// Admin global crea cualquier usuario en cualquier empresa. Supervisor
+// (admin de SU empresa) tambien puede crear, pero acotado: nunca otro
+// admin/supervisor, y siempre dentro de su propia empresa — se ignora
+// cualquier rol/empresaId distinto que intente mandar en el body.
 router.post('/register', authenticateToken, async (req, res) => {
     try {
-        if (req.usuario.rol !== 'admin' && req.usuario.rol !== 'administrador') {
-            return res.status(403).json({ error: 'Solo administradores pueden crear usuarios' });
+        const esAdminGlobal = req.usuario.rol === 'admin' || req.usuario.rol === 'administrador';
+        const esSupervisor = req.usuario.rol === 'supervisor';
+        if (!esAdminGlobal && !esSupervisor) {
+            return res.status(403).json({ error: 'No tiene permiso para crear usuarios' });
         }
         const data = authRegisterSchema.parse(req.body);
+        if (esSupervisor) {
+            if (data.rol !== 'contador' && data.rol !== 'usuario') {
+                return res.status(403).json({ error: 'No puede asignar ese rol' });
+            }
+            data.empresaId = req.usuario.empresaId;
+        }
         const existe = await prisma.usuario.findUnique({ where: { email: data.email } });
         if (existe) {
             return res.status(409).json({ error: 'Ya existe un usuario con ese email' });
@@ -84,7 +95,7 @@ router.post('/register', authenticateToken, async (req, res) => {
         await auditLog(req.usuario.id, 'CREAR', 'Usuario', usuario.id, { email: usuario.email, rol: usuario.rol }, req.ip, req.headers['user-agent']);
         logger.info({ createdBy: req.usuario.id, newUser: usuario.id }, 'Usuario creado');
 
-        const rolTexto = { admin: 'Administrador', contador: 'Contador', usuario: 'Usuario' }[usuario.rol] || usuario.rol;
+        const rolTexto = { admin: 'Administrador', supervisor: 'Supervisor', contador: 'Contador', usuario: 'Usuario' }[usuario.rol] || usuario.rol;
         const empresaTexto = usuario.rol === 'admin' || !usuario.empresaId
             ? (usuario.rol === 'admin' ? 'todas las empresas' : 'sin empresa asignada')
             : (await prisma.empresa.findUnique({ where: { id: usuario.empresaId } }))?.razonSocial || 'sin empresa asignada';

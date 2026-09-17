@@ -20,7 +20,10 @@ router.put('/', authenticateToken, validate(schema), async (req, res) => {
   try {
     const { empresaId, anio, mes, estado, motivo } = req.body;
     if (!exigirAccesoEmpresa(req, res, empresaId)) return;
-    const esAdmin = ['admin', 'administrador'].includes(req.usuario.rol);
+    // exigirAccesoEmpresa ya garantizo arriba que este empresaId es el suyo
+    // (o que es admin global), asi que sumar 'supervisor' aqui solo habilita
+    // cerrar/reabrir los periodos de SU PROPIA empresa, nunca de otra.
+    const esAdmin = ['admin', 'administrador', 'supervisor'].includes(req.usuario.rol);
     if ((estado === 'cerrado' || estado === 'abierto') && !esAdmin) return res.status(403).json({ error: 'Solo un administrador puede cerrar o reabrir períodos' });
     const anterior = await prisma.periodoContable.findUnique({ where: { empresaId_anio_mes: { empresaId, anio, mes } } });
     if (anterior?.estado === 'cerrado' && estado === 'abierto' && (!motivo || motivo.trim().length < 5)) return res.status(400).json({ error: 'La reapertura exige un motivo' });

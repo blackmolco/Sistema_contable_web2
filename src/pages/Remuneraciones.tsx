@@ -1,0 +1,488 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { Wallet, Plus, X, Save, Calculator, Landmark, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { Card } from '../components/ui/Cards';
+import { Button, Input } from '../components/ui/FormElements';
+import { Modal } from '../components/ui/Modal';
+import { formatCurrency } from '../utils/calculos';
+import { useApp } from '../context/AppContext';
+import { useAppStore } from '../stores/appStore';
+import { useAuthStore } from '../stores/authStore';
+import { apiFetch, apiFetchRaw } from '../services/httpClient';
+import { getErrorMessage } from '../services/errorHandler';
+import { AFP_DATA, UF_2026_MAYO_REFERENCIAL, UTM_2026_MAYO, SUELDO_MINIMO, ASIGNACION_FAMILIAR, COTIZACIONES } from '../data/normativa';
+
+interface Trabajador {
+  id: string;
+  rut: string;
+  nombres: string;
+  apellidos: string;
+  cargo: string | null;
+  fechaIngreso: string;
+  tipoContrato: string;
+  sueldoBase: number;
+  colacion: number;
+  movilizacion: number;
+  afp: string;
+  tasaAfp: number;
+  isapre: string | null;
+  saludPactado: number;
+  tramoAsignacionFamiliar: 'A' | 'B' | 'C' | 'D';
+  cargasSimples: number;
+  cargasMaternales: number;
+  cargasInvalidez: number;
+  tipoTrabajadorPrevired: string;
+  estado: string;
+}
+
+interface Indice {
+  periodo: string;
+  valorUf: number;
+  valorUtm: number;
+  sueldoMinimo: number;
+  topeAfpSaludUf: number;
+  topeCesantiaUf: number;
+  tasaSis: number;
+  valorTramoA: number;
+  valorTramoB: number;
+  valorTramoC: number;
+}
+
+interface Liquidacion {
+  id: string;
+  trabajadorId: string;
+  periodo: string;
+  totalHaberes?: number;
+  totalImponible: number;
+  totalDescuentos: number;
+  sueldoLiquido: number;
+  asientoId: string | null;
+}
+
+const periodoActual = () => new Date().toISOString().slice(0, 7);
+
+const initialTrabajadorForm = {
+  rut: '', nombres: '', apellidos: '', cargo: '', fechaIngreso: new Date().toISOString().split('T')[0],
+  tipoContrato: 'indefinido', sueldoBase: '', colacion: 0, movilizacion: 0,
+  afp: AFP_DATA[0]?.nombre || '', tasaAfp: (10 + (AFP_DATA[0]?.comisionFija || 0)) / 100,
+  esFonasa: true, isapre: '', saludPactado: 0,
+  tramoAsignacionFamiliar: 'D' as 'A' | 'B' | 'C' | 'D', cargasSimples: 0, cargasMaternales: 0, cargasInvalidez: 0,
+  tipoTrabajadorPrevired: '0',
+};
+
+const initialIndicesForm = {
+  valorUf: UF_2026_MAYO_REFERENCIAL, valorUtm: UTM_2026_MAYO, sueldoMinimo: SUELDO_MINIMO.GENERAL,
+  topeAfpSaludUf: 90, topeCesantiaUf: 135.2, tasaSis: COTIZACIONES.SIS_EMPLEADOR / 100,
+  valorTramoA: ASIGNACION_FAMILIAR.TRAMO_A.monto, valorTramoB: ASIGNACION_FAMILIAR.TRAMO_B.monto, valorTramoC: ASIGNACION_FAMILIAR.TRAMO_C.monto,
+};
+
+const initialEntradaForm = { diasTrabajados: 30, bonos: 0, aguinaldo: 0, horasExtra: 0, anticipos: 0, prestamos: 0 };
+
+export default function Remuneraciones() {
+  const { showToast } = useApp();
+  const empresaId = useAppStore(s => s.empresaActiva?.id ?? null);
+  const rol = useAuthStore(s => s.user?.rol);
+  const esAdminGlobal = rol === 'admin' || rol === 'administrador';
+
+  const [periodo, setPeriodo] = useState(periodoActual());
+  const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
+  const [liquidaciones, setLiquidaciones] = useState<Record<string, Liquidacion>>({});
+  const [indice, setIndice] = useState<Indice | null | undefined>(undefined); // undefined = cargando
+  const [loading, setLoading] = useState(false);
+
+  const [mostrarFormTrabajador, setMostrarFormTrabajador] = useState(false);
+  const [formTrabajador, setFormTrabajador] = useState(initialTrabajadorForm);
+  const [guardandoTrabajador, setGuardandoTrabajador] = useState(false);
+
+  const [mostrarFormIndices, setMostrarFormIndices] = useState(false);
+  const [formIndices, setFormIndices] = useState(initialIndicesForm);
+  const [guardandoIndices, setGuardandoIndices] = useState(false);
+
+  const [filaAbierta, setFilaAbierta] = useState<string | null>(null);
+  const [entradas, setEntradas] = useState<Record<string, typeof initialEntradaForm>>({});
+  const [calculando, setCalculando] = useState<string | null>(null);
+
+  const [centralizando, setCentralizando] = useState(false);
+
+  const cargarTodo = useCallback(async () => {
+    if (!empresaId) { setTrabajadores([]); return; }
+    setLoading(true);
+    try {
+      const [dataTrab, dataIndice, dataLiq] = await Promise.all([
+        apiFetch<Trabajador[] | { data: Trabajador[] }>(`/api/trabajadores?empresaId=${encodeURIComponent(empresaId)}&estado=activo`),
+        apiFetch<Indice | null>(`/api/indices-previsionales?periodo=${periodo}`),
+        apiFetch<Liquidacion[] | { data: Liquidacion[] }>(`/api/trabajadores/liquidaciones?empresaId=${encodeURIComponent(empresaId)}&periodo=${periodo}`),
+      ]);
+      setTrabajadores(Array.isArray(dataTrab) ? dataTrab : (dataTrab as { data: Trabajador[] }).data ?? []);
+      setIndice(dataIndice ?? null);
+      const liqArray = Array.isArray(dataLiq) ? dataLiq : (dataLiq as { data: Liquidacion[] }).data ?? [];
+      setLiquidaciones(Object.fromEntries(liqArray.map(l => [l.trabajadorId, l])));
+    } catch (err) {
+      showToast('error', 'Error', `No se pudo cargar la información: ${getErrorMessage(err)}`);
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaId, periodo]);
+
+  useEffect(() => { cargarTodo(); }, [cargarTodo]);
+
+  const guardarTrabajador = async () => {
+    if (!formTrabajador.rut || !formTrabajador.nombres || !formTrabajador.apellidos || !formTrabajador.sueldoBase) {
+      showToast('error', 'Datos incompletos', 'RUT, nombres, apellidos y sueldo base son obligatorios.');
+      return;
+    }
+    if (!empresaId) { showToast('error', 'Sin empresa', 'Selecciona una empresa primero.'); return; }
+    setGuardandoTrabajador(true);
+    try {
+      const body = {
+        rut: formTrabajador.rut,
+        nombres: formTrabajador.nombres,
+        apellidos: formTrabajador.apellidos,
+        cargo: formTrabajador.cargo || null,
+        fechaIngreso: formTrabajador.fechaIngreso,
+        tipoContrato: formTrabajador.tipoContrato,
+        sueldoBase: Number(formTrabajador.sueldoBase),
+        colacion: Number(formTrabajador.colacion) || 0,
+        movilizacion: Number(formTrabajador.movilizacion) || 0,
+        afp: formTrabajador.afp,
+        tasaAfp: Number(formTrabajador.tasaAfp),
+        isapre: formTrabajador.esFonasa ? null : (formTrabajador.isapre || null),
+        saludPactado: formTrabajador.esFonasa ? 0 : Number(formTrabajador.saludPactado) || 0,
+        tramoAsignacionFamiliar: formTrabajador.tramoAsignacionFamiliar,
+        cargasSimples: Number(formTrabajador.cargasSimples) || 0,
+        cargasMaternales: Number(formTrabajador.cargasMaternales) || 0,
+        cargasInvalidez: Number(formTrabajador.cargasInvalidez) || 0,
+        tipoTrabajadorPrevired: formTrabajador.tipoTrabajadorPrevired,
+        empresaId,
+      };
+      const res = await apiFetchRaw('/api/trabajadores', { method: 'POST', body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setTrabajadores(t => [...t, data]);
+      setMostrarFormTrabajador(false);
+      setFormTrabajador(initialTrabajadorForm);
+      showToast('success', 'Trabajador agregado', `${data.nombres} ${data.apellidos} quedó registrado.`);
+    } catch (err) {
+      showToast('error', 'Error al guardar', getErrorMessage(err));
+    } finally {
+      setGuardandoTrabajador(false);
+    }
+  };
+
+  const guardarIndices = async () => {
+    setGuardandoIndices(true);
+    try {
+      const res = await apiFetchRaw('/api/indices-previsionales', { method: 'POST', body: JSON.stringify({ periodo, ...formIndices }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setIndice(data);
+      setMostrarFormIndices(false);
+      showToast('success', 'Índices cargados', `Índices previsionales de ${periodo} guardados.`);
+    } catch (err) {
+      showToast('error', 'Error al guardar', getErrorMessage(err));
+    } finally {
+      setGuardandoIndices(false);
+    }
+  };
+
+  const abrirFila = (trabajadorId: string) => {
+    setFilaAbierta(actual => actual === trabajadorId ? null : trabajadorId);
+    setEntradas(e => e[trabajadorId] ? e : { ...e, [trabajadorId]: initialEntradaForm });
+  };
+
+  const calcularLiquidacion = async (trabajadorId: string) => {
+    if (!empresaId || !indice) return;
+    setCalculando(trabajadorId);
+    try {
+      const entrada = entradas[trabajadorId] || initialEntradaForm;
+      const body = { trabajadorId, periodo, empresaId, ...entrada };
+      const res = await apiFetchRaw('/api/trabajadores/liquidaciones/calcular', { method: 'POST', body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setLiquidaciones(l => ({ ...l, [trabajadorId]: data }));
+      showToast('success', 'Liquidación calculada', `Líquido a pagar: ${formatCurrency(data.sueldoLiquido)}`);
+    } catch (err) {
+      showToast('error', 'Error al calcular', getErrorMessage(err));
+    } finally {
+      setCalculando(null);
+    }
+  };
+
+  const centralizar = async () => {
+    if (!empresaId) return;
+    const pendientes = trabajadores.filter(t => liquidaciones[t.id] && !liquidaciones[t.id].asientoId);
+    if (pendientes.length === 0) {
+      showToast('warning', 'Nada que centralizar', 'No hay liquidaciones calculadas y sin centralizar para este período.');
+      return;
+    }
+    setCentralizando(true);
+    try {
+      const res = await apiFetchRaw('/api/trabajadores/liquidaciones/centralizar', { method: 'POST', body: JSON.stringify({ empresaId, periodo }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      showToast('success', 'Remuneraciones centralizadas', `Asiento N° ${data.numero} generado con ${pendientes.length} liquidación(es).`);
+      cargarTodo();
+    } catch (err) {
+      showToast('error', 'Error al centralizar', getErrorMessage(err));
+    } finally {
+      setCentralizando(false);
+    }
+  };
+
+  const totalCalculadas = trabajadores.filter(t => liquidaciones[t.id]).length;
+  const totalPendientesCentralizar = trabajadores.filter(t => liquidaciones[t.id] && !liquidaciones[t.id].asientoId).length;
+
+  return (
+    <div className="space-y-6 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <Wallet className="text-primary" size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Remuneraciones</h1>
+            <p className="text-sm text-gray-500 mt-1">Liquidar sueldos del mes y centralizar el gasto en la contabilidad.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-gray-600">Período</label>
+          <input type="month" value={periodo} onChange={(e) => setPeriodo(e.target.value)} className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20" />
+        </div>
+      </div>
+
+      {/* Índices previsionales del período */}
+      <Card>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Landmark size={18} className="text-gray-500" />
+            <h3 className="font-semibold text-gray-800">Índices previsionales — {periodo}</h3>
+          </div>
+          {esAdminGlobal && (
+            <button onClick={() => { setFormIndices(indice ? { ...indice } : initialIndicesForm); setMostrarFormIndices(true); }} className="text-xs text-primary hover:underline">
+              {indice ? 'Editar' : 'Cargar índices de este mes'}
+            </button>
+          )}
+        </div>
+        {indice === undefined ? (
+          <p className="text-sm text-gray-400">Cargando...</p>
+        ) : indice ? (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+            <div><p className="text-[10px] text-gray-500 uppercase">UF</p><p className="font-bold">{formatCurrency(indice.valorUf)}</p></div>
+            <div><p className="text-[10px] text-gray-500 uppercase">UTM</p><p className="font-bold">{formatCurrency(indice.valorUtm)}</p></div>
+            <div><p className="text-[10px] text-gray-500 uppercase">Sueldo Mínimo</p><p className="font-bold">{formatCurrency(indice.sueldoMinimo)}</p></div>
+            <div><p className="text-[10px] text-gray-500 uppercase">Tasa SIS</p><p className="font-bold">{(indice.tasaSis * 100).toFixed(2)}%</p></div>
+            <div><p className="text-[10px] text-gray-500 uppercase">Tope AFP/Salud</p><p className="font-bold">{indice.topeAfpSaludUf} UF</p></div>
+          </div>
+        ) : (
+          <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Aún no se cargan los índices previsionales de {periodo}
+            {esAdminGlobal ? ' — cárgalos con el botón de arriba antes de calcular liquidaciones.' : '. Pide a tu administrador que los cargue antes de calcular liquidaciones.'}
+          </p>
+        )}
+      </Card>
+
+      {/* Trabajadores + liquidaciones del período */}
+      <Card
+        title={`Trabajadores (${trabajadores.length})`}
+        action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setMostrarFormTrabajador(true)}>Nuevo Trabajador</Button>}
+      >
+        {loading ? (
+          <div className="py-8 text-center text-gray-400 text-sm">Cargando...</div>
+        ) : trabajadores.length === 0 ? (
+          <div className="py-8 text-center text-gray-400 text-sm">No hay trabajadores registrados para esta empresa.</div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {trabajadores.map(t => {
+              const liq = liquidaciones[t.id];
+              const abierta = filaAbierta === t.id;
+              const entrada = entradas[t.id] || initialEntradaForm;
+              return (
+                <div key={t.id} className="py-3">
+                  <button onClick={() => abrirFila(t.id)} className="w-full flex items-center justify-between text-left">
+                    <div>
+                      <p className="font-medium text-gray-900">{t.nombres} {t.apellidos}</p>
+                      <p className="text-xs text-gray-500">{t.cargo || 'Sin cargo'} · {t.afp}{t.isapre ? ` · ${t.isapre}` : ' · Fonasa'}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {liq ? (
+                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${liq.asientoId ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {liq.asientoId && <CheckCircle2 size={12} />}
+                          Líquido: {formatCurrency(liq.sueldoLiquido)}{liq.asientoId ? ' (centralizado)' : ''}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">Sin calcular</span>
+                      )}
+                      {abierta ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                    </div>
+                  </button>
+                  {abierta && (
+                    <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {liq?.asientoId && (
+                        <p className="col-span-2 md:col-span-3 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                          Esta liquidación ya fue centralizada — para recalcularla, primero hay que descentralizarla (pídeselo a tu administrador).
+                        </p>
+                      )}
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-600 mb-1">Días trabajados</label>
+                        <input type="number" min={0} max={31} value={entrada.diasTrabajados} onChange={e => setEntradas(x => ({ ...x, [t.id]: { ...entrada, diasTrabajados: Number(e.target.value) } }))} className="w-full px-2 py-1.5 border rounded text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-600 mb-1">Bonos imponibles</label>
+                        <input type="number" min={0} value={entrada.bonos} onChange={e => setEntradas(x => ({ ...x, [t.id]: { ...entrada, bonos: Number(e.target.value) } }))} className="w-full px-2 py-1.5 border rounded text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-600 mb-1">Aguinaldo</label>
+                        <input type="number" min={0} value={entrada.aguinaldo} onChange={e => setEntradas(x => ({ ...x, [t.id]: { ...entrada, aguinaldo: Number(e.target.value) } }))} className="w-full px-2 py-1.5 border rounded text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-600 mb-1">Horas extra</label>
+                        <input type="number" min={0} value={entrada.horasExtra} onChange={e => setEntradas(x => ({ ...x, [t.id]: { ...entrada, horasExtra: Number(e.target.value) } }))} className="w-full px-2 py-1.5 border rounded text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-600 mb-1">Anticipos</label>
+                        <input type="number" min={0} value={entrada.anticipos} onChange={e => setEntradas(x => ({ ...x, [t.id]: { ...entrada, anticipos: Number(e.target.value) } }))} className="w-full px-2 py-1.5 border rounded text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-600 mb-1">Préstamos</label>
+                        <input type="number" min={0} value={entrada.prestamos} onChange={e => setEntradas(x => ({ ...x, [t.id]: { ...entrada, prestamos: Number(e.target.value) } }))} className="w-full px-2 py-1.5 border rounded text-sm" />
+                      </div>
+                      <div className="col-span-2 md:col-span-3 flex items-center justify-between gap-3 pt-2 border-t border-gray-200">
+                        {liq && (
+                          <p className="text-xs text-gray-600">
+                            Imponible {formatCurrency(liq.totalImponible)} · Descuentos {formatCurrency(liq.totalDescuentos)} · <strong>Líquido {formatCurrency(liq.sueldoLiquido)}</strong>
+                          </p>
+                        )}
+                        <Button
+                          size="sm"
+                          icon={<Calculator size={14} />}
+                          disabled={!indice || calculando === t.id || Boolean(liq?.asientoId)}
+                          onClick={() => calcularLiquidacion(t.id)}
+                          className="ml-auto"
+                        >
+                          {calculando === t.id ? 'Calculando...' : liq ? 'Recalcular' : 'Calcular liquidación'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {trabajadores.length > 0 && (
+        <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div>
+            <p className="font-semibold text-gray-800 text-sm">{totalCalculadas} de {trabajadores.length} liquidaciones calculadas este período</p>
+            <p className="text-xs text-gray-500">{totalPendientesCentralizar} pendiente(s) de centralizar en la contabilidad.</p>
+          </div>
+          <Button onClick={centralizar} disabled={centralizando || totalPendientesCentralizar === 0} icon={<Landmark size={16} />}>
+            {centralizando ? 'Centralizando...' : `Centralizar ${periodo}`}
+          </Button>
+        </div>
+      )}
+
+      {/* Modal: nuevo trabajador */}
+      <Modal isOpen={mostrarFormTrabajador} onClose={() => setMostrarFormTrabajador(false)} title="Nuevo Trabajador" size="lg" closeOnBackdrop={false}
+        footer={<>
+          <Button variant="secondary" onClick={() => setMostrarFormTrabajador(false)}>Cancelar</Button>
+          <Button onClick={guardarTrabajador} disabled={guardandoTrabajador} icon={<Save size={16} />}>{guardandoTrabajador ? 'Guardando...' : 'Guardar'}</Button>
+        </>}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input label="RUT" value={formTrabajador.rut} onChange={e => setFormTrabajador(f => ({ ...f, rut: e.target.value }))} placeholder="12.345.678-9" />
+          <Input label="Cargo" value={formTrabajador.cargo} onChange={e => setFormTrabajador(f => ({ ...f, cargo: e.target.value }))} />
+          <Input label="Nombres" value={formTrabajador.nombres} onChange={e => setFormTrabajador(f => ({ ...f, nombres: e.target.value }))} />
+          <Input label="Apellidos" value={formTrabajador.apellidos} onChange={e => setFormTrabajador(f => ({ ...f, apellidos: e.target.value }))} />
+          <Input label="Fecha de ingreso" type="date" value={formTrabajador.fechaIngreso} onChange={e => setFormTrabajador(f => ({ ...f, fechaIngreso: e.target.value }))} />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de contrato</label>
+            <select value={formTrabajador.tipoContrato} onChange={e => setFormTrabajador(f => ({ ...f, tipoContrato: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+              <option value="indefinido">Indefinido</option>
+              <option value="plazo_fijo">Plazo Fijo</option>
+              <option value="por_obra">Por Obra/Faena</option>
+            </select>
+          </div>
+          <Input label="Sueldo base ($)" type="number" value={formTrabajador.sueldoBase} onChange={e => setFormTrabajador(f => ({ ...f, sueldoBase: e.target.value }))} />
+          <div className="grid grid-cols-2 gap-2">
+            <Input label="Colación ($)" type="number" value={formTrabajador.colacion} onChange={e => setFormTrabajador(f => ({ ...f, colacion: Number(e.target.value) }))} />
+            <Input label="Movilización ($)" type="number" value={formTrabajador.movilizacion} onChange={e => setFormTrabajador(f => ({ ...f, movilizacion: Number(e.target.value) }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">AFP</label>
+            <select
+              value={formTrabajador.afp}
+              onChange={e => {
+                const afp = AFP_DATA.find(a => a.nombre === e.target.value);
+                setFormTrabajador(f => ({ ...f, afp: e.target.value, tasaAfp: afp ? (10 + afp.comisionFija) / 100 : f.tasaAfp }));
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            >
+              {AFP_DATA.map(a => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
+            </select>
+          </div>
+          <Input label="Tasa AFP (ej: 0.1144 = 11.44%)" type="number" step="0.0001" value={formTrabajador.tasaAfp} onChange={e => setFormTrabajador(f => ({ ...f, tasaAfp: Number(e.target.value) }))} />
+          <div className="md:col-span-2 flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="radio" checked={formTrabajador.esFonasa} onChange={() => setFormTrabajador(f => ({ ...f, esFonasa: true }))} /> Fonasa (7%)
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="radio" checked={!formTrabajador.esFonasa} onChange={() => setFormTrabajador(f => ({ ...f, esFonasa: false }))} /> Isapre
+            </label>
+          </div>
+          {!formTrabajador.esFonasa && (
+            <>
+              <Input label="Nombre Isapre" value={formTrabajador.isapre} onChange={e => setFormTrabajador(f => ({ ...f, isapre: e.target.value }))} />
+              <Input label="Plan pactado (UF)" type="number" step="0.01" value={formTrabajador.saludPactado} onChange={e => setFormTrabajador(f => ({ ...f, saludPactado: Number(e.target.value) }))} />
+            </>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Tramo asignación familiar</label>
+            <select value={formTrabajador.tramoAsignacionFamiliar} onChange={e => setFormTrabajador(f => ({ ...f, tramoAsignacionFamiliar: e.target.value as 'A' | 'B' | 'C' | 'D' }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+              <option value="D">D — Sin derecho (renta sobre el tope)</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <Input label="Cargas simples" type="number" min={0} value={formTrabajador.cargasSimples} onChange={e => setFormTrabajador(f => ({ ...f, cargasSimples: Number(e.target.value) }))} />
+            <Input label="Maternales" type="number" min={0} value={formTrabajador.cargasMaternales} onChange={e => setFormTrabajador(f => ({ ...f, cargasMaternales: Number(e.target.value) }))} />
+            <Input label="Inválidas" type="number" min={0} value={formTrabajador.cargasInvalidez} onChange={e => setFormTrabajador(f => ({ ...f, cargasInvalidez: Number(e.target.value) }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Situación previsional (Previred)</label>
+            <select value={formTrabajador.tipoTrabajadorPrevired} onChange={e => setFormTrabajador(f => ({ ...f, tipoTrabajadorPrevired: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+              <option value="0">Cotiza normal</option>
+              <option value="1">Pensionado y cotiza</option>
+              <option value="2">Pensionado, no cotiza</option>
+              <option value="8">Exento (mujer 60+/hombre 65+/extranjero)</option>
+            </select>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal: índices previsionales */}
+      <Modal isOpen={mostrarFormIndices} onClose={() => setMostrarFormIndices(false)} title={`Índices previsionales — ${periodo}`} size="md" closeOnBackdrop={false}
+        footer={<>
+          <Button variant="secondary" onClick={() => setMostrarFormIndices(false)}>Cancelar</Button>
+          <Button onClick={guardarIndices} disabled={guardandoIndices} icon={<Save size={16} />}>{guardandoIndices ? 'Guardando...' : 'Guardar'}</Button>
+        </>}
+      >
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Valor UF" type="number" step="0.01" value={formIndices.valorUf} onChange={e => setFormIndices(f => ({ ...f, valorUf: Number(e.target.value) }))} />
+          <Input label="Valor UTM" type="number" value={formIndices.valorUtm} onChange={e => setFormIndices(f => ({ ...f, valorUtm: Number(e.target.value) }))} />
+          <Input label="Sueldo Mínimo" type="number" value={formIndices.sueldoMinimo} onChange={e => setFormIndices(f => ({ ...f, sueldoMinimo: Number(e.target.value) }))} />
+          <Input label="Tasa SIS (ej: 0.0162 = 1.62%)" type="number" step="0.0001" value={formIndices.tasaSis} onChange={e => setFormIndices(f => ({ ...f, tasaSis: Number(e.target.value) }))} />
+          <Input label="Tope AFP/Salud (UF)" type="number" step="0.1" value={formIndices.topeAfpSaludUf} onChange={e => setFormIndices(f => ({ ...f, topeAfpSaludUf: Number(e.target.value) }))} />
+          <Input label="Tope Cesantía (UF)" type="number" step="0.1" value={formIndices.topeCesantiaUf} onChange={e => setFormIndices(f => ({ ...f, topeCesantiaUf: Number(e.target.value) }))} />
+          <Input label="Asignación Familiar Tramo A" type="number" value={formIndices.valorTramoA} onChange={e => setFormIndices(f => ({ ...f, valorTramoA: Number(e.target.value) }))} />
+          <Input label="Asignación Familiar Tramo B" type="number" value={formIndices.valorTramoB} onChange={e => setFormIndices(f => ({ ...f, valorTramoB: Number(e.target.value) }))} />
+          <Input label="Asignación Familiar Tramo C" type="number" value={formIndices.valorTramoC} onChange={e => setFormIndices(f => ({ ...f, valorTramoC: Number(e.target.value) }))} />
+        </div>
+        <p className="text-[11px] text-gray-400 mt-3">Valores precargados con la referencia más reciente conocida — confírmalos con el boletín de Previred del mes antes de guardar.</p>
+      </Modal>
+    </div>
+  );
+}

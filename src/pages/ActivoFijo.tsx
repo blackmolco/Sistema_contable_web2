@@ -1,23 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Package, Plus, Calculator, X, Save } from 'lucide-react';
 import { Card } from '../components/ui/Cards';
 import { formatCurrency, formatDate, generateId } from '../utils/calculos';
 import { useApp } from '../context/AppContext';
-import { getToken } from '../services/apiAuth';
+import { useAppStore } from '../stores/appStore';
+import { apiFetch, apiFetchRaw } from '../services/httpClient';
+import { getErrorMessage } from '../services/errorHandler';
+
+type TipoActivo = 'computacional' | 'vehiculo' | 'mueble' | 'maquinaria' | 'inmueble';
+type MetodoTributario = 'normal' | 'acelerada' | 'instantanea';
 
 interface Activo {
   id: string;
+  codigo: string;
   nombre: string;
-  tipo: 'computacional' | 'vehiculo' | 'mueble' | 'maquinaria' | 'inmueble';
+  tipo: TipoActivo;
   fechaCompra: string;
   valorAdquisicion: number;
-  vidaUtilNormal: number;
-  vidaUtilAcelerada: number;
-  depreciacionAcumuladaPrevia?: number;
-  mesesUsoPrevio?: number;
+  vidaUtilMeses: number;
+  depreciacionAcumuladaPrevia: number;
+  // Depreciación tributaria (SII) — se calcula en paralelo a la financiera
+  // de arriba, nunca se deriva de ella. Ver nota en backend/prisma/schema.prisma.
+  metodoTributario: MetodoTributario;
+  vidaUtilMesesTributaria: number | null;
+  depreciacionMensualTributaria: number;
+  depreciacionAcumuladaTributaria: number;
 }
 
-const VIDA_UTIL_DEFAULT: Record<string, { normal: number; acelerada: number }> = {
+// Vida útil en AÑOS (convención de este formulario) — se convierte a meses
+// solo al hablar con el backend, que guarda todo en meses.
+const VIDA_UTIL_DEFAULT: Record<TipoActivo, { normal: number; acelerada: number }> = {
   computacional: { normal: 3, acelerada: 1 },
   vehiculo: { normal: 7, acelerada: 2 },
   mueble: { normal: 7, acelerada: 2 },
@@ -25,81 +37,105 @@ const VIDA_UTIL_DEFAULT: Record<string, { normal: number; acelerada: number }> =
   inmueble: { normal: 50, acelerada: 17 },
 };
 
-const STORAGE_KEY = 'scc_activos_fijos';
+// La depreciación instantánea (Pro Pyme 14 D N°3: 100% de gasto tributario
+// el año de adquisición) no aplica a terrenos ni inmuebles — mismo criterio
+// que valida el backend en calcularDepreciacionTributaria().
+const CATEGORIAS_SIN_INSTANTANEA = new Set<TipoActivo>(['inmueble']);
 
-function loadActivos(): Activo[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch { /* datos corruptos — usar defaults */ }
-  return [];
+function mesesTranscurridosDesde(fecha: string): number {
+  const f = new Date(fecha);
+  const hoy = new Date();
+  let meses = (hoy.getFullYear() - f.getFullYear()) * 12;
+  meses -= f.getMonth() + 1;
+  meses += hoy.getMonth() + 1;
+  return Math.max(0, meses);
 }
 
-function saveActivos(activos: Activo[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(activos));
+function mapActivoDelBackend(a: Record<string, any>): Activo {
+  return {
+    id: a.id,
+    codigo: a.codigo,
+    nombre: a.descripcion,
+    tipo: (a.categoria as TipoActivo) || 'computacional',
+    fechaCompra: a.fechaAdquisicion?.split('T')[0] || new Date().toISOString().split('T')[0],
+    valorAdquisicion: a.valorAdquisicion,
+    vidaUtilMeses: a.vidaUtilMeses || 36,
+    depreciacionAcumuladaPrevia: a.depreciacionAcumulada || 0,
+    metodoTributario: (a.metodoTributario as MetodoTributario) || 'normal',
+    vidaUtilMesesTributaria: a.vidaUtilMesesTributaria ?? null,
+    depreciacionMensualTributaria: a.depreciacionMensualTributaria || 0,
+    depreciacionAcumuladaTributaria: a.depreciacionAcumuladaTributaria || 0,
+  };
 }
 
 export default function ActivoFijo() {
   const { state, dispatch, showToast } = useApp();
-  const [activos, setActivos] = useState<Activo[]>(loadActivos);
+  const empresaId = useAppStore(s => s.empresaActiva?.id ?? null);
+  const [activos, setActivos] = useState<Activo[]>([]);
+  const [loading, setLoading] = useState(false);
   const [metodo, setMetodo] = useState<'normal' | 'acelerada'>('normal');
   const [ipcPorcentaje, setIpcPorcentaje] = useState(3.5);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [nuevoActivo, setNuevoActivo] = useState<Partial<Activo>>({
+  const [guardando, setGuardando] = useState(false);
+  const [nuevoActivo, setNuevoActivo] = useState<{
+    nombre: string;
+    tipo: TipoActivo;
+    fechaCompra: string;
+    valorAdquisicion: number | '';
+    vidaUtilAnosNormal: number;
+    depreciacionAcumuladaPrevia: number;
+    metodoTributario: MetodoTributario;
+    vidaUtilAnosTributaria: number;
+  }>({
+    nombre: '',
     tipo: 'computacional',
     fechaCompra: new Date().toISOString().split('T')[0],
-    vidaUtilNormal: 3,
-    vidaUtilAcelerada: 1,
+    valorAdquisicion: '',
+    vidaUtilAnosNormal: VIDA_UTIL_DEFAULT.computacional.normal,
     depreciacionAcumuladaPrevia: 0,
-    mesesUsoPrevio: 0,
+    metodoTributario: 'normal',
+    vidaUtilAnosTributaria: VIDA_UTIL_DEFAULT.computacional.normal,
   });
 
-  useEffect(() => {
-    saveActivos(activos);
-  }, [activos]);
+  const cargarActivos = useCallback(async () => {
+    if (!empresaId) { setActivos([]); return; }
+    setLoading(true);
+    try {
+      const data = await apiFetch<Record<string, any>[] | { data: Record<string, any>[] }>(`/api/activos-fijos?empresaId=${encodeURIComponent(empresaId)}`);
+      const items = Array.isArray(data) ? data : (data as { data: Record<string, any>[] }).data ?? [];
+      setActivos(items.map(mapActivoDelBackend));
+    } catch (err) {
+      showToast('error', 'Error', `No se pudieron cargar los activos fijos: ${getErrorMessage(err)}`);
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaId]);
 
-  useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-    fetch(`${apiUrl}/api/activos-fijos`, {
-      headers: { 'Authorization': `Bearer ${getToken() || ''}` },
-    })
-      .then(r => r.json())
-      .then(data => {
-        const items = data.data || data;
-        if (Array.isArray(items) && items.length > 0) {
-          const mapped: Activo[] = items.map((a: any) => ({
-            id: a.id,
-            nombre: a.descripcion,
-            tipo: a.categoria as Activo['tipo'] || 'computacional',
-            fechaCompra: a.fechaAdquisicion?.split('T')[0] || new Date().toISOString().split('T')[0],
-            valorAdquisicion: a.valorAdquisicion,
-            vidaUtilNormal: Math.round(a.valorAdquisicion / (a.depreciacionMensual || 1) / 12) || 3,
-            vidaUtilAcelerada: Math.ceil(Math.round(a.valorAdquisicion / (a.depreciacionMensual || 1) / 12) / 3),
-            depreciacionAcumuladaPrevia: a.depreciacionAcumulada || 0,
-          }));
-          setActivos(mapped);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  useEffect(() => { cargarActivos(); }, [cargarActivos]);
 
   const calcularDepreciacionAnual = (activo: Activo) => {
-    const vidaUtilAnos = metodo === 'normal' ? activo.vidaUtilNormal : activo.vidaUtilAcelerada;
+    const vidaUtilAnos = (metodo === 'normal' ? activo.vidaUtilMeses : Math.max(1, Math.ceil(activo.vidaUtilMeses / 3))) / 12;
     return activo.valorAdquisicion / vidaUtilAnos;
   };
 
   const calcularDepreciacionAcumulada = (activo: Activo) => {
     const depAnual = calcularDepreciacionAnual(activo);
-    const fechaCompra = new Date(activo.fechaCompra);
-    const fechaActual = new Date();
-    let mesesUso = (fechaActual.getFullYear() - fechaCompra.getFullYear()) * 12;
-    mesesUso -= fechaCompra.getMonth() + 1;
-    mesesUso += fechaActual.getMonth() + 1;
-    if (mesesUso < 0) mesesUso = 0;
+    const mesesUso = mesesTranscurridosDesde(activo.fechaCompra);
     const depMensual = depAnual / 12;
     const acumuladaSistema = depMensual * mesesUso;
     const acumuladaTotal = acumuladaSistema + (activo.depreciacionAcumuladaPrevia || 0);
     return Math.min(acumuladaTotal, activo.valorAdquisicion - 1);
+  };
+
+  // Tributaria: independiente del toggle "metodo" de arriba (ese es solo
+  // para el reporte financiero) — cada activo ya trae su propio método
+  // tributario elegido al crearlo.
+  const calcularAcumuladaTributaria = (activo: Activo) => {
+    if (activo.metodoTributario === 'instantanea') return activo.valorAdquisicion;
+    const mesesUso = mesesTranscurridosDesde(activo.fechaCompra);
+    const acumulada = activo.depreciacionMensualTributaria * mesesUso;
+    return Math.min(acumulada, activo.valorAdquisicion - 1);
   };
 
   const buscarCuenta = (codigo: string, defaultNombre: string, defaultId: string) => {
@@ -307,31 +343,76 @@ export default function ActivoFijo() {
     showToast('success', 'Depreciación Contabilizada', `Se generó el asiento de depreciación anual en el Libro Diario por un total de ${formatCurrency(totalGastoDep)}.`);
   };
 
-  const handleGuardarActivo = () => {
+  const cambiarTipo = (t: TipoActivo) => {
+    const vu = VIDA_UTIL_DEFAULT[t];
+    setNuevoActivo(f => ({
+      ...f,
+      tipo: t,
+      vidaUtilAnosNormal: vu.normal,
+      vidaUtilAnosTributaria: f.metodoTributario === 'acelerada' ? vu.acelerada : vu.normal,
+      // La instantánea no aplica a inmuebles — si el usuario cambia a
+      // "Inmueble" teniendo instantánea seleccionada, se vuelve a 'normal'.
+      metodoTributario: CATEGORIAS_SIN_INSTANTANEA.has(t) && f.metodoTributario === 'instantanea' ? 'normal' : f.metodoTributario,
+    }));
+  };
+
+  const cambiarMetodoTributario = (m: MetodoTributario) => {
+    setNuevoActivo(f => {
+      const vu = VIDA_UTIL_DEFAULT[f.tipo];
+      return {
+        ...f,
+        metodoTributario: m,
+        vidaUtilAnosTributaria: m === 'acelerada' ? vu.acelerada : vu.normal,
+      };
+    });
+  };
+
+  const handleGuardarActivo = async () => {
     if (!nuevoActivo.nombre || !nuevoActivo.valorAdquisicion) {
-      showToast('error', 'Error', 'El nombre y el valor de adquisicion son obligatorios.');
+      showToast('error', 'Error', 'El nombre y el valor de adquisición son obligatorios.');
       return;
     }
-    const tipo = nuevoActivo.tipo as Activo['tipo'];
-    const vidaUtil = VIDA_UTIL_DEFAULT[tipo] || { normal: 3, acelerada: 1 };
+    if (!empresaId) {
+      showToast('error', 'Sin empresa', 'Selecciona una empresa antes de registrar un activo fijo.');
+      return;
+    }
+    setGuardando(true);
+    try {
+      const body: Record<string, unknown> = {
+        codigo: `AF-${Date.now().toString(36).toUpperCase()}`,
+        descripcion: nuevoActivo.nombre,
+        categoria: nuevoActivo.tipo,
+        fechaAdquisicion: nuevoActivo.fechaCompra,
+        valorAdquisicion: Number(nuevoActivo.valorAdquisicion),
+        vidaUtilMeses: Math.round(nuevoActivo.vidaUtilAnosNormal * 12),
+        depreciacionAcumulada: Number(nuevoActivo.depreciacionAcumuladaPrevia || 0),
+        metodoTributario: nuevoActivo.metodoTributario,
+        empresaId,
+      };
+      if (nuevoActivo.metodoTributario !== 'instantanea') {
+        body.vidaUtilMesesTributaria = Math.round(nuevoActivo.vidaUtilAnosTributaria * 12);
+      }
+      const res = await apiFetchRaw('/api/activos-fijos', { method: 'POST', body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
 
-    const activoAAgregar: Activo = {
-      id: generateId(),
-      nombre: nuevoActivo.nombre,
-      tipo,
-      fechaCompra: nuevoActivo.fechaCompra!,
-      valorAdquisicion: Number(nuevoActivo.valorAdquisicion),
-      vidaUtilNormal: Number(nuevoActivo.vidaUtilNormal) || vidaUtil.normal,
-      vidaUtilAcelerada: Number(nuevoActivo.vidaUtilAcelerada) || vidaUtil.acelerada,
-      depreciacionAcumuladaPrevia: Number(nuevoActivo.depreciacionAcumuladaPrevia || 0),
-      mesesUsoPrevio: Number(nuevoActivo.mesesUsoPrevio || 0),
-    };
-
-    setActivos([...activos, activoAAgregar]);
-    setMostrarFormulario(false);
-    setNuevoActivo({ tipo: 'computacional', fechaCompra: new Date().toISOString().split('T')[0], vidaUtilNormal: 3, vidaUtilAcelerada: 1, depreciacionAcumuladaPrevia: 0, mesesUsoPrevio: 0 });
-    showToast('success', 'Activo Agregado', 'El nuevo activo fijo ha sido registrado con exito.');
+      setActivos(a => [...a, mapActivoDelBackend(data)]);
+      setMostrarFormulario(false);
+      setNuevoActivo({
+        nombre: '', tipo: 'computacional', fechaCompra: new Date().toISOString().split('T')[0],
+        valorAdquisicion: '', vidaUtilAnosNormal: VIDA_UTIL_DEFAULT.computacional.normal,
+        depreciacionAcumuladaPrevia: 0, metodoTributario: 'normal',
+        vidaUtilAnosTributaria: VIDA_UTIL_DEFAULT.computacional.normal,
+      });
+      showToast('success', 'Activo Agregado', 'El nuevo activo fijo ha sido registrado con éxito.');
+    } catch (err) {
+      showToast('error', 'Error al guardar', getErrorMessage(err));
+    } finally {
+      setGuardando(false);
+    }
   };
+
+  const instantaneaBloqueada = CATEGORIAS_SIN_INSTANTANEA.has(nuevoActivo.tipo);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -342,7 +423,7 @@ export default function ActivoFijo() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Control de Activo Fijo</h1>
-            <p className="text-sm text-gray-500 mt-1">Gestion de bienes e importacion de saldos anteriores.</p>
+            <p className="text-sm text-gray-500 mt-1">Depreciación financiera y tributaria en paralelo, por activo.</p>
           </div>
         </div>
         <button onClick={() => setMostrarFormulario(true)} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
@@ -359,50 +440,73 @@ export default function ActivoFijo() {
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto">
               <div className="space-y-4 md:border-r border-gray-100 md:pr-4">
-                <h4 className="font-semibold text-sm text-primary border-b pb-1">Datos de Adquisicion</h4>
+                <h4 className="font-semibold text-sm text-primary border-b pb-1">Datos de Adquisición</h4>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Nombre / Descripcion del Bien</label>
-                  <input type="text" placeholder="Ej: Computador HP EliteBook" value={nuevoActivo.nombre || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, nombre: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20" />
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Nombre / Descripción del Bien</label>
+                  <input type="text" placeholder="Ej: Computador HP EliteBook" value={nuevoActivo.nombre} onChange={(e) => setNuevoActivo(f => ({ ...f, nombre: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Tipo de Activo</label>
-                  <select value={nuevoActivo.tipo} onChange={(e) => {
-                    const t = e.target.value as Activo['tipo'];
-                    const vu = VIDA_UTIL_DEFAULT[t];
-                    setNuevoActivo({ ...nuevoActivo, tipo: t, vidaUtilNormal: vu.normal, vidaUtilAcelerada: vu.acelerada });
-                  }} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20">
-                    <option value="computacional">Equipo Computacional (3 anos)</option>
-                    <option value="vehiculo">Vehiculo (7 anos)</option>
-                    <option value="mueble">Mueble u Oficina (7 anos)</option>
-                    <option value="maquinaria">Maquinaria (15 anos)</option>
-                    <option value="inmueble">Inmueble / Edificio (50 anos)</option>
+                  <select value={nuevoActivo.tipo} onChange={(e) => cambiarTipo(e.target.value as TipoActivo)} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20">
+                    <option value="computacional">Equipo Computacional (3 años)</option>
+                    <option value="vehiculo">Vehículo (7 años)</option>
+                    <option value="mueble">Mueble u Oficina (7 años)</option>
+                    <option value="maquinaria">Maquinaria (15 años)</option>
+                    <option value="inmueble">Inmueble / Edificio (50 años)</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Fecha de Ingreso / Compra</label>
-                  <input type="date" value={nuevoActivo.fechaCompra} onChange={(e) => setNuevoActivo({ ...nuevoActivo, fechaCompra: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20" />
+                  <input type="date" value={nuevoActivo.fechaCompra} onChange={(e) => setNuevoActivo(f => ({ ...f, fechaCompra: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Valor de Adquisicion ($)</label>
-                  <input type="number" value={nuevoActivo.valorAdquisicion || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, valorAdquisicion: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20" />
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Valor de Adquisición ($)</label>
+                  <input type="number" value={nuevoActivo.valorAdquisicion} onChange={(e) => setNuevoActivo(f => ({ ...f, valorAdquisicion: e.target.value === '' ? '' : Number(e.target.value) }))} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Depreciación Acumulada Anterior ($)</label>
+                  <input type="number" placeholder="Solo si viene de otro sistema" value={nuevoActivo.depreciacionAcumuladaPrevia || ''} onChange={(e) => setNuevoActivo(f => ({ ...f, depreciacionAcumuladaPrevia: Number(e.target.value) }))} className="w-full px-3 py-2 border rounded-lg text-sm bg-amber-50 focus:ring-2 focus:ring-primary/20" />
                 </div>
               </div>
               <div className="space-y-4">
-                <h4 className="font-semibold text-sm text-emerald-700 border-b pb-1">Migracion de Sistema Anterior (Opcional)</h4>
-                <p className="text-[10px] text-gray-500 leading-tight mb-2">Complete estos datos solo si esta registrando un activo que ya estaba en uso en otro software contable.</p>
+                <h4 className="font-semibold text-sm text-emerald-700 border-b pb-1">Depreciación Tributaria (SII)</h4>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Depreciacion Acumulada Anterior ($)</label>
-                  <input type="number" placeholder="Monto ya depreciado" value={nuevoActivo.depreciacionAcumuladaPrevia || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, depreciacionAcumuladaPrevia: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg text-sm bg-amber-50 focus:ring-2 focus:ring-primary/20" />
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Método</label>
+                  <select value={nuevoActivo.metodoTributario} onChange={(e) => cambiarMetodoTributario(e.target.value as MetodoTributario)} className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20">
+                    <option value="normal">Normal (tabla vida útil SII)</option>
+                    <option value="acelerada">Acelerada (1/3 de la vida útil)</option>
+                    <option value="instantanea" disabled={instantaneaBloqueada}>
+                      Instantánea (Pro Pyme — 100% al año de compra){instantaneaBloqueada ? ' — no aplica a inmuebles' : ''}
+                    </option>
+                  </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Meses de Vida Util ya Consumidos</label>
-                  <input type="number" placeholder="Ej: 12 meses" value={nuevoActivo.mesesUsoPrevio || ''} onChange={(e) => setNuevoActivo({ ...nuevoActivo, mesesUsoPrevio: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg text-sm bg-amber-50 focus:ring-2 focus:ring-primary/20" />
-                </div>
+                {nuevoActivo.metodoTributario === 'instantanea' ? (
+                  <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 leading-snug">
+                    Se reconoce el 100% del valor de adquisición como gasto tributario en el año de compra
+                    (bienes muebles, tope UF 25.000/año agregado — verifica el tope si hay varios activos este año).
+                  </p>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Vida útil tributaria (años)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={nuevoActivo.vidaUtilAnosTributaria}
+                      onChange={(e) => setNuevoActivo(f => ({ ...f, vidaUtilAnosTributaria: Number(e.target.value) || 1 }))}
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20"
+                    />
+                    <p className="text-[10px] text-gray-500 mt-1">
+                      Por defecto se iguala a la vida útil financiera — ajústala si la tabla del SII para esta categoría es distinta.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
               <button onClick={() => setMostrarFormulario(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
-              <button onClick={handleGuardarActivo} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"><Save size={16} /> Guardar Activo</button>
+              <button onClick={handleGuardarActivo} disabled={guardando} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-60">
+                <Save size={16} /> {guardando ? 'Guardando...' : 'Guardar Activo'}
+              </button>
             </div>
           </div>
         </div>
@@ -412,7 +516,7 @@ export default function ActivoFijo() {
         <Card className="col-span-1 md:col-span-3 border-primary/20">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Método Tributario de Cálculo</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Método Financiero para Reportes (Normal/Acelerada)</label>
               <select value={metodo} onChange={(e) => setMetodo(e.target.value as 'normal' | 'acelerada')} className="w-full px-4 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-primary/20">
                 <option value="normal">Depreciación Lineal Normal</option>
                 <option value="acelerada">Depreciación Acelerada (1/3 Vida Útil)</option>
@@ -420,23 +524,23 @@ export default function ActivoFijo() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Factor Reajuste IPC Anual (%)</label>
-              <input 
-                type="number" 
-                step="0.1" 
-                value={ipcPorcentaje} 
-                onChange={(e) => setIpcPorcentaje(Number(e.target.value))} 
-                className="w-full px-4 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-primary/20" 
+              <input
+                type="number"
+                step="0.1"
+                value={ipcPorcentaje}
+                onChange={(e) => setIpcPorcentaje(Number(e.target.value))}
+                className="w-full px-4 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
-              <button 
-                onClick={contabilizarRevalorizacionIPC} 
+              <button
+                onClick={contabilizarRevalorizacionIPC}
                 className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-xs font-semibold"
               >
                 <Calculator size={14} /> Revalorizar IPC
               </button>
-              <button 
-                onClick={contabilizarDepreciacion} 
+              <button
+                onClick={contabilizarDepreciacion}
                 className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-xs font-semibold"
               >
                 <Calculator size={14} /> Depreciar Ejercicio
@@ -445,21 +549,25 @@ export default function ActivoFijo() {
           </div>
         </Card>
 
-        <div className="col-span-1 md:col-span-3 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="col-span-1 md:col-span-3 bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-100 border-b-2 border-gray-300">
               <tr className="text-gray-700">
                 <th className="py-3 px-4 font-semibold">Activo Fijo</th>
-                <th className="py-3 px-4 font-semibold text-center">F. Adquisicion</th>
-                <th className="py-3 px-4 font-semibold text-center">Vida Util (Anos)</th>
+                <th className="py-3 px-4 font-semibold text-center">F. Adquisición</th>
                 <th className="py-3 px-4 font-semibold text-right">Valor Inicial</th>
-                <th className="py-3 px-4 font-semibold text-right text-red-700">Dep. Acumulada</th>
-                <th className="py-3 px-4 font-semibold text-right text-blue-800">Valor Libro Actual</th>
+                <th className="py-3 px-4 font-semibold text-right text-red-700">Dep. Financiera Acum.</th>
+                <th className="py-3 px-4 font-semibold text-right text-blue-800">Valor Libro Financiero</th>
+                <th className="py-3 px-4 font-semibold text-right text-red-700">Dep. Tributaria Acum.</th>
+                <th className="py-3 px-4 font-semibold text-right text-emerald-800">Valor Libro Tributario</th>
               </tr>
             </thead>
             <tbody>
-              {activos.length === 0 && (
-                <tr><td colSpan={6} className="py-8 text-center text-gray-500">
+              {loading && (
+                <tr><td colSpan={7} className="py-8 text-center text-gray-400">Cargando activos fijos...</td></tr>
+              )}
+              {!loading && activos.length === 0 && (
+                <tr><td colSpan={7} className="py-8 text-center text-gray-500">
                   <Package size={40} className="mx-auto mb-3 text-gray-300" />
                   <p>No hay activos fijos registrados</p>
                   <p className="text-xs mt-1">Haga clic en "Nuevo Activo" para agregar uno</p>
@@ -468,7 +576,9 @@ export default function ActivoFijo() {
               {activos.map((activo) => {
                 const acumulada = calcularDepreciacionAcumulada(activo);
                 const valorLibro = activo.valorAdquisicion - acumulada;
-                const vidaUtilDisplay = metodo === 'normal' ? activo.vidaUtilNormal : activo.vidaUtilAcelerada;
+                const acumuladaTrib = calcularAcumuladaTributaria(activo);
+                const valorLibroTrib = activo.valorAdquisicion - acumuladaTrib;
+                const METODO_LABEL: Record<MetodoTributario, string> = { normal: 'Normal', acelerada: 'Acelerada', instantanea: 'Instantánea' };
                 return (
                   <tr key={activo.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">
@@ -476,16 +586,17 @@ export default function ActivoFijo() {
                         <p className="font-medium text-gray-900">{activo.nombre}</p>
                         {activo.depreciacionAcumuladaPrevia ? <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded font-bold">MIGRADO</span> : null}
                       </div>
-                      <p className="text-[10px] text-gray-500 uppercase">{activo.tipo}</p>
+                      <p className="text-[10px] text-gray-500 uppercase">{activo.tipo} · Tributario: {METODO_LABEL[activo.metodoTributario]}</p>
                     </td>
                     <td className="py-3 px-4 text-center text-gray-600">{formatDate(activo.fechaCompra)}</td>
-                    <td className="py-3 px-4 text-center font-bold text-gray-700">{vidaUtilDisplay}</td>
                     <td className="py-3 px-4 text-right font-medium">{formatCurrency(activo.valorAdquisicion)}</td>
                     <td className="py-3 px-4 text-right font-medium text-red-600">
                       -{formatCurrency(acumulada)}
                       {activo.depreciacionAcumuladaPrevia ? <p className="text-[9px] text-amber-600">Incluye arrastre</p> : null}
                     </td>
                     <td className="py-3 px-4 text-right font-bold text-primary">{formatCurrency(valorLibro)}</td>
+                    <td className="py-3 px-4 text-right font-medium text-red-600">-{formatCurrency(acumuladaTrib)}</td>
+                    <td className="py-3 px-4 text-right font-bold text-emerald-700">{formatCurrency(valorLibroTrib)}</td>
                   </tr>
                 );
               })}
@@ -493,10 +604,12 @@ export default function ActivoFijo() {
             {activos.length > 0 && (
               <tfoot className="bg-gray-50 font-bold border-t border-gray-300">
                 <tr>
-                  <td colSpan={3} className="py-3 px-4 text-right uppercase">Suma Total de Activos:</td>
+                  <td colSpan={2} className="py-3 px-4 text-right uppercase">Suma Total de Activos:</td>
                   <td className="py-3 px-4 text-right">{formatCurrency(activos.reduce((acc, a) => acc + a.valorAdquisicion, 0))}</td>
                   <td className="py-3 px-4 text-right text-red-600">-{formatCurrency(activos.reduce((acc, a) => acc + calcularDepreciacionAcumulada(a), 0))}</td>
                   <td className="py-3 px-4 text-right text-primary">{formatCurrency(activos.reduce((acc, a) => acc + (a.valorAdquisicion - calcularDepreciacionAcumulada(a)), 0))}</td>
+                  <td className="py-3 px-4 text-right text-red-600">-{formatCurrency(activos.reduce((acc, a) => acc + calcularAcumuladaTributaria(a), 0))}</td>
+                  <td className="py-3 px-4 text-right text-emerald-700">{formatCurrency(activos.reduce((acc, a) => acc + (a.valorAdquisicion - calcularAcumuladaTributaria(a)), 0))}</td>
                 </tr>
               </tfoot>
             )}

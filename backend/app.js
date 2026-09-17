@@ -151,6 +151,7 @@ app.use('/api/audit-logs',             require('./routes/auditoria'));
 app.use('/api/empresas',               require('./routes/empresas'));
 app.use('/api/tablas-sii',             require('./routes/tablasSii'));
 app.use('/api/usuarios',               require('./routes/usuarios'));
+app.use('/api/indices-previsionales',  require('./routes/indicesPrevisionales'));
 
 // ============ HEALTH CHECK ENRIQUECIDO ============
 app.get('/api/health', async (req, res) => {

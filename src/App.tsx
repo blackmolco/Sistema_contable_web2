@@ -52,6 +52,7 @@ const ConciliacionBancaria = lazy(() => import('./pages/ConciliacionBancaria'));
 const Tesoreria = lazy(() => import('./pages/Tesoreria'));
 const AnalisisFinanciero = lazy(() => import('./pages/AnalisisFinanciero'));
 const ActivoFijo = lazy(() => import('./pages/ActivoFijo'));
+const Remuneraciones = lazy(() => import('./pages/Remuneraciones'));
 const Inventario = lazy(() => import('./pages/Inventario'));
 const Configuracion = lazy(() => import('./pages/Configuracion'));
 const MiPerfil = lazy(() => import('./pages/MiPerfil'));
@@ -288,6 +289,7 @@ function AppContent() {
               <Route path="/analisis-financiero" element={<ErrorBoundary moduleName="Análisis Financiero"><AnalisisFinanciero /></ErrorBoundary>} />
               <Route path="/inventario" element={<ErrorBoundary moduleName="Inventario"><Inventario /></ErrorBoundary>} />
               <Route path="/activo-fijo" element={<ErrorBoundary moduleName="Activo Fijo"><ActivoFijo /></ErrorBoundary>} />
+              <Route path="/remuneraciones" element={<ErrorBoundary moduleName="Remuneraciones"><Remuneraciones /></ErrorBoundary>} />
               <Route path="/herramientas/sii" element={<ErrorBoundary moduleName="Herramientas SII"><TablasSII /></ErrorBoundary>} />
               <Route path="/balance-8-columnas" element={<ErrorBoundary moduleName="Balance 8 Columnas"><BalanceOchoColumnas /></ErrorBoundary>} />
               <Route path="/libro-mayor" element={<ErrorBoundary moduleName="Libro Mayor"><MayorContable /></ErrorBoundary>} />
