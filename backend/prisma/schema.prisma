@@ -204,6 +204,7 @@ model LiquidacionSueldo {
   id                       String    @id @default(uuid())
   trabajadorId             String
   periodo                  String
+  diasTrabajados           Int       @default(30)
   sueldoBase               Float
   bonos                    Float     @default(0)
   horasExtras              Float     @default(0)

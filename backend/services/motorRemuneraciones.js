@@ -197,6 +197,7 @@ function calcularLiquidacion(trabajador, entrada, indices, periodo, opciones = {
 
     return {
         periodo,
+        diasTrabajados: round(diasTrabajados),
         sueldoBase: round(sueldoProporcional),
         bonos: round(bonos),
         horasExtras: cantidadHorasExtra,

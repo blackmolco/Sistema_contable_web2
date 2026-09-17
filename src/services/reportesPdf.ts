@@ -38,7 +38,7 @@ export function dibujarLiquidacionFormato(
     sueldoBase: number; horasExtras: number; montoHorasExtras: number; gratificacion: number; colacion: number; movilizacion: number; bonificacion: number; asignacionFamiliar: number;
     totalImponible: number; totalHaberes: number;
     afp: number; salud: number; afc: number; impuestoUnico: number; anticipos: number;
-    totalDescuentos: number; sueldoLiquido: number;
+    totalDescuentos: number; sueldoLiquido: number; diasTrabajados?: number;
   },
   indicadores: { uf: number; utm: number; topeImponible: number; horasSemanales: number }
 ) {
@@ -68,7 +68,7 @@ export function dibujarLiquidacionFormato(
   doc.text('Fecha de Inicio de Contrato', 18, 46);
   doc.text(linea.fechaIngreso || '01-01-2025', 85, 46, { align: 'right' });
   doc.text('Días Remunerados', 105, 46);
-  doc.text('30', 190, 46, { align: 'right' });
+  doc.text(String(linea.diasTrabajados ?? 30), 190, 46, { align: 'right' });
 
   doc.text('Jornada Completa', 18, 52);
   doc.text(`Horas Semanales: ${indicadores.horasSemanales}`, 85, 52, { align: 'right' });
@@ -351,7 +351,7 @@ export function generarPDFLiquidacionRemuneraciones(
     colacion: number; movilizacion: number; asignacionFamiliar: number;
     totalImponible: number; totalHaberes?: number;
     descuentoAFP: number; descuentoSalud: number; descuentoAFC: number; descuentoImpuesto: number;
-    anticipos: number; prestamos: number; totalDescuentos: number; sueldoLiquido: number;
+    anticipos: number; prestamos: number; totalDescuentos: number; sueldoLiquido: number; diasTrabajados?: number;
   },
   periodo: string, // 'YYYY-MM'
   empresa: { razonSocial: string; rut: string } | null | undefined,
@@ -372,6 +372,7 @@ export function generarPDFLiquidacionRemuneraciones(
     afp: liquidacion.descuentoAFP, salud: liquidacion.descuentoSalud, afc: liquidacion.descuentoAFC,
     impuestoUnico: liquidacion.descuentoImpuesto, anticipos: liquidacion.anticipos + liquidacion.prestamos,
     totalDescuentos: liquidacion.totalDescuentos, sueldoLiquido: liquidacion.sueldoLiquido,
+    diasTrabajados: liquidacion.diasTrabajados,
   }, {
     uf: indices.valorUf, utm: indices.valorUtm,
     topeImponible: indices.topeAfpSaludUf * indices.valorUf,

@@ -77,6 +77,7 @@ interface Liquidacion {
   id: string;
   trabajadorId: string;
   periodo: string;
+  diasTrabajados: number;
   sueldoBase: number;
   horasExtras: number;
   montoHorasExtras: number;
@@ -817,7 +818,18 @@ export default function Remuneraciones() {
               value={formTrabajador.afp}
               onChange={e => {
                 const afp = AFP_DATA.find(a => a.nombre === e.target.value);
-                setFormTrabajador(f => ({ ...f, afp: e.target.value, tasaAfp: afp ? (10 + afp.comisionFija) / 100 : f.tasaAfp }));
+                setFormTrabajador(f => ({
+                  ...f,
+                  afp: e.target.value,
+                  tasaAfp: afp ? (afp.cotizaAfp ? (10 + afp.comisionFija) / 100 : 0) : f.tasaAfp,
+                  // "Sin Afiliación AFP" es, en la práctica, un pensionado que no
+                  // cotiza — si el usuario no había elegido ya una situación
+                  // previsional más específica, se preselecciona para que el
+                  // motor de cálculo (que decide el descuento de AFP solo por
+                  // tipoTrabajadorPrevired, no por el nombre de la AFP) no
+                  // termine igual descontando AFP.
+                  tipoTrabajadorPrevired: afp && !afp.cotizaAfp && f.tipoTrabajadorPrevired === '0' ? '2' : f.tipoTrabajadorPrevired,
+                }));
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
             >
