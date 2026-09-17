@@ -29,7 +29,7 @@ function obtenerEmpresaConfig(config?: ConfiguracionEmpresa) {
   return useAppStore.getState().empresaActiva;
 }
 
-function dibujarLiquidacionFormato(
+export function dibujarLiquidacionFormato(
   doc: jsPDF,
   empresa: ConfiguracionEmpresa | Empresa | undefined | null,
   periodo: string,
@@ -336,6 +336,50 @@ export function generarPDFLiquidacion(
   const rutSafe = trabajador.rut.replace(/[.-]/g, '');
   const perSafe = periodo.replace(/\s/g, '_');
   doc.save(`liquidacion_${rutSafe}_${perSafe}.pdf`);
+}
+
+// Igual que generarPDFLiquidacion() de arriba, pero para el modulo de
+// Remuneraciones "solo liquidar y centralizar" (routes/trabajadores.js +
+// services/motorRemuneraciones.js) — sus formas de datos no coinciden con
+// las del prototipo viejo (ResultadoSueldoLiquido/LiquidoCalculado), asi
+// que se mapea directo desde las filas reales de Trabajador/LiquidacionSueldo
+// hacia el mismo dibujo de liquidacion ya construido arriba.
+export function generarPDFLiquidacionRemuneraciones(
+  trabajador: { nombres: string; apellidos: string; rut: string; cargo: string | null; afp: string; isapre: string | null; tipoContrato: string; fechaIngreso: string },
+  liquidacion: {
+    sueldoBase: number; horasExtras: number; montoHorasExtras: number; gratificacion: number;
+    colacion: number; movilizacion: number; asignacionFamiliar: number;
+    totalImponible: number; totalHaberes?: number;
+    descuentoAFP: number; descuentoSalud: number; descuentoAFC: number; descuentoImpuesto: number;
+    anticipos: number; prestamos: number; totalDescuentos: number; sueldoLiquido: number;
+  },
+  periodo: string, // 'YYYY-MM'
+  empresa: { razonSocial: string; rut: string } | null | undefined,
+  indices: { valorUf: number; valorUtm: number; topeAfpSaludUf: number },
+) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const [anio, mes] = periodo.split('-');
+  const periodoLabel = format(new Date(Number(anio), Number(mes) - 1, 1), 'MMMM yyyy', { locale: es });
+
+  dibujarLiquidacionFormato(doc, empresa as unknown as ConfiguracionEmpresa, periodoLabel, {
+    nombre: trabajador.nombres, apellidos: trabajador.apellidos, rut: formatRUT(trabajador.rut),
+    cargo: trabajador.cargo || '', afpNombre: trabajador.afp, tipoContrato: trabajador.tipoContrato,
+    fechaIngreso: formatDate(trabajador.fechaIngreso),
+    sueldoBase: liquidacion.sueldoBase, horasExtras: liquidacion.horasExtras, montoHorasExtras: liquidacion.montoHorasExtras,
+    gratificacion: liquidacion.gratificacion, colacion: liquidacion.colacion, movilizacion: liquidacion.movilizacion,
+    bonificacion: 0, asignacionFamiliar: liquidacion.asignacionFamiliar,
+    totalImponible: liquidacion.totalImponible, totalHaberes: liquidacion.totalHaberes ?? (liquidacion.totalImponible + liquidacion.colacion + liquidacion.movilizacion + liquidacion.asignacionFamiliar),
+    afp: liquidacion.descuentoAFP, salud: liquidacion.descuentoSalud, afc: liquidacion.descuentoAFC,
+    impuestoUnico: liquidacion.descuentoImpuesto, anticipos: liquidacion.anticipos + liquidacion.prestamos,
+    totalDescuentos: liquidacion.totalDescuentos, sueldoLiquido: liquidacion.sueldoLiquido,
+  }, {
+    uf: indices.valorUf, utm: indices.valorUtm,
+    topeImponible: indices.topeAfpSaludUf * indices.valorUf,
+    horasSemanales: getHorasSemanalesPorPeriodo(periodo),
+  });
+
+  const rutSafe = trabajador.rut.replace(/[.-]/g, '');
+  doc.save(`liquidacion_${rutSafe}_${periodo}.pdf`);
 }
 
 export function generarPDFEstadoFinanciero(

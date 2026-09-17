@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Wallet, Plus, X, Save, Calculator, Landmark, ChevronDown, ChevronUp, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
+import { Wallet, Plus, Save, Calculator, Landmark, ChevronDown, ChevronUp, CheckCircle2, Pencil, Trash2, Search, History, FileDown, Undo2 } from 'lucide-react';
 import { Card } from '../components/ui/Cards';
 import { Button, Input } from '../components/ui/FormElements';
 import { Modal } from '../components/ui/Modal';
@@ -11,6 +11,7 @@ import { useAuthStore } from '../stores/authStore';
 import { apiFetch, apiFetchRaw } from '../services/httpClient';
 import { getErrorMessage } from '../services/errorHandler';
 import { AFP_DATA, UF_2026_MAYO_REFERENCIAL, UTM_2026_MAYO, SUELDO_MINIMO, ASIGNACION_FAMILIAR, COTIZACIONES } from '../data/normativa';
+import { generarPDFLiquidacionRemuneraciones } from '../services/reportesPdf';
 
 interface Trabajador {
   id: string;
@@ -48,8 +49,10 @@ interface Indice {
   valorTramoC: number;
 }
 
-interface EmpresaMutual {
+interface EmpresaInfo {
   id: string;
+  razonSocial: string;
+  rut: string;
   mutualNombre: string | null;
   mutualTasaPct: number | null;
 }
@@ -58,10 +61,24 @@ interface Liquidacion {
   id: string;
   trabajadorId: string;
   periodo: string;
+  sueldoBase: number;
+  horasExtras: number;
+  montoHorasExtras: number;
+  gratificacion: number;
+  colacion: number;
+  movilizacion: number;
+  asignacionFamiliar: number;
   totalHaberes?: number;
   totalImponible: number;
+  descuentoAFP: number;
+  descuentoSalud: number;
+  descuentoAFC: number;
+  descuentoImpuesto: number;
+  anticipos: number;
+  prestamos: number;
   totalDescuentos: number;
   sueldoLiquido: number;
+  estado: string;
   asientoId: string | null;
 }
 
@@ -115,7 +132,7 @@ export default function Remuneraciones() {
   const [formIndices, setFormIndices] = useState(initialIndicesForm);
   const [guardandoIndices, setGuardandoIndices] = useState(false);
 
-  const [mutual, setMutual] = useState<EmpresaMutual | null>(null);
+  const [mutual, setMutual] = useState<EmpresaInfo | null>(null);
   const [mostrarFormMutual, setMostrarFormMutual] = useState(false);
   const [formMutual, setFormMutual] = useState(initialMutualForm);
   const [guardandoMutual, setGuardandoMutual] = useState(false);
@@ -125,6 +142,12 @@ export default function Remuneraciones() {
   const [calculando, setCalculando] = useState<string | null>(null);
 
   const [centralizando, setCentralizando] = useState(false);
+  const [descentralizando, setDescentralizando] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const [historialTrabajador, setHistorialTrabajador] = useState<Trabajador | null>(null);
+  const [historialLiquidaciones, setHistorialLiquidaciones] = useState<Liquidacion[]>([]);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  const [generandoPdfId, setGenerandoPdfId] = useState<string | null>(null);
 
   const cargarTodo = useCallback(async () => {
     if (!empresaId) { setTrabajadores([]); return; }
@@ -134,7 +157,7 @@ export default function Remuneraciones() {
         apiFetch<Trabajador[] | { data: Trabajador[] }>(`/api/trabajadores?empresaId=${encodeURIComponent(empresaId)}`),
         apiFetch<Indice | null>(`/api/indices-previsionales?periodo=${periodo}`),
         apiFetch<Liquidacion[] | { data: Liquidacion[] }>(`/api/trabajadores/liquidaciones?empresaId=${encodeURIComponent(empresaId)}&periodo=${periodo}`),
-        apiFetch<EmpresaMutual[]>('/api/empresas'),
+        apiFetch<EmpresaInfo[]>('/api/empresas'),
       ]);
       setTrabajadores(Array.isArray(dataTrab) ? dataTrab : (dataTrab as { data: Trabajador[] }).data ?? []);
       setIndice(dataIndice ?? null);
@@ -330,8 +353,67 @@ export default function Remuneraciones() {
     }
   };
 
+  const descentralizar = async () => {
+    if (!empresaId) return;
+    const ok = await confirmDialog({
+      title: 'Deshacer centralización',
+      message: `Esto anula el asiento contable de ${periodo} y libera esas liquidaciones para que se puedan recalcular. Solo funciona si el período contable sigue abierto.`,
+      confirmText: 'Deshacer',
+      variant: 'warning',
+    });
+    if (!ok) return;
+    setDescentralizando(true);
+    try {
+      const res = await apiFetchRaw('/api/trabajadores/liquidaciones/descentralizar', { method: 'POST', body: JSON.stringify({ empresaId, periodo }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      showToast('success', 'Centralización deshecha', `Se liberaron ${data.liquidacionesLiberadas} liquidación(es) de ${periodo}.`);
+      cargarTodo();
+    } catch (err) {
+      showToast('error', 'Error al descentralizar', getErrorMessage(err));
+    } finally {
+      setDescentralizando(false);
+    }
+  };
+
+  const verHistorial = async (t: Trabajador) => {
+    setHistorialTrabajador(t);
+    setCargandoHistorial(true);
+    try {
+      const data = await apiFetch<Liquidacion[] | { data: Liquidacion[] }>(`/api/trabajadores/liquidaciones?trabajadorId=${t.id}`);
+      setHistorialLiquidaciones(Array.isArray(data) ? data : (data as { data: Liquidacion[] }).data ?? []);
+    } catch (err) {
+      showToast('error', 'Error', `No se pudo cargar el historial: ${getErrorMessage(err)}`);
+    } finally {
+      setCargandoHistorial(false);
+    }
+  };
+
+  const descargarPdf = async (t: Trabajador, liq: Liquidacion) => {
+    setGenerandoPdfId(t.id);
+    try {
+      // Los índices del período de la liquidación, no los del selector de
+      // arriba — pueden no coincidir si se descarga desde el historial.
+      const indiceDelPeriodo = liq.periodo === periodo && indice ? indice : await apiFetch<Indice | null>(`/api/indices-previsionales?periodo=${liq.periodo}`);
+      if (!indiceDelPeriodo) {
+        showToast('error', 'Faltan índices', `No hay índices previsionales cargados para ${liq.periodo}.`);
+        return;
+      }
+      generarPDFLiquidacionRemuneraciones(t, liq, liq.periodo, mutual, indiceDelPeriodo);
+    } catch (err) {
+      showToast('error', 'Error al generar PDF', getErrorMessage(err));
+    } finally {
+      setGenerandoPdfId(null);
+    }
+  };
+
   const totalCalculadas = trabajadores.filter(t => liquidaciones[t.id]).length;
   const totalPendientesCentralizar = trabajadores.filter(t => liquidaciones[t.id] && !liquidaciones[t.id].asientoId).length;
+  const totalCentralizados = trabajadores.filter(t => liquidaciones[t.id]?.asientoId).length;
+  const busquedaNorm = busqueda.trim().toLowerCase();
+  const trabajadoresFiltrados = busquedaNorm
+    ? trabajadores.filter(t => `${t.nombres} ${t.apellidos} ${t.rut}`.toLowerCase().includes(busquedaNorm))
+    : trabajadores;
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -410,16 +492,30 @@ export default function Remuneraciones() {
 
       {/* Trabajadores + liquidaciones del período */}
       <Card
-        title={`Trabajadores (${trabajadores.length})`}
+        title={`Trabajadores (${trabajadoresFiltrados.length}${busqueda ? ` de ${trabajadores.length}` : ''})`}
         action={<Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditandoTrabajadorId(null); setFormTrabajador(initialTrabajadorForm); setMostrarFormTrabajador(true); }}>Nuevo Trabajador</Button>}
       >
+        {trabajadores.length > 0 && (
+          <div className="relative mb-3">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              placeholder="Buscar por nombre o RUT..."
+              className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        )}
         {loading ? (
           <div className="py-8 text-center text-gray-400 text-sm">Cargando...</div>
         ) : trabajadores.length === 0 ? (
           <div className="py-8 text-center text-gray-400 text-sm">No hay trabajadores registrados para esta empresa.</div>
+        ) : trabajadoresFiltrados.length === 0 ? (
+          <div className="py-8 text-center text-gray-400 text-sm">Ningún trabajador coincide con "{busqueda}".</div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {trabajadores.map(t => {
+            {trabajadoresFiltrados.map(t => {
               const liq = liquidaciones[t.id];
               const abierta = filaAbierta === t.id;
               const entrada = entradas[t.id] || initialEntradaForm;
@@ -456,6 +552,14 @@ export default function Remuneraciones() {
                         className="px-2 py-1 text-[11px] rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
                       >
                         {inactivo ? 'Reactivar' : 'Desvincular'}
+                      </button>
+                      {liq && indice && (
+                        <button type="button" onClick={() => descargarPdf(t, liq)} disabled={generandoPdfId === t.id} title="Descargar liquidación en PDF" className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50">
+                          <FileDown size={15} />
+                        </button>
+                      )}
+                      <button type="button" onClick={() => verHistorial(t)} title="Historial de liquidaciones" className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700">
+                        <History size={15} />
                       </button>
                       <button type="button" onClick={() => iniciarEdicionTrabajador(t)} title="Editar" className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700">
                         <Pencil size={15} />
@@ -525,11 +629,21 @@ export default function Remuneraciones() {
         <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-4">
           <div>
             <p className="font-semibold text-gray-800 text-sm">{totalCalculadas} de {trabajadores.length} liquidaciones calculadas este período</p>
-            <p className="text-xs text-gray-500">{totalPendientesCentralizar} pendiente(s) de centralizar en la contabilidad.</p>
+            <p className="text-xs text-gray-500">
+              {totalPendientesCentralizar} pendiente(s) de centralizar
+              {totalCentralizados > 0 ? ` · ${totalCentralizados} ya centralizada(s)` : ''} en la contabilidad.
+            </p>
           </div>
-          <Button onClick={centralizar} disabled={centralizando || totalPendientesCentralizar === 0} icon={<Landmark size={16} />}>
-            {centralizando ? 'Centralizando...' : `Centralizar ${periodo}`}
-          </Button>
+          <div className="flex items-center gap-2">
+            {totalCentralizados > 0 && (
+              <Button variant="secondary" onClick={descentralizar} disabled={descentralizando} icon={<Undo2 size={16} />}>
+                {descentralizando ? 'Deshaciendo...' : 'Descentralizar'}
+              </Button>
+            )}
+            <Button onClick={centralizar} disabled={centralizando || totalPendientesCentralizar === 0} icon={<Landmark size={16} />}>
+              {centralizando ? 'Centralizando...' : `Centralizar ${periodo}`}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -651,6 +765,44 @@ export default function Remuneraciones() {
           <Input label="Tasa real (%) — piso legal + adicional propia" type="number" step="0.01" min={0.9} value={formMutual.mutualTasaPct} onChange={e => setFormMutual(f => ({ ...f, mutualTasaPct: Number(e.target.value) }))} />
           <p className="text-[11px] text-gray-400">El piso legal es 0,90% — pon el total que efectivamente cobra la Mutual a esta empresa (viene en su comunicación de tasa anual, o en la liquidación de cotizaciones que envían).</p>
         </div>
+      </Modal>
+
+      {/* Modal: historial de liquidaciones de un trabajador */}
+      <Modal isOpen={!!historialTrabajador} onClose={() => setHistorialTrabajador(null)} title={`Historial — ${historialTrabajador?.nombres ?? ''} ${historialTrabajador?.apellidos ?? ''}`} size="md">
+        {cargandoHistorial ? (
+          <p className="text-sm text-gray-400 text-center py-6">Cargando...</p>
+        ) : historialLiquidaciones.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">Este trabajador no tiene liquidaciones calculadas todavía.</p>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {historialLiquidaciones.map(l => (
+              <div key={l.id} className="py-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-gray-900">{l.periodo}</p>
+                  <p className="text-xs text-gray-500">
+                    Imponible {formatCurrency(l.totalImponible)} · Descuentos {formatCurrency(l.totalDescuentos)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${l.asientoId ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    {l.asientoId && <CheckCircle2 size={12} />}
+                    {formatCurrency(l.sueldoLiquido)}
+                  </span>
+                  {historialTrabajador && (
+                    <button
+                      type="button"
+                      onClick={() => descargarPdf(historialTrabajador, l)}
+                      title="Descargar PDF"
+                      className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    >
+                      <FileDown size={15} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Modal>
     </div>
   );

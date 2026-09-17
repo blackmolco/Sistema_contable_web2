@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 const { calcularLiquidacion } = require('../services/motorRemuneraciones');
 const { lineasParaRemuneraciones, crearAsiento } = require('../services/generarAsiento');
+const { exigirPeriodoAbierto } = require('../services/periodos');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -244,6 +245,7 @@ router.post('/liquidaciones/centralizar', authenticateToken, writeLimiter, async
         if (!exigirAccesoEmpresa(req, res, empresaId)) return;
 
         const resultado = await prisma.$transaction(async (tx) => {
+            await exigirPeriodoAbierto(tx, empresaId, `${periodo}-01`);
             const liquidaciones = await tx.liquidacionSueldo.findMany({
                 where: { periodo, asientoId: null, trabajador: { empresaId } },
             });
@@ -274,6 +276,49 @@ router.post('/liquidaciones/centralizar', authenticateToken, writeLimiter, async
         if (err.status) return res.status(err.status).json({ error: err.message });
         logger.error({ err }, 'Error centralizando remuneraciones');
         res.status(500).json({ error: err.message || 'Error al centralizar remuneraciones' });
+    }
+});
+
+// Deshace una centralización: anula el asiento (nunca se borra, igual que
+// el resto de la app — ver routes/asientos.js) y libera las liquidaciones
+// de ese período para que se puedan recalcular y volver a centralizar.
+router.post('/liquidaciones/descentralizar', authenticateToken, writeLimiter, async (req, res) => {
+    try {
+        const { empresaId, periodo } = req.body || {};
+        if (!empresaId || !periodo) return res.status(400).json({ error: "Faltan 'empresaId' y 'periodo'" });
+        if (!exigirAccesoEmpresa(req, res, empresaId)) return;
+
+        const resultado = await prisma.$transaction(async (tx) => {
+            await exigirPeriodoAbierto(tx, empresaId, `${periodo}-01`);
+            const liquidaciones = await tx.liquidacionSueldo.findMany({
+                where: { periodo, trabajador: { empresaId }, asientoId: { not: null } },
+            });
+            if (liquidaciones.length === 0) {
+                const err = new Error('No hay ninguna centralización de ese período para deshacer.');
+                err.status = 404;
+                throw err;
+            }
+            const asientoId = liquidaciones[0].asientoId;
+            const asiento = await tx.asientoContable.findUnique({ where: { id: asientoId } });
+            if (!asiento || asiento.estado === 'anulado') {
+                const err = new Error('El asiento de esa centralización ya está anulado o no existe.');
+                err.status = 409;
+                throw err;
+            }
+            await tx.asientoContable.update({ where: { id: asientoId }, data: { estado: 'anulado' } });
+            await tx.liquidacionSueldo.updateMany({
+                where: { id: { in: liquidaciones.map(l => l.id) } },
+                data: { asientoId: null, estado: 'calculada' },
+            });
+            return { asientoId, liquidacionesLiberadas: liquidaciones.length };
+        });
+
+        await auditLog(req.usuario.id, 'ANULAR', 'AsientoContable', resultado.asientoId, { origen: 'descentralizacion_remuneraciones', periodo }, req.ip, req.headers['user-agent']);
+        res.json(resultado);
+    } catch (err) {
+        if (err.status) return res.status(err.status).json({ error: err.message });
+        logger.error({ err }, 'Error descentralizando remuneraciones');
+        res.status(500).json({ error: err.message || 'Error al descentralizar remuneraciones' });
     }
 });
 
