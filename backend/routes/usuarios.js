@@ -16,6 +16,11 @@ const cambiarPasswordAdminSchema = z.object({
     password: z.string().min(8, 'La contrasena debe tener al menos 8 caracteres'),
 });
 
+const editarPerfilSchema = z.object({
+    nombre: z.string().min(2).max(200).optional(),
+    email: z.string().email().optional(),
+});
+
 const ROL_LABEL = { admin: 'Administrador', administrador: 'Administrador', supervisor: 'Supervisor', contador: 'Contador', usuario: 'Usuario' };
 
 // Admin global (ve todas las empresas) vs Supervisor (admin de SU empresa,
@@ -209,6 +214,93 @@ router.patch('/:id/password', authenticateToken, async (req, res) => {
         }
         logger.error({ err }, 'Error cambiando contraseña de usuario');
         res.status(500).json({ error: 'Error al cambiar la contraseña' });
+    }
+});
+
+// Cambiar nombre y/o email de un usuario existente
+router.patch('/:id/perfil', authenticateToken, async (req, res) => {
+    try {
+        if (!puedeGestionarUsuarios(req.usuario.rol)) {
+            return res.status(403).json({ error: 'No tiene permiso para modificar usuarios' });
+        }
+        const datos = editarPerfilSchema.parse(req.body);
+        if (datos.nombre === undefined && datos.email === undefined) {
+            return res.status(400).json({ error: 'No hay cambios que aplicar' });
+        }
+        const objetivo = await prisma.usuario.findUnique({ where: { id: req.params.id } });
+        if (!objetivo) return res.status(404).json({ error: 'Usuario no encontrado' });
+        const errorSupervisor = errorSiSupervisorNoPuede(req, objetivo);
+        if (errorSupervisor) return res.status(403).json({ error: errorSupervisor });
+
+        if (datos.email && datos.email !== objetivo.email) {
+            const existe = await prisma.usuario.findUnique({ where: { email: datos.email } });
+            if (existe) return res.status(409).json({ error: 'Ya existe un usuario con ese email' });
+        }
+
+        const usuario = await prisma.usuario.update({
+            where: { id: req.params.id },
+            data: datos,
+            select: { id: true, nombre: true, email: true, rol: true, empresaId: true, activo: true },
+        });
+        await auditLog(req.usuario.id, 'ACTUALIZAR', 'Usuario', usuario.id, { perfil: datos }, req.ip, req.headers['user-agent']);
+
+        const correo = datos.email
+            ? await notificarUsuario(usuario, 'Tu correo de acceso fue actualizado',
+                `Hola ${usuario.nombre},\n\nTu correo de acceso al sistema contable cambió a: ${usuario.email}\n\n` +
+                `Si no esperabas este cambio, contacta a tu administrador.`
+              ).catch(err => { logger.error({ err }, 'Error notificando cambio de correo'); return { sent: false, reason: err.message }; })
+            : { sent: true };
+
+        res.json({ ...usuario, emailEnviado: correo.sent, emailError: correo.sent ? undefined : correo.reason });
+    } catch (err) {
+        if (err instanceof z.ZodError) {
+            return res.status(400).json({ error: 'Datos invalidos', detalles: err.errors.map(e => e.message) });
+        }
+        logger.error({ err }, 'Error editando perfil de usuario');
+        res.status(500).json({ error: 'Error al editar el usuario' });
+    }
+});
+
+// Si el usuario nunca genero actividad (ningun asiento/documento/log a su
+// nombre), se borra de verdad. Si ya genero algo, borrarlo de verdad
+// rompería esa trazabilidad (los asientos quedarían sin autor) — se
+// desactiva en su lugar, igual que se hace con un Trabajador que ya tiene
+// liquidaciones (ver routes/trabajadores.js).
+router.delete('/:id', authenticateToken, async (req, res) => {
+    try {
+        if (!puedeGestionarUsuarios(req.usuario.rol)) {
+            return res.status(403).json({ error: 'No tiene permiso para eliminar usuarios' });
+        }
+        if (req.params.id === req.usuario.id) {
+            return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
+        }
+        const objetivo = await prisma.usuario.findUnique({ where: { id: req.params.id } });
+        if (!objetivo) return res.status(404).json({ error: 'Usuario no encontrado' });
+        const errorSupervisor = errorSiSupervisorNoPuede(req, objetivo);
+        if (errorSupervisor) return res.status(403).json({ error: errorSupervisor });
+
+        const [asientos, documentos, logs] = await Promise.all([
+            prisma.asientoContable.count({ where: { usuarioId: req.params.id } }),
+            prisma.documento.count({ where: { usuarioId: req.params.id } }),
+            prisma.auditLog.count({ where: { usuarioId: req.params.id } }),
+        ]);
+
+        if (asientos + documentos + logs === 0) {
+            await prisma.sesion.deleteMany({ where: { usuarioId: req.params.id } });
+            await prisma.usuario.delete({ where: { id: req.params.id } });
+            await auditLog(req.usuario.id, 'ELIMINAR', 'Usuario', req.params.id, { tipo: 'borrado' }, req.ip, req.headers['user-agent']);
+            return res.json({ message: 'Usuario eliminado', borrado: true });
+        }
+
+        await prisma.usuario.update({ where: { id: req.params.id }, data: { activo: false } });
+        await auditLog(req.usuario.id, 'ELIMINAR', 'Usuario', req.params.id, { tipo: 'desactivado', asientos, documentos, logs }, req.ip, req.headers['user-agent']);
+        res.json({
+            message: `Este usuario ya generó actividad en el sistema (${asientos} asiento(s), ${documentos} documento(s), ${logs} registro(s) de auditoría) — no se puede eliminar sin perder esa trazabilidad. Se desactivó en su lugar.`,
+            borrado: false,
+        });
+    } catch (err) {
+        logger.error({ err }, 'Error eliminando usuario');
+        res.status(500).json({ error: 'Error al eliminar el usuario' });
     }
 });
 

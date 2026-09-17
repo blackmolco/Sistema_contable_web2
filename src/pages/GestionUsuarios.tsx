@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { UserPlus, RefreshCw, Shield, User, ChevronDown, Pencil, X, Check, KeyRound, Dices } from 'lucide-react';
+import { UserPlus, RefreshCw, Shield, User, ChevronDown, Pencil, X, Check, KeyRound, Dices, Trash2, UserCheck, UserX, AtSign } from 'lucide-react';
 import { Card } from '../components/ui/Cards';
 import { Button, Input } from '../components/ui/FormElements';
 import { Modal } from '../components/ui/Modal';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 import { apiFetch, apiFetchRaw } from '../services/httpClient';
 import { getErrorMessage } from '../services/errorHandler';
 import { fetchEmpresas } from '../services/apiSync';
@@ -64,6 +65,14 @@ export default function GestionUsuarios() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordOk, setPasswordOk] = useState(false);
   const [passwordEmailWarning, setPasswordEmailWarning] = useState<string | null>(null);
+
+  const confirmDialog = useConfirm();
+  const [perfilUsuario, setPerfilUsuario] = useState<Usuario | null>(null);
+  const [perfilForm, setPerfilForm] = useState({ nombre: '', email: '' });
+  const [perfilSaving, setPerfilSaving] = useState(false);
+  const [perfilError, setPerfilError] = useState<string | null>(null);
+  const [cambiandoEstadoId, setCambiandoEstadoId] = useState<string | null>(null);
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
 
   const cargarUsuarios = useCallback(async () => {
     setLoading(true);
@@ -148,6 +157,75 @@ export default function GestionUsuarios() {
       setPasswordError(err instanceof Error ? err.message : 'Error al cambiar la contraseña');
     } finally {
       setPasswordSaving(false);
+    }
+  };
+
+  const abrirEditarPerfil = (u: Usuario) => {
+    setPerfilUsuario(u);
+    setPerfilForm({ nombre: u.nombre, email: u.email });
+    setPerfilError(null);
+  };
+
+  const guardarPerfil = async () => {
+    if (!perfilUsuario) return;
+    setPerfilSaving(true);
+    setPerfilError(null);
+    try {
+      const res = await apiFetchRaw(`/api/usuarios/${perfilUsuario.id}/perfil`, {
+        method: 'PATCH',
+        body: JSON.stringify({ nombre: perfilForm.nombre, email: perfilForm.email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setPerfilUsuario(null);
+      cargarUsuarios();
+    } catch (err) {
+      setPerfilError(err instanceof Error ? err.message : 'Error al editar usuario');
+    } finally {
+      setPerfilSaving(false);
+    }
+  };
+
+  const cambiarEstado = async (u: Usuario) => {
+    setCambiandoEstadoId(u.id);
+    try {
+      const res = await apiFetchRaw(`/api/usuarios/${u.id}/activo`, {
+        method: 'PATCH',
+        body: JSON.stringify({ activo: !u.activo }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setUsuarios(us => us.map(x => x.id === u.id ? { ...x, activo: data.activo } : x));
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setCambiandoEstadoId(null);
+    }
+  };
+
+  const eliminarUsuario = async (u: Usuario) => {
+    const ok = await confirmDialog({
+      title: 'Eliminar usuario',
+      message: `¿Eliminar a ${u.nombre}? Si ya generó actividad en el sistema (asientos, documentos, auditoría) no se puede borrar sin perder esa trazabilidad — en ese caso quedará desactivado en vez de eliminado.`,
+      confirmText: 'Eliminar',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    setEliminandoId(u.id);
+    try {
+      const res = await apiFetchRaw(`/api/usuarios/${u.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      if (data.borrado) {
+        setUsuarios(us => us.filter(x => x.id !== u.id));
+      } else {
+        setError(data.message);
+        cargarUsuarios();
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setEliminandoId(null);
     }
   };
 
@@ -456,12 +534,42 @@ export default function GestionUsuarios() {
                             </button>
                             <button
                               type="button"
+                              onClick={() => abrirEditarPerfil(u)}
+                              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                              title="Editar nombre y correo"
+                            >
+                              <AtSign size={15} />
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => iniciarEdicion(u)}
                               className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                               title="Editar rol y empresa"
                             >
                               <Pencil size={15} />
                             </button>
+                            {!esUnoMismo && (
+                              <button
+                                type="button"
+                                onClick={() => cambiarEstado(u)}
+                                disabled={cambiandoEstadoId === u.id}
+                                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+                                title={u.activo ? 'Desactivar' : 'Activar'}
+                              >
+                                {u.activo ? <UserX size={15} /> : <UserCheck size={15} />}
+                              </button>
+                            )}
+                            {!esUnoMismo && (
+                              <button
+                                type="button"
+                                onClick={() => eliminarUsuario(u)}
+                                disabled={eliminandoId === u.id}
+                                className="p-1.5 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                title="Eliminar"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <span className="text-gray-300">—</span>
@@ -537,6 +645,44 @@ export default function GestionUsuarios() {
             )}
           </div>
         )}
+      </Modal>
+
+      <Modal
+        isOpen={!!perfilUsuario}
+        onClose={() => setPerfilUsuario(null)}
+        title={`Editar usuario — ${perfilUsuario?.nombre ?? ''}`}
+        size="sm"
+        closeOnBackdrop={!perfilSaving}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPerfilUsuario(null)} disabled={perfilSaving}>
+              Cancelar
+            </Button>
+            <Button onClick={guardarPerfil} disabled={perfilSaving || !perfilForm.nombre || !perfilForm.email}>
+              {perfilSaving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Input
+            label="Nombre completo"
+            value={perfilForm.nombre}
+            onChange={e => setPerfilForm(f => ({ ...f, nombre: e.target.value }))}
+          />
+          <Input
+            label="Email"
+            type="email"
+            value={perfilForm.email}
+            onChange={e => setPerfilForm(f => ({ ...f, email: e.target.value }))}
+          />
+          <p className="text-xs text-gray-500">Si cambias el correo, se le avisará al nuevo correo.</p>
+          {perfilError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+              {perfilError}
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );
