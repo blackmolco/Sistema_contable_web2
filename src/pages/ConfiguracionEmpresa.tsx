@@ -74,6 +74,8 @@ export default function ConfiguracionEmpresa() {
     ciudad: '',
     telefono: '',
     email: '',
+    representanteLegal: '',
+    rutRepresentante: '',
     activa: true,
   });
   const [actividadSeleccionada, setActividadSeleccionada] = useState<string>('');
@@ -106,6 +108,8 @@ export default function ConfiguracionEmpresa() {
       ciudad: '',
       telefono: '',
       email: '',
+      representanteLegal: '',
+      rutRepresentante: '',
       activa: true,
     });
     setActividadSeleccionada('');
@@ -318,6 +322,30 @@ export default function ConfiguracionEmpresa() {
                 placeholder="contacto@empresa.cl"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Representante Legal
+              </label>
+              <input
+                type="text"
+                value={nuevaEmpresa.representanteLegal}
+                onChange={(e) => setNuevaEmpresa({ ...nuevaEmpresa, representanteLegal: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="Nombre completo"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                RUT Representante
+              </label>
+              <input
+                type="text"
+                value={nuevaEmpresa.rutRepresentante}
+                onChange={(e) => setNuevaEmpresa({ ...nuevaEmpresa, rutRepresentante: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="11.111.111-1"
+              />
+            </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Logo de empresa</label>
               <label className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary hover:bg-gray-50 transition-colors">
@@ -489,7 +517,7 @@ export default function ConfiguracionEmpresa() {
       {/* Info de empresa simple */}
       {empresaActiva && (
         <Card title="Clasificación Fiscal">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex items-center gap-2 mb-2">
                 <FileText size={18} className="text-blue-600" />
@@ -521,6 +549,14 @@ export default function ConfiguracionEmpresa() {
               </div>
               <p className="font-medium text-amber-900">{empresaActiva.telefono || 'N/A'}</p>
               <p className="text-xs text-amber-700">{empresaActiva.email || 'N/A'}</p>
+            </div>
+            <div className="p-4 bg-rose-50 rounded-lg border border-rose-200">
+              <div className="flex items-center gap-2 mb-2">
+                <User size={18} className="text-rose-600" />
+                <span className="font-medium text-rose-900">Representante Legal</span>
+              </div>
+              <p className="font-medium text-rose-900">{empresaActiva.representanteLegal || 'N/A'}</p>
+              <p className="text-xs text-rose-700">{empresaActiva.rutRepresentante || 'N/A'}</p>
             </div>
           </div>
         </Card>

@@ -61,6 +61,8 @@ export async function fetchEmpresas(): Promise<Empresa[]> {
     ciudad: (r.ciudad as string) || '',
     email: (r.email as string) || '',
     telefono: (r.telefono as string) || '',
+    representanteLegal: (r.representanteLegal as string) || undefined,
+    rutRepresentante: (r.rutRepresentante as string) || undefined,
     logo: (r.logo as string) || undefined,
     activa: (r.activo as boolean) ?? true,
   }));
@@ -80,6 +82,8 @@ export async function saveEmpresa(e: Empresa): Promise<void> {
       ciudad: e.ciudad || null,
       telefono: e.telefono || null,
       email: e.email || null,
+      representanteLegal: e.representanteLegal || null,
+      rutRepresentante: e.rutRepresentante || null,
       logo: e.logo || null,
     }),
   });

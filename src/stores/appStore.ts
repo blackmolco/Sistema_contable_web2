@@ -14,6 +14,8 @@ export interface Empresa {
   ciudad: string;
   email: string;
   telefono: string;
+  representanteLegal?: string;
+  rutRepresentante?: string;
   logo?: string;
   activa: boolean;
 }
