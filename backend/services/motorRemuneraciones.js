@@ -14,6 +14,12 @@ const TOPE_GRATIFICACION_FACTOR = 4.75; // Art. 50 Codigo del Trabajo: 25% con t
 
 // --- REFORMA PREVISIONAL (Ley 21.735): Cotizacion Adicional del Empleador ---
 // Calendario fijado por ley (cambia ~1 vez al ano, no mes a mes como UF/UTM).
+// Verificado contra los boletines PreviRed mayo-septiembre 2026: desde
+// agosto 2026 el "segundo componente" pasa a ser DOS lineas separadas
+// (Rentabilidad Protegida 0,90% + Expectativa de Vida 0,72%), que este
+// motor suma en un solo total (1,62%) porque aqui solo se centraliza el
+// monto agregado — la conciliacion linea por linea contra PreviRed sigue
+// siendo tarea del sistema de remuneraciones dedicado.
 const REFORMA_PREVISIONAL_TRAMOS = [
     {
         desde: '2025-08',
@@ -25,8 +31,8 @@ const REFORMA_PREVISIONAL_TRAMOS = [
     {
         desde: '2026-08',
         cuentaIndividualPct: 0.001,
-        segundoComponentePct: 0.009,
-        segundoComponenteLabel: 'Rentabilidad Protegida',
+        segundoComponentePct: 0.0162, // Rentabilidad Protegida 0,90% + Expectativa de Vida 0,72%
+        segundoComponenteLabel: 'Rentabilidad Protegida + Expectativa de Vida',
         sisPct: null,
     },
 ];
