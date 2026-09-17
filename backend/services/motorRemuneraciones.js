@@ -163,8 +163,16 @@ function calcularLiquidacion(trabajador, entrada, indices, periodo, opciones = {
         descuentoSalud = Math.max(pactadoPesos, sietePorciento);
     }
 
+    // Los pensionados (tipo '1' cotiza AFP o '2' no cotiza) quedan exentos por
+    // ley del Seguro de Cesantia/AFC completo -- ni trabajador ni empleador
+    // cotizan (excepto pension de invalidez parcial o trabajadores de casa
+    // particular, no cubiertos por este motor). Fuente: Subsecretaria de
+    // Prevision Social / AFC.cl. No confundir con noCotizaAfp: hay
+    // pensionados que SI siguen cotizando AFP (tipo '1') pero igual quedan
+    // exentos de AFC.
+    const esPensionado = trabajador.tipoTrabajadorPrevired === '1' || trabajador.tipoTrabajadorPrevired === '2';
     const tipoContrato = entrada.tipoContrato || trabajador.tipoContrato || 'indefinido';
-    const descuentoCesantia = tipoContrato === 'indefinido' ? baseCesantia * 0.006 : 0;
+    const descuentoCesantia = (!esPensionado && tipoContrato === 'indefinido') ? baseCesantia * 0.006 : 0;
 
     const totalPrevisional = descuentoAfp + descuentoSalud + descuentoCesantia;
 
@@ -195,7 +203,7 @@ function calcularLiquidacion(trabajador, entrada, indices, periodo, opciones = {
     // rubro/siniestralidad, propia de cada Mutual — ver Empresa.mutualTasaPct).
     const mutualTasaPct = opciones.mutualTasaPct ?? 0.90;
     const aporteMutual = totalImponible * (mutualTasaPct / 100);
-    const aporteAfcEmpresa = tipoContrato === 'indefinido' ? baseCesantia * 0.024 : baseCesantia * 0.03;
+    const aporteAfcEmpresa = esPensionado ? 0 : (tipoContrato === 'indefinido' ? baseCesantia * 0.024 : baseCesantia * 0.03);
 
     const totalAportesPatronales = aporteSis + aporteReformaPrevisional + aporteMutual + aporteAfcEmpresa;
     const costoTotalEmpresa = totalHaberes + totalAportesPatronales;
