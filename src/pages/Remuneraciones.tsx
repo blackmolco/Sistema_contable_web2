@@ -47,6 +47,12 @@ interface Indice {
   valorTramoC: number;
 }
 
+interface EmpresaMutual {
+  id: string;
+  mutualNombre: string | null;
+  mutualTasaPct: number | null;
+}
+
 interface Liquidacion {
   id: string;
   trabajadorId: string;
@@ -77,11 +83,18 @@ const initialIndicesForm = {
 
 const initialEntradaForm = { diasTrabajados: 30, bonos: 0, aguinaldo: 0, horasExtra: 0, anticipos: 0, prestamos: 0 };
 
+const MUTUALES = ['ACHS', 'Mutual de Seguridad CChC', 'IST', 'ISL (Estado)', 'Otra'];
+const initialMutualForm = { mutualNombre: MUTUALES[0], mutualTasaPct: 0.90 };
+
 export default function Remuneraciones() {
   const { showToast } = useApp();
   const empresaId = useAppStore(s => s.empresaActiva?.id ?? null);
   const rol = useAuthStore(s => s.user?.rol);
   const esAdminGlobal = rol === 'admin' || rol === 'administrador';
+  // Mutual es config "de administrador de la empresa": admin global o el
+  // supervisor de esa misma empresa pueden editarla (igual que Usuarios,
+  // Periodos y Auditoría — ver backend/routes/empresas.js).
+  const puedeConfigurarMutual = esAdminGlobal || rol === 'supervisor';
 
   const [periodo, setPeriodo] = useState(periodoActual());
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
@@ -97,6 +110,11 @@ export default function Remuneraciones() {
   const [formIndices, setFormIndices] = useState(initialIndicesForm);
   const [guardandoIndices, setGuardandoIndices] = useState(false);
 
+  const [mutual, setMutual] = useState<EmpresaMutual | null>(null);
+  const [mostrarFormMutual, setMostrarFormMutual] = useState(false);
+  const [formMutual, setFormMutual] = useState(initialMutualForm);
+  const [guardandoMutual, setGuardandoMutual] = useState(false);
+
   const [filaAbierta, setFilaAbierta] = useState<string | null>(null);
   const [entradas, setEntradas] = useState<Record<string, typeof initialEntradaForm>>({});
   const [calculando, setCalculando] = useState<string | null>(null);
@@ -107,15 +125,17 @@ export default function Remuneraciones() {
     if (!empresaId) { setTrabajadores([]); return; }
     setLoading(true);
     try {
-      const [dataTrab, dataIndice, dataLiq] = await Promise.all([
+      const [dataTrab, dataIndice, dataLiq, dataEmpresas] = await Promise.all([
         apiFetch<Trabajador[] | { data: Trabajador[] }>(`/api/trabajadores?empresaId=${encodeURIComponent(empresaId)}&estado=activo`),
         apiFetch<Indice | null>(`/api/indices-previsionales?periodo=${periodo}`),
         apiFetch<Liquidacion[] | { data: Liquidacion[] }>(`/api/trabajadores/liquidaciones?empresaId=${encodeURIComponent(empresaId)}&periodo=${periodo}`),
+        apiFetch<EmpresaMutual[]>('/api/empresas'),
       ]);
       setTrabajadores(Array.isArray(dataTrab) ? dataTrab : (dataTrab as { data: Trabajador[] }).data ?? []);
       setIndice(dataIndice ?? null);
       const liqArray = Array.isArray(dataLiq) ? dataLiq : (dataLiq as { data: Liquidacion[] }).data ?? [];
       setLiquidaciones(Object.fromEntries(liqArray.map(l => [l.trabajadorId, l])));
+      setMutual(dataEmpresas.find(e => e.id === empresaId) ?? null);
     } catch (err) {
       showToast('error', 'Error', `No se pudo cargar la información: ${getErrorMessage(err)}`);
     } finally {
@@ -182,6 +202,23 @@ export default function Remuneraciones() {
       showToast('error', 'Error al guardar', getErrorMessage(err));
     } finally {
       setGuardandoIndices(false);
+    }
+  };
+
+  const guardarMutual = async () => {
+    if (!empresaId) return;
+    setGuardandoMutual(true);
+    try {
+      const res = await apiFetchRaw(`/api/empresas/${empresaId}/mutual`, { method: 'PATCH', body: JSON.stringify(formMutual) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setMutual(data);
+      setMostrarFormMutual(false);
+      showToast('success', 'Mutual actualizada', `Se guardó ${formMutual.mutualNombre} — ${formMutual.mutualTasaPct}%.`);
+    } catch (err) {
+      showToast('error', 'Error al guardar', getErrorMessage(err));
+    } finally {
+      setGuardandoMutual(false);
     }
   };
 
@@ -277,6 +314,32 @@ export default function Remuneraciones() {
           <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             Aún no se cargan los índices previsionales de {periodo}
             {esAdminGlobal ? ' — cárgalos con el botón de arriba antes de calcular liquidaciones.' : '. Pide a tu administrador que los cargue antes de calcular liquidaciones.'}
+          </p>
+        )}
+      </Card>
+
+      {/* Mutual de Seguridad de esta empresa */}
+      <Card>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Landmark size={18} className="text-gray-500" />
+            <h3 className="font-semibold text-gray-800">Mutual de Seguridad</h3>
+          </div>
+          {puedeConfigurarMutual && (
+            <button
+              onClick={() => { setFormMutual(mutual?.mutualTasaPct != null ? { mutualNombre: mutual.mutualNombre || MUTUALES[0], mutualTasaPct: mutual.mutualTasaPct } : initialMutualForm); setMostrarFormMutual(true); }}
+              className="text-xs text-primary hover:underline"
+            >
+              {mutual?.mutualTasaPct != null ? 'Editar' : 'Configurar tasa real'}
+            </button>
+          )}
+        </div>
+        {mutual?.mutualTasaPct != null ? (
+          <p className="text-sm text-gray-700">{mutual.mutualNombre || 'Mutual'} — <strong>{mutual.mutualTasaPct}%</strong> (tasa real de esta empresa)</p>
+        ) : (
+          <p className="text-sm text-gray-500">
+            Usando el piso legal <strong>0,90%</strong> (Ley 16.744) — si esta empresa tiene una tasa adicional propia con su Mutual (según rubro o siniestralidad),
+            {puedeConfigurarMutual ? ' configúrala con el botón de arriba.' : ' pide a tu administrador que la configure.'}
           </p>
         )}
       </Card>
@@ -482,6 +545,25 @@ export default function Remuneraciones() {
           <Input label="Asignación Familiar Tramo C" type="number" value={formIndices.valorTramoC} onChange={e => setFormIndices(f => ({ ...f, valorTramoC: Number(e.target.value) }))} />
         </div>
         <p className="text-[11px] text-gray-400 mt-3">Valores precargados con la referencia más reciente conocida — confírmalos con el boletín de Previred del mes antes de guardar.</p>
+      </Modal>
+
+      {/* Modal: Mutual de Seguridad */}
+      <Modal isOpen={mostrarFormMutual} onClose={() => setMostrarFormMutual(false)} title="Mutual de Seguridad" size="sm" closeOnBackdrop={false}
+        footer={<>
+          <Button variant="secondary" onClick={() => setMostrarFormMutual(false)}>Cancelar</Button>
+          <Button onClick={guardarMutual} disabled={guardandoMutual} icon={<Save size={16} />}>{guardandoMutual ? 'Guardando...' : 'Guardar'}</Button>
+        </>}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Mutual afiliada</label>
+            <select value={formMutual.mutualNombre} onChange={e => setFormMutual(f => ({ ...f, mutualNombre: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+              {MUTUALES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <Input label="Tasa real (%) — piso legal + adicional propia" type="number" step="0.01" min={0.9} value={formMutual.mutualTasaPct} onChange={e => setFormMutual(f => ({ ...f, mutualTasaPct: Number(e.target.value) }))} />
+          <p className="text-[11px] text-gray-400">El piso legal es 0,90% — pon el total que efectivamente cobra la Mutual a esta empresa (viene en su comunicación de tasa anual, o en la liquidación de cotizaciones que envían).</p>
+        </div>
       </Modal>
     </div>
   );

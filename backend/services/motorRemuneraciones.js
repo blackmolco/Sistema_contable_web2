@@ -90,8 +90,11 @@ function round(n) {
  *                              prestamos, tipoContrato }
  * @param {object} indices - fila de IndicePrevisional del periodo correspondiente
  * @param {string} periodo - 'YYYY-MM'
+ * @param {object} opciones - { mutualTasaPct } — tasa real de la Mutual de
+ *   la empresa (puntos porcentuales, ej. 0.95 = 0,95%). Si no se indica, se
+ *   usa el piso legal 0,90% (Ley 16.744).
  */
-function calcularLiquidacion(trabajador, entrada, indices, periodo) {
+function calcularLiquidacion(trabajador, entrada, indices, periodo, opciones = {}) {
     if (!indices) {
         const err = new Error(`No hay indices previsionales cargados para el periodo ${periodo}.`);
         err.status = 400;
@@ -182,10 +185,11 @@ function calcularLiquidacion(trabajador, entrada, indices, periodo) {
     const aporteReformaPrevisional = aporteReformaCuentaIndividual + aporteReformaSegundoComponente;
     const sisIncluidoEnTramo = tramoReforma && tramoReforma.sisPct != null;
     const aporteSis = sisIncluidoEnTramo ? baseAfpSalud * tramoReforma.sisPct : baseAfpSalud * tasaSis;
-    // Tasa de cotizacion Mutual/ISL (Ley 16.744): piso legal 0.90% — cada
-    // empresa tiene una tasa adicional propia segun su Mutual, que este
-    // motor acotado no modela (se puede afinar mas adelante).
-    const aporteMutual = totalImponible * 0.009;
+    // Tasa de cotizacion Mutual/ISL (Ley 16.744): piso legal 0.90%, salvo
+    // que la empresa tenga registrada su tasa real (base + adicional segun
+    // rubro/siniestralidad, propia de cada Mutual — ver Empresa.mutualTasaPct).
+    const mutualTasaPct = opciones.mutualTasaPct ?? 0.90;
+    const aporteMutual = totalImponible * (mutualTasaPct / 100);
     const aporteAfcEmpresa = tipoContrato === 'indefinido' ? baseCesantia * 0.024 : baseCesantia * 0.03;
 
     const totalAportesPatronales = aporteSis + aporteReformaPrevisional + aporteMutual + aporteAfcEmpresa;

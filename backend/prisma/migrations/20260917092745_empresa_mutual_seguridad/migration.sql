@@ -1,0 +1,2 @@
+ALTER TABLE "Empresa" ADD COLUMN "mutualNombre" TEXT;
+ALTER TABLE "Empresa" ADD COLUMN "mutualTasaPct" DOUBLE PRECISION;

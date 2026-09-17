@@ -67,6 +67,14 @@ model Empresa {
   fechaCreacion       DateTime @default(now())
   ultimoNumeroAsiento Int      @default(0)
 
+  // Mutual de Seguridad (Ley 16.744): la tasa real es propia de cada
+  // empresa (piso legal 0,90% + adicional segun rubro y siniestralidad,
+  // que cada Mutual evalua por separado) — no hay tabla publica unica como
+  // con las AFP. Se guarda en puntos porcentuales (0.90 = 0,90%), null =
+  // usar el piso legal 0,90%.
+  mutualNombre  String?
+  mutualTasaPct Float?
+
   usuarios Usuario[]
 }
 

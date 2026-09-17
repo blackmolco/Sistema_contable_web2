@@ -200,7 +200,8 @@ router.post('/liquidaciones/calcular', authenticateToken, writeLimiter, validate
             return res.status(400).json({ error: `No hay índices previsionales cargados para ${req.body.periodo}. Cárgalos primero.` });
         }
 
-        const resultado = calcularLiquidacion(trabajador, req.body, indices, req.body.periodo);
+        const empresa = trabajador.empresaId ? await prisma.empresa.findUnique({ where: { id: trabajador.empresaId }, select: { mutualTasaPct: true } }) : null;
+        const resultado = calcularLiquidacion(trabajador, req.body, indices, req.body.periodo, { mutualTasaPct: empresa?.mutualTasaPct ?? undefined });
         const liquidacion = await prisma.liquidacionSueldo.upsert({
             where: { trabajadorId_periodo: { trabajadorId: req.body.trabajadorId, periodo: req.body.periodo } },
             create: { trabajadorId: req.body.trabajadorId, periodo: req.body.periodo, ...resultado },

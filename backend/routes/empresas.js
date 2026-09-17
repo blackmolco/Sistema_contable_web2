@@ -75,6 +75,32 @@ router.post('/', authenticateToken, requireRole('admin', 'administrador'), write
     }
 });
 
+const mutualSchema = z.object({
+    mutualNombre: z.string().max(100).optional().nullable(),
+    // Puntos porcentuales (0.9 = 0,90%) — la tasa real de cada empresa la
+    // fija su Mutual segun rubro/siniestralidad, no hay tabla unica.
+    mutualTasaPct: z.number().min(0).max(10).optional().nullable(),
+});
+
+// Admin global edita la Mutual de cualquier empresa; un supervisor solo la
+// de su propia empresa (es config de "administrador de su empresa", igual
+// que Usuarios/Periodos/Auditoria — ver middlewares/empresaAccess.js).
+router.patch('/:id/mutual', authenticateToken, writeLimiter, validate(mutualSchema), async (req, res) => {
+    try {
+        const esAdminGlobal = req.usuario.rol === 'admin' || req.usuario.rol === 'administrador';
+        const esSupervisorDeEsta = req.usuario.rol === 'supervisor' && req.usuario.empresaId === req.params.id;
+        if (!esAdminGlobal && !esSupervisorDeEsta) {
+            return res.status(403).json({ error: 'No tiene permiso para editar la Mutual de esta empresa' });
+        }
+        const empresa = await prisma.empresa.update({ where: { id: req.params.id }, data: req.body });
+        await auditLog(req.usuario.id, 'ACTUALIZAR', 'Empresa', empresa.id, { mutual: req.body }, req.ip, req.headers['user-agent']);
+        res.json(empresa);
+    } catch (err) {
+        logger.error({ err }, 'Error actualizando Mutual de la empresa');
+        res.status(500).json({ error: 'Error al actualizar la Mutual' });
+    }
+});
+
 router.delete('/:id', authenticateToken, requireRole('admin', 'administrador'), writeLimiter, async (req, res) => {
     try {
         await prisma.empresa.update({ where: { id: req.params.id }, data: { activo: false } });
