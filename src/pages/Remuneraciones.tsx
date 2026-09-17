@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Wallet, Plus, X, Save, Calculator, Landmark, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { Wallet, Plus, X, Save, Calculator, Landmark, ChevronDown, ChevronUp, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
 import { Card } from '../components/ui/Cards';
 import { Button, Input } from '../components/ui/FormElements';
 import { Modal } from '../components/ui/Modal';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 import { formatCurrency } from '../utils/calculos';
 import { useApp } from '../context/AppContext';
 import { useAppStore } from '../stores/appStore';
@@ -88,6 +89,7 @@ const initialMutualForm = { mutualNombre: MUTUALES[0], mutualTasaPct: 0.90 };
 
 export default function Remuneraciones() {
   const { showToast } = useApp();
+  const confirmDialog = useConfirm();
   const empresaId = useAppStore(s => s.empresaActiva?.id ?? null);
   const rol = useAuthStore(s => s.user?.rol);
   const esAdminGlobal = rol === 'admin' || rol === 'administrador';
@@ -105,6 +107,9 @@ export default function Remuneraciones() {
   const [mostrarFormTrabajador, setMostrarFormTrabajador] = useState(false);
   const [formTrabajador, setFormTrabajador] = useState(initialTrabajadorForm);
   const [guardandoTrabajador, setGuardandoTrabajador] = useState(false);
+  const [editandoTrabajadorId, setEditandoTrabajadorId] = useState<string | null>(null);
+  const [cambiandoEstadoId, setCambiandoEstadoId] = useState<string | null>(null);
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
 
   const [mostrarFormIndices, setMostrarFormIndices] = useState(false);
   const [formIndices, setFormIndices] = useState(initialIndicesForm);
@@ -126,7 +131,7 @@ export default function Remuneraciones() {
     setLoading(true);
     try {
       const [dataTrab, dataIndice, dataLiq, dataEmpresas] = await Promise.all([
-        apiFetch<Trabajador[] | { data: Trabajador[] }>(`/api/trabajadores?empresaId=${encodeURIComponent(empresaId)}&estado=activo`),
+        apiFetch<Trabajador[] | { data: Trabajador[] }>(`/api/trabajadores?empresaId=${encodeURIComponent(empresaId)}`),
         apiFetch<Indice | null>(`/api/indices-previsionales?periodo=${periodo}`),
         apiFetch<Liquidacion[] | { data: Liquidacion[] }>(`/api/trabajadores/liquidaciones?empresaId=${encodeURIComponent(empresaId)}&periodo=${periodo}`),
         apiFetch<EmpresaMutual[]>('/api/empresas'),
@@ -175,17 +180,76 @@ export default function Remuneraciones() {
         tipoTrabajadorPrevired: formTrabajador.tipoTrabajadorPrevired,
         empresaId,
       };
-      const res = await apiFetchRaw('/api/trabajadores', { method: 'POST', body: JSON.stringify(body) });
+      const editando = editandoTrabajadorId;
+      const res = await apiFetchRaw(editando ? `/api/trabajadores/${editando}` : '/api/trabajadores', {
+        method: editando ? 'PUT' : 'POST',
+        body: JSON.stringify(body),
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
-      setTrabajadores(t => [...t, data]);
+      setTrabajadores(t => editando ? t.map(x => x.id === editando ? data : x) : [...t, data]);
       setMostrarFormTrabajador(false);
+      setEditandoTrabajadorId(null);
       setFormTrabajador(initialTrabajadorForm);
-      showToast('success', 'Trabajador agregado', `${data.nombres} ${data.apellidos} quedó registrado.`);
+      showToast('success', editando ? 'Trabajador actualizado' : 'Trabajador agregado', `${data.nombres} ${data.apellidos} quedó ${editando ? 'actualizado' : 'registrado'}.`);
     } catch (err) {
       showToast('error', 'Error al guardar', getErrorMessage(err));
     } finally {
       setGuardandoTrabajador(false);
+    }
+  };
+
+  const iniciarEdicionTrabajador = (t: Trabajador) => {
+    setEditandoTrabajadorId(t.id);
+    setFormTrabajador({
+      rut: t.rut, nombres: t.nombres, apellidos: t.apellidos, cargo: t.cargo || '', fechaIngreso: t.fechaIngreso.slice(0, 10),
+      tipoContrato: t.tipoContrato, sueldoBase: String(t.sueldoBase), colacion: t.colacion, movilizacion: t.movilizacion,
+      afp: t.afp, tasaAfp: t.tasaAfp,
+      esFonasa: !t.isapre, isapre: t.isapre || '', saludPactado: t.saludPactado,
+      tramoAsignacionFamiliar: t.tramoAsignacionFamiliar, cargasSimples: t.cargasSimples, cargasMaternales: t.cargasMaternales, cargasInvalidez: t.cargasInvalidez,
+      tipoTrabajadorPrevired: t.tipoTrabajadorPrevired,
+    });
+    setMostrarFormTrabajador(true);
+  };
+
+  const cambiarEstadoTrabajador = async (t: Trabajador, nuevoEstado: string) => {
+    setCambiandoEstadoId(t.id);
+    try {
+      const res = await apiFetchRaw(`/api/trabajadores/${t.id}`, { method: 'PUT', body: JSON.stringify({ estado: nuevoEstado }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setTrabajadores(ts => ts.map(x => x.id === t.id ? data : x));
+    } catch (err) {
+      showToast('error', 'Error al cambiar estado', getErrorMessage(err));
+    } finally {
+      setCambiandoEstadoId(null);
+    }
+  };
+
+  const eliminarTrabajador = async (t: Trabajador) => {
+    const ok = await confirmDialog({
+      title: 'Eliminar trabajador',
+      message: `¿Eliminar a ${t.nombres} ${t.apellidos}? Si ya tiene liquidaciones registradas no se puede borrar sin perder ese historial — en ese caso se marcará como desvinculado en vez de eliminarse.`,
+      confirmText: 'Eliminar',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    setEliminandoId(t.id);
+    try {
+      const res = await apiFetchRaw(`/api/trabajadores/${t.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      if (data.borrado) {
+        setTrabajadores(ts => ts.filter(x => x.id !== t.id));
+        showToast('success', 'Trabajador eliminado', `${t.nombres} ${t.apellidos} fue eliminado.`);
+      } else {
+        showToast('warning', 'No se pudo eliminar', data.message);
+        cargarTodo();
+      }
+    } catch (err) {
+      showToast('error', 'Error al eliminar', getErrorMessage(err));
+    } finally {
+      setEliminandoId(null);
     }
   };
 
@@ -347,7 +411,7 @@ export default function Remuneraciones() {
       {/* Trabajadores + liquidaciones del período */}
       <Card
         title={`Trabajadores (${trabajadores.length})`}
-        action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setMostrarFormTrabajador(true)}>Nuevo Trabajador</Button>}
+        action={<Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditandoTrabajadorId(null); setFormTrabajador(initialTrabajadorForm); setMostrarFormTrabajador(true); }}>Nuevo Trabajador</Button>}
       >
         {loading ? (
           <div className="py-8 text-center text-gray-400 text-sm">Cargando...</div>
@@ -359,25 +423,48 @@ export default function Remuneraciones() {
               const liq = liquidaciones[t.id];
               const abierta = filaAbierta === t.id;
               const entrada = entradas[t.id] || initialEntradaForm;
+              const inactivo = t.estado !== 'activo';
               return (
-                <div key={t.id} className="py-3">
-                  <button onClick={() => abrirFila(t.id)} className="w-full flex items-center justify-between text-left">
-                    <div>
-                      <p className="font-medium text-gray-900">{t.nombres} {t.apellidos}</p>
-                      <p className="text-xs text-gray-500">{t.cargo || 'Sin cargo'} · {t.afp}{t.isapre ? ` · ${t.isapre}` : ' · Fonasa'}</p>
+                <div key={t.id} className={`py-3 ${inactivo ? 'opacity-60' : ''}`}>
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <button onClick={() => abrirFila(t.id)} className="flex-1 min-w-0 flex items-center justify-between text-left">
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 truncate">
+                          {t.nombres} {t.apellidos}
+                          {inactivo && <span className="ml-2 inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-gray-200 text-gray-600 align-middle">{t.estado === 'suspendido' ? 'Suspendido' : 'Desvinculado'}</span>}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{t.cargo || 'Sin cargo'} · {t.afp}{t.isapre ? ` · ${t.isapre}` : ' · Fonasa'}</p>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                        {liq ? (
+                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${liq.asientoId ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {liq.asientoId && <CheckCircle2 size={12} />}
+                            Líquido: {formatCurrency(liq.sueldoLiquido)}{liq.asientoId ? ' (centralizado)' : ''}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">Sin calcular</span>
+                        )}
+                        {abierta ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => cambiarEstadoTrabajador(t, inactivo ? 'activo' : 'desvinculado')}
+                        disabled={cambiandoEstadoId === t.id}
+                        title={inactivo ? 'Reactivar' : 'Marcar como desvinculado'}
+                        className="px-2 py-1 text-[11px] rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {inactivo ? 'Reactivar' : 'Desvincular'}
+                      </button>
+                      <button type="button" onClick={() => iniciarEdicionTrabajador(t)} title="Editar" className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700">
+                        <Pencil size={15} />
+                      </button>
+                      <button type="button" onClick={() => eliminarTrabajador(t)} disabled={eliminandoId === t.id} title="Eliminar" className="p-1.5 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50">
+                        <Trash2 size={15} />
+                      </button>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {liq ? (
-                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${liq.asientoId ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                          {liq.asientoId && <CheckCircle2 size={12} />}
-                          Líquido: {formatCurrency(liq.sueldoLiquido)}{liq.asientoId ? ' (centralizado)' : ''}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">Sin calcular</span>
-                      )}
-                      {abierta ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                    </div>
-                  </button>
+                  </div>
                   {abierta && (
                     <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
                       {liq?.asientoId && (
@@ -446,10 +533,10 @@ export default function Remuneraciones() {
         </div>
       )}
 
-      {/* Modal: nuevo trabajador */}
-      <Modal isOpen={mostrarFormTrabajador} onClose={() => setMostrarFormTrabajador(false)} title="Nuevo Trabajador" size="lg" closeOnBackdrop={false}
+      {/* Modal: nuevo/editar trabajador */}
+      <Modal isOpen={mostrarFormTrabajador} onClose={() => { setMostrarFormTrabajador(false); setEditandoTrabajadorId(null); }} title={editandoTrabajadorId ? 'Editar Trabajador' : 'Nuevo Trabajador'} size="lg" closeOnBackdrop={false}
         footer={<>
-          <Button variant="secondary" onClick={() => setMostrarFormTrabajador(false)}>Cancelar</Button>
+          <Button variant="secondary" onClick={() => { setMostrarFormTrabajador(false); setEditandoTrabajadorId(null); }}>Cancelar</Button>
           <Button onClick={guardarTrabajador} disabled={guardandoTrabajador} icon={<Save size={16} />}>{guardandoTrabajador ? 'Guardando...' : 'Guardar'}</Button>
         </>}
       >

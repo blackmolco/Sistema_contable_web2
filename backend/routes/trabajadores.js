@@ -142,14 +142,31 @@ router.put('/:id', authenticateToken, writeLimiter, validate(trabajadorSchema.pa
     }
 });
 
+// Si el trabajador nunca tuvo una liquidacion, se borra de verdad (no queda
+// nada que perder). Si ya tiene alguna — aunque sea de un periodo viejo, no
+// solo centralizada — borrarlo de verdad haria cascada sobre
+// LiquidacionSueldo (onDelete: Cascade) y se perderia ese historial, asi
+// que en ese caso se deja como estaba: solo se desvincula (soft delete).
 router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
     try {
         const actual = await prisma.trabajador.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
         if (!actual) return res.status(404).json({ error: 'Trabajador no encontrado' });
         if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
+
+        const liquidacionesCount = await prisma.liquidacionSueldo.count({ where: { trabajadorId: req.params.id } });
+        if (liquidacionesCount === 0) {
+            await prisma.trabajador.delete({ where: { id: req.params.id } });
+            await auditLog(req.usuario.id, 'ELIMINAR', 'Trabajador', req.params.id, { tipo: 'borrado' }, req.ip, req.headers['user-agent']);
+            return res.json({ message: 'Trabajador eliminado', borrado: true });
+        }
+
         await prisma.trabajador.update({ where: { id: req.params.id }, data: { estado: 'desvinculado' } });
-        await auditLog(req.usuario.id, 'ELIMINAR', 'Trabajador', req.params.id, {}, req.ip, req.headers['user-agent']);
-        res.json({ message: 'Trabajador desvinculado' });
+        await auditLog(req.usuario.id, 'ELIMINAR', 'Trabajador', req.params.id, { tipo: 'desvinculado', liquidacionesCount }, req.ip, req.headers['user-agent']);
+        res.json({
+            message: `Este trabajador tiene ${liquidacionesCount} liquidación(es) registradas — no se puede eliminar sin perder ese historial. Se marcó como desvinculado en su lugar.`,
+            borrado: false,
+            liquidacionesCount,
+        });
     } catch (err) {
         logger.error({ err }, 'Error eliminando trabajador');
         res.status(500).json({ error: 'Error al eliminar trabajador' });
