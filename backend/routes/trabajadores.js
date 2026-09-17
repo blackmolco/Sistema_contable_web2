@@ -272,6 +272,7 @@ router.post('/liquidaciones/centralizar', authenticateToken, writeLimiter, async
             await exigirPeriodoAbierto(tx, empresaId, `${periodo}-01`);
             const liquidaciones = await tx.liquidacionSueldo.findMany({
                 where: { periodo, asientoId: null, trabajador: { empresaId } },
+                include: { trabajador: true },
             });
             if (liquidaciones.length === 0) {
                 const err = new Error('No hay liquidaciones pendientes de centralizar para ese período.');

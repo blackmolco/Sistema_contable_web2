@@ -3,7 +3,7 @@
 // ============ Plan de Cuentas ============
 export type TipoCuenta = 'activo' | 'pasivo' | 'patrimonio' | 'ingreso' | 'gasto';
 export type NaturalezaCuenta = 'deudora' | 'acreedora';
-export type TipoAuxiliar = 'cliente' | 'proveedor' | 'honorario';
+export type TipoAuxiliar = 'cliente' | 'proveedor' | 'honorario' | 'trabajador';
 
 export interface Cuenta {
   id: string;

@@ -283,7 +283,9 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     naturaleza: "deudora",
     nivel: 3,
     padreId: "1-02-001",
-    permiteMovimiento: true
+    permiteMovimiento: true,
+    requiereAuxiliar: true,
+    tipoAuxiliar: "trabajador"
   },
   {
     id: "1-02-001-0004",
@@ -652,7 +654,9 @@ export const PLAN_CUENTAS_DEFAULT: Cuenta[] = [
     padreId: "2-01-003",
     permiteMovimiento: true,
     refSII: "LRE",
-    descripcion: "Sueldos devengados no pagados"
+    descripcion: "Sueldos devengados no pagados",
+    requiereAuxiliar: true,
+    tipoAuxiliar: "trabajador"
   },
   {
     id: "2-01-003-0002",

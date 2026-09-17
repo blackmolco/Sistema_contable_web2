@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CreditCard, ExternalLink, History, ListChecks, WalletCards } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useAppStore } from '../stores/appStore';
+import { apiFetch } from '../services/httpClient';
 import { Card, Badge } from '../components/ui/Cards';
 import { Button, Input, MontoInput, Select, SearchSelect } from '../components/ui/FormElements';
 import { Modal } from '../components/ui/Modal';
@@ -9,13 +11,16 @@ import { formatCurrency, formatDate } from '../utils/calculos';
 import { Entidad, TipoAuxiliar } from '../types';
 import { aplicarPagoCobro } from '../services/apiSync';
 
-type FiltroTipo = 'todos' | 'cliente' | 'proveedor' | 'honorario';
+type FiltroTipo = 'todos' | 'cliente' | 'proveedor' | 'honorario' | 'trabajador';
 type Aplicable = { rut: string; nombre: string; documentoId: string; cuentaControlId: string; saldo: number; naturaleza: 'deudora' | 'acreedora' };
+type TrabajadorLite = { id: string; rut: string; nombres: string; apellidos: string };
+type LiquidacionLite = { id: string; trabajadorId: string; periodo: string };
 
 const LABEL_TIPO: Record<Exclude<FiltroTipo, 'todos'>, string> = {
   cliente: 'Clientes',
   proveedor: 'Proveedores',
   honorario: 'Honorarios',
+  trabajador: 'Trabajadores',
 };
 
 const vencimientoDocumento = (fecha: string, vencimiento?: string) => {
@@ -28,6 +33,7 @@ const vencimientoDocumento = (fecha: string, vencimiento?: string) => {
 export default function CuentaCorriente() {
   const { state, showToast } = useApp();
   const navigate = useNavigate();
+  const empresaId = useAppStore((s) => s.empresaActiva?.id ?? null);
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
   const [rutSeleccionado, setRutSeleccionado] = useState('');
   const [soloPendientes, setSoloPendientes] = useState(true);
@@ -37,6 +43,31 @@ export default function CuentaCorriente() {
   const [cuentaMedioId, setCuentaMedioId] = useState('');
   const [fechaAplicar, setFechaAplicar] = useState(new Date().toISOString().slice(0, 10));
   const [guardando, setGuardando] = useState(false);
+  const [trabajadores, setTrabajadores] = useState<TrabajadorLite[]>([]);
+  const [liquidaciones, setLiquidaciones] = useState<LiquidacionLite[]>([]);
+
+  // Trabajadores/liquidaciones no viven en el AppContext global (Remuneraciones
+  // los maneja aparte) — se traen aquí solo para poder mostrar nombre y
+  // etiqueta de documento de las líneas de sueldo/anticipos que ya llegan
+  // tageadas con rutAuxiliar desde la centralización de remuneraciones.
+  useEffect(() => {
+    if (!empresaId) { setTrabajadores([]); setLiquidaciones([]); return; }
+    let cancelado = false;
+    (async () => {
+      try {
+        const [trabajadoresRes, liquidacionesRes] = await Promise.all([
+          apiFetch<TrabajadorLite[] | { data: TrabajadorLite[] }>(`/api/trabajadores?empresaId=${encodeURIComponent(empresaId)}`),
+          apiFetch<LiquidacionLite[] | { data: LiquidacionLite[] }>(`/api/trabajadores/liquidaciones?empresaId=${encodeURIComponent(empresaId)}&limit=1000`),
+        ]);
+        if (cancelado) return;
+        setTrabajadores(Array.isArray(trabajadoresRes) ? trabajadoresRes : trabajadoresRes.data);
+        setLiquidaciones(Array.isArray(liquidacionesRes) ? liquidacionesRes : liquidacionesRes.data);
+      } catch {
+        if (!cancelado) { setTrabajadores([]); setLiquidaciones([]); }
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [empresaId]);
 
   // Etiqueta legible por documentoId + monto original del documento
   // (factura/boleta/honorario), tal como se guardó al emitirse.
@@ -48,8 +79,16 @@ export default function CuentaCorriente() {
     (state.honorarios ?? []).forEach((h) => {
       mapa.set(h.id, { label: `Honorarios ${h.periodo}`, total: h.montoLiquido, fecha: h.fechaPago || '' });
     });
+    // El sueldo líquido y los anticipos/préstamos de una liquidación generan
+    // dos líneas con documentoId `${liquidacionId}-pagar` / `-deudor` (ver
+    // generarAsiento.js) — no hay monto/fecha "del documento" real que
+    // mostrar como en una factura, así que solo se arma la etiqueta.
+    liquidaciones.forEach((l) => {
+      mapa.set(`${l.id}-pagar`, { label: `Sueldo líquido ${l.periodo}`, total: 0, fecha: `${l.periodo}-01` });
+      mapa.set(`${l.id}-deudor`, { label: `Anticipos/Préstamos ${l.periodo}`, total: 0, fecha: `${l.periodo}-01` });
+    });
     return mapa;
-  }, [state.documentos, state.honorarios]);
+  }, [state.documentos, state.honorarios, liquidaciones]);
 
   // Compatibilidad con asientos antiguos: antes de activar el ingreso
   // transaccional algunos asientos guardaban documentoId, pero no rutAuxiliar
@@ -141,7 +180,7 @@ export default function CuentaCorriente() {
   }, [documentosPendientes, filtroTipo, rutSeleccionado, soloPendientes]);
 
   const totalesPorTipo = useMemo(() => {
-    const totales: Record<string, number> = { cliente: 0, proveedor: 0, honorario: 0 };
+    const totales: Record<string, number> = { cliente: 0, proveedor: 0, honorario: 0, trabajador: 0 };
     documentosPendientes.forEach((f) => {
       if (Math.abs(f.saldo) < 1 || !f.tipoAuxiliar) return;
       totales[f.tipoAuxiliar] = (totales[f.tipoAuxiliar] ?? 0) + Math.abs(f.saldo);
@@ -189,7 +228,10 @@ export default function CuentaCorriente() {
     ...(state.entidades ?? [])
       .filter((e) => filtroTipo === 'todos' || e.tipo === filtroTipo || e.tipo === 'ambos')
       .map((e) => ({ value: e.rut, label: `${e.rut} — ${e.razonSocial}` })),
-  ], [state.entidades, filtroTipo]);
+    ...((filtroTipo === 'todos' || filtroTipo === 'trabajador')
+      ? trabajadores.map((t) => ({ value: t.rut, label: `${t.rut} — ${t.nombres} ${t.apellidos}` }))
+      : []),
+  ], [state.entidades, trabajadores, filtroTipo]);
 
   const cuentasMedioOptions = useMemo(() => [
     { value: '', label: 'Seleccionar banco o caja...' },
@@ -243,7 +285,7 @@ export default function CuentaCorriente() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="text-center">
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Por cobrar (Clientes)</p>
           <p className="text-xl font-data font-black text-emerald-700 dark:text-emerald-400">{formatCurrency(totalesPorTipo.cliente)}</p>
@@ -255,6 +297,10 @@ export default function CuentaCorriente() {
         <Card className="text-center">
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Por pagar (Honorarios)</p>
           <p className="text-xl font-data font-black text-amber-600 dark:text-amber-400">{formatCurrency(totalesPorTipo.honorario)}</p>
+        </Card>
+        <Card className="text-center">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Trabajadores (sueldo + anticipos)</p>
+          <p className="text-xl font-data font-black text-blue-600 dark:text-blue-400">{formatCurrency(totalesPorTipo.trabajador)}</p>
         </Card>
       </div>
 
@@ -279,6 +325,7 @@ export default function CuentaCorriente() {
               { value: 'cliente', label: 'Clientes' },
               { value: 'proveedor', label: 'Proveedores' },
               { value: 'honorario', label: 'Honorarios' },
+              { value: 'trabajador', label: 'Trabajadores' },
             ]}
           />
           <div className="md:col-span-2">
@@ -366,7 +413,8 @@ export default function CuentaCorriente() {
         <Card title="Historial completo del RUT">
           <div className="flex items-center gap-2 mb-3 text-sm text-gray-500 dark:text-gray-400">
             <History size={16} />
-            {entidadPorRut.get(rutSeleccionado)?.razonSocial ?? rutSeleccionado}
+            {entidadPorRut.get(rutSeleccionado)?.razonSocial
+              ?? (() => { const t = trabajadores.find((tr) => tr.rut === rutSeleccionado); return t ? `${t.nombres} ${t.apellidos}` : rutSeleccionado; })()}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

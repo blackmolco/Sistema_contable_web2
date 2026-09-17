@@ -191,9 +191,7 @@ async function lineasParaRemuneraciones(tx, empresaId, liquidaciones) {
         impuesto: t.impuesto + l.descuentoImpuesto,
         mutual: t.mutual + l.aporteMutual,
         reforma: t.reforma + l.aporteSis + l.aporteReformaPrevisional,
-        deudoresVarios: t.deudoresVarios + l.anticipos + l.prestamos + l.otrosDescuentos,
-        liquido: t.liquido + l.sueldoLiquido,
-    }), { totalHaberes: 0, aportesPatronales: 0, afp: 0, salud: 0, cesantia: 0, impuesto: 0, mutual: 0, reforma: 0, deudoresVarios: 0, liquido: 0 });
+    }), { totalHaberes: 0, aportesPatronales: 0, afp: 0, salud: 0, cesantia: 0, impuesto: 0, mutual: 0, reforma: 0 });
 
     const config = await tx.configCentralizacionRemuneraciones.findUnique({ where: { empresaId } });
     const codigosUsados = Object.entries(CODIGOS_REMUNERACIONES);
@@ -225,8 +223,29 @@ async function lineasParaRemuneraciones(tx, empresaId, liquidaciones) {
     agregar('impuestoUnicoPorPagar', totales.impuesto, 'haber');
     agregar('mutualPorPagar', totales.mutual, 'haber');
     agregar('reformaPrevisionalPorPagar', totales.reforma, 'haber');
-    agregar('deudoresVarios', totales.deudoresVarios, 'haber');
-    agregar('remuneracionesPorPagar', totales.liquido, 'haber');
+
+    // Sueldo líquido y anticipos/préstamos SÍ se desglosan por trabajador
+    // (en vez de una sola línea agregada) para que cada uno quede tageado
+    // con su rut/nombre y alimente la Cuenta Corriente por trabajador. Cada
+    // concepto usa un documentoId distinto (aunque venga de la misma
+    // liquidación) porque son obligaciones económicamente distintas — lo que
+    // se le debe al trabajador en sueldo vs. lo que él/ella debe por
+    // anticipos/préstamos — y no deben netearse en una sola fila.
+    const agregarPorTrabajador = (clave, extraerMonto, lado, sufijoDocumento) => {
+        const cuenta = cuentasPorCodigo[clave];
+        for (const l of liquidaciones) {
+            const monto = extraerMonto(l);
+            if (monto <= 0) continue;
+            if (!cuenta) throw new Error(`Falta la cuenta ${CODIGOS_REMUNERACIONES[clave]} en el plan de cuentas`);
+            detalles.push({
+                ...base(cuenta), [lado]: Math.round(monto),
+                rutAuxiliar: l.trabajador?.rut, nombreAuxiliar: l.trabajador ? `${l.trabajador.nombres} ${l.trabajador.apellidos}` : undefined,
+                documentoId: `${l.id}-${sufijoDocumento}`,
+            });
+        }
+    };
+    agregarPorTrabajador('remuneracionesPorPagar', (l) => l.sueldoLiquido, 'haber', 'pagar');
+    agregarPorTrabajador('deudoresVarios', (l) => l.anticipos + l.prestamos + l.otrosDescuentos, 'haber', 'deudor');
 
     return detalles;
 }
