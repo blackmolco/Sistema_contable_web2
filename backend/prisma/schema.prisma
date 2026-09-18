@@ -419,6 +419,11 @@ model ImportacionSII {
 model Entidad {
   id              String   @id @default(uuid())
   rut             String
+  // Rut sin puntos/espacios/guion, en mayuscula -- clave real de identidad
+  // (ver lib/rut.js normalizarRut). "12.345.678-9" y "12345678-9" deben
+  // resolver a la misma Entidad; `rut` guarda el formato tal como se
+  // ingreso/formateo, solo para mostrar.
+  rutNormalizado  String
   razonSocial     String
   giro            String?
   direccion       String?
@@ -432,7 +437,7 @@ model Entidad {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@unique([rut, empresaId])
+  @@unique([rutNormalizado, empresaId])
   @@index([empresaId])
 }
 

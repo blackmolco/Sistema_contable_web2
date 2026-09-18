@@ -109,6 +109,11 @@ export default function IngresoDocumento() {
       setRazonSocial(e.razonSocial);
       setGiro(e.giro || '');
       setDireccion(e.direccion || '');
+      // Si este proveedor ya tiene una cuenta de gasto asociada de una compra
+      // anterior, se precarga — evita elegirla de nuevo cada vez.
+      if (e.cuentaDefaultId && state.cuentas.some(c => c.id === e.cuentaDefaultId)) {
+        setCuentaGastoId(e.cuentaDefaultId);
+      }
     }
   };
 
@@ -164,7 +169,12 @@ export default function IngresoDocumento() {
         fecha,
         fechaVencimiento: esHonorario ? undefined : fechaVencimiento,
         documentoReferenciaId: esNota ? documentoReferenciaId : undefined,
-        entidad: { rut: rut.trim(), razonSocial: razonSocial.trim(), giro: giro || undefined, direccion: direccion || undefined },
+        entidad: {
+          rut: rut.trim(), razonSocial: razonSocial.trim(), giro: giro || undefined, direccion: direccion || undefined,
+          // Guarda la cuenta de gasto elegida como la cuenta por defecto de
+          // este proveedor, para precargarla la próxima vez.
+          cuentaDefaultId: esCompra ? (cuentaGastoId || undefined) : undefined,
+        },
         ...(esHonorario
           ? { periodo, montoBruto, retencion, montoLiquido }
           : { folio: Number(folio), neto, exento, iva, total, cuentaGastoId: esCompra ? cuentaGastoId : undefined }),

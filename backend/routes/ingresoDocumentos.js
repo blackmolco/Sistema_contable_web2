@@ -12,6 +12,7 @@ const rateLimit = require('express-rate-limit');
 const { lineasParaDocumento, lineasParaHonorario, crearAsiento } = require('../services/generarAsiento');
 const { exigirPeriodoAbierto } = require('../services/periodos');
 const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
+const { normalizarRut, formatearRut } = require('../lib/rut');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -108,10 +109,13 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
             } else if (esNota && !body.origenImportacionSII) {
                 throw Object.assign(new Error('Debe seleccionar el documento original de la nota'), { status: 400 });
             }
-            // 1) Upsert de la entidad por (rut, empresaId) — mismo patron que Cuenta.
-            const entidadData = { ...body.entidad, empresaId };
+            // 1) Upsert de la entidad por rutNormalizado (rut sin puntos/guion,
+            // ver lib/rut.js) — no importa si el rut se escribio con puntos o
+            // sin puntos, siempre resuelve a la misma Entidad.
+            const rutNormalizado = normalizarRut(body.entidad.rut);
+            const entidadData = { ...body.entidad, rut: formatearRut(body.entidad.rut), rutNormalizado, empresaId };
             if (entidadData.email === '') entidadData.email = null;
-            let entidad = await tx.entidad.findFirst({ where: { rut: entidadData.rut, empresaId } });
+            let entidad = await tx.entidad.findFirst({ where: { rutNormalizado, empresaId } });
             if (entidad) {
                 entidad = await tx.entidad.update({ where: { id: entidad.id }, data: { ...entidadData, activo: true } });
             } else {
@@ -187,7 +191,6 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                 throw Object.assign(new Error('Debe elegir la cuenta de gasto/activo para esta compra'), { status: 400 });
             }
 
-            const rutNormalizado = body.entidad.rut.replace(/[^0-9kK]/g, '').toUpperCase();
             const claveImportacion = [body.tipoTransaccion, body.tipoDocumento, rutNormalizado, body.fecha, body.folio].join('|');
             const candidatosDuplicados = await tx.documentoTributario.findMany({
                 where: {

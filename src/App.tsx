@@ -41,6 +41,7 @@ const AsientosContables = lazy(() => import('./pages/AsientosContables'));
 const Facturacion = lazy(() => import('./pages/Facturacion'));
 const IngresoDocumento = lazy(() => import('./pages/IngresoDocumento'));
 const CuentaCorriente = lazy(() => import('./pages/CuentaCorriente'));
+const Proveedores = lazy(() => import('./pages/Proveedores'));
 const LibroVentas = lazy(() => import('./pages/LibroVentas'));
 const Honorarios = lazy(() => import('./pages/Honorarios'));
 const Documentos = lazy(() => import('./pages/Documentos'));
@@ -271,6 +272,7 @@ function AppContent() {
               <Route path="/facturacion" element={<ErrorBoundary moduleName="Facturación"><Facturacion /></ErrorBoundary>} />
               <Route path="/ingreso-documento" element={<ErrorBoundary moduleName="Ingreso de Documentos"><IngresoDocumento /></ErrorBoundary>} />
               <Route path="/cuenta-corriente" element={<ErrorBoundary moduleName="Cuenta Corriente"><CuentaCorriente /></ErrorBoundary>} />
+              <Route path="/proveedores" element={<ErrorBoundary moduleName="Proveedores"><Proveedores /></ErrorBoundary>} />
               <Route path="/libro-ventas" element={<ErrorBoundary moduleName="Libro de Ventas"><LibroVentas tipo="ventas" /></ErrorBoundary>} />
               <Route path="/libro-compras" element={<ErrorBoundary moduleName="Libro de Compras"><LibroVentas tipo="compras" /></ErrorBoundary>} />
               <Route path="/honorarios" element={<ErrorBoundary moduleName="Honorarios"><Honorarios /></ErrorBoundary>} />

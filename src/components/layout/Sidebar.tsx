@@ -33,6 +33,7 @@ import {
   ArchiveRestore,
   Scale,
   History,
+  Users,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme, PRESETS, CATEGORY_COLORS } from '../../context/ThemeContext';
@@ -80,6 +81,7 @@ const menuCategories = [
     title: 'Clientes y Cobros',
     items: [
       { path: '/cuenta-corriente', icon: Wallet, label: 'Cuenta Corriente' },
+      { path: '/proveedores', icon: Users, label: 'Proveedores' },
     ]
   },
   {

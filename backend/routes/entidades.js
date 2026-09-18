@@ -6,12 +6,25 @@ const { parsePagination, paginatedResponse } = require('../middlewares/paginatio
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
 const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
+const { normalizarRut, formatearRut, validarRut } = require('../lib/rut');
 
 const router = Router();
 const writeLimiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
     max: parseInt(process.env.RATE_LIMIT_WRITE_MAX) || 500,
     message: { error: 'Limite de operaciones alcanzado' },
+});
+
+const bulkFilaSchema = z.object({
+    rut: z.string().min(3).max(20),
+    razonSocial: z.string().min(2).max(200),
+    cuentaId: z.string().min(1).optional().nullable(),
+});
+
+const bulkSchema = z.object({
+    empresaId: z.string().min(1),
+    tipo: z.enum(['cliente', 'proveedor', 'honorario', 'ambos']).default('proveedor'),
+    filas: z.array(bulkFilaSchema).min(1).max(500),
 });
 
 const entidadSchema = z.object({
@@ -39,7 +52,7 @@ router.get('/', authenticateToken, async (req, res) => {
         if (empresaId) where.empresaId = empresaId;
         if (busqueda) {
             where.OR = [
-                { rut: { contains: busqueda } },
+                { rutNormalizado: { contains: normalizarRut(busqueda) } },
                 { razonSocial: { contains: busqueda, mode: 'insensitive' } },
             ];
         }
@@ -65,8 +78,11 @@ router.post('/', authenticateToken, writeLimiter, validate(entidadSchema), async
         if (!exigirAccesoEmpresa(req, res, empresaId)) return;
         if (data.email === '') data.email = null;
 
+        const rutNormalizado = normalizarRut(data.rut);
+        data.rut = formatearRut(data.rut);
+
         const existente = await prisma.entidad.findFirst({
-            where: { rut: data.rut, empresaId },
+            where: { rutNormalizado, empresaId },
             select: { id: true },
         });
 
@@ -74,12 +90,12 @@ router.post('/', authenticateToken, writeLimiter, validate(entidadSchema), async
         if (existente) {
             entidad = await prisma.entidad.update({
                 where: { id: existente.id },
-                data: { ...data, activo: true },
+                data: { ...data, rutNormalizado, activo: true },
             });
         } else {
             const idOcupado = id ? await prisma.entidad.findUnique({ where: { id }, select: { id: true } }) : null;
             const entidadId = (id && !idOcupado) ? id : require('crypto').randomUUID();
-            entidad = await prisma.entidad.create({ data: { id: entidadId, ...data } });
+            entidad = await prisma.entidad.create({ data: { id: entidadId, ...data, rutNormalizado } });
         }
         await auditLog(req.usuario.id, 'CREAR', 'Entidad', entidad.id, { rut: entidad.rut, razonSocial: entidad.razonSocial }, req.ip, req.headers['user-agent']);
         res.status(201).json(entidad);
@@ -87,6 +103,66 @@ router.post('/', authenticateToken, writeLimiter, validate(entidadSchema), async
         logger.error({ err }, 'Error creando entidad');
         res.status(500).json({ error: 'Error al crear entidad' });
     }
+});
+
+// Carga masiva: pega varias filas (rut, razon social, cuenta contable) de
+// una vez -- pensado para dar de alta o reasignar la cuenta de muchos
+// proveedores juntos. Mismo upsert por rutNormalizado que el POST de
+// arriba (no importa si el rut viene con puntos o sin puntos), fila por
+// fila e independiente: una fila con error no bota a las demas.
+router.post('/bulk', authenticateToken, writeLimiter, validate(bulkSchema), async (req, res) => {
+    const { empresaId, tipo, filas } = req.body;
+    if (!exigirAccesoEmpresa(req, res, empresaId)) return;
+    const resultados = [];
+    for (const fila of filas) {
+        try {
+            if (!validarRut(fila.rut)) {
+                resultados.push({ rut: fila.rut, razonSocial: fila.razonSocial, ok: false, error: 'RUT inválido' });
+                continue;
+            }
+            let cuenta = null;
+            if (fila.cuentaId) {
+                cuenta = await prisma.cuenta.findFirst({ where: { id: fila.cuentaId, empresaId, activo: true } });
+                if (!cuenta) {
+                    resultados.push({ rut: fila.rut, razonSocial: fila.razonSocial, ok: false, error: 'La cuenta contable no existe en esta empresa' });
+                    continue;
+                }
+            }
+            const rutNormalizado = normalizarRut(fila.rut);
+            const rutFormateado = formatearRut(fila.rut);
+            const existente = await prisma.entidad.findFirst({ where: { rutNormalizado, empresaId } });
+            let entidad;
+            if (existente) {
+                entidad = await prisma.entidad.update({
+                    where: { id: existente.id },
+                    data: {
+                        razonSocial: fila.razonSocial,
+                        rut: rutFormateado,
+                        activo: true,
+                        ...(cuenta ? { cuentaDefaultId: cuenta.id } : {}),
+                    },
+                });
+            } else {
+                entidad = await prisma.entidad.create({
+                    data: {
+                        id: require('crypto').randomUUID(),
+                        rut: rutFormateado,
+                        rutNormalizado,
+                        razonSocial: fila.razonSocial,
+                        tipo,
+                        cuentaDefaultId: cuenta?.id || null,
+                        empresaId,
+                    },
+                });
+            }
+            resultados.push({ rut: rutFormateado, razonSocial: entidad.razonSocial, ok: true, actualizado: Boolean(existente) });
+        } catch (err) {
+            logger.error({ err, fila }, 'Error en fila de carga masiva de entidades');
+            resultados.push({ rut: fila.rut, razonSocial: fila.razonSocial, ok: false, error: 'Error interno' });
+        }
+    }
+    await auditLog(req.usuario.id, 'CREAR', 'Entidad', 'bulk', { total: filas.length, ok: resultados.filter(r => r.ok).length }, req.ip, req.headers['user-agent']);
+    res.json({ resultados });
 });
 
 router.put('/:id', authenticateToken, writeLimiter, validate(entidadSchema.partial()), async (req, res) => {
@@ -97,6 +173,10 @@ router.put('/:id', authenticateToken, writeLimiter, validate(entidadSchema.parti
         const data = { ...req.body };
         if (data.empresaId && data.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de una entidad' });
         if (data.email === '') data.email = null;
+        if (data.rut) {
+            data.rutNormalizado = normalizarRut(data.rut);
+            data.rut = formatearRut(data.rut);
+        }
         const entidad = await prisma.entidad.update({ where: { id: req.params.id }, data });
         await auditLog(req.usuario.id, 'ACTUALIZAR', 'Entidad', entidad.id, req.body, req.ip, req.headers['user-agent']);
         res.json(entidad);

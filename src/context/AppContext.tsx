@@ -265,7 +265,7 @@ const CLIENTES_ACTIONS = new Set([
 ]);
 
 const ENTIDADES_ACTIONS = new Set([
-  'ADD_ENTIDAD', 'UPDATE_ENTIDAD', 'DELETE_ENTIDAD',
+  'ADD_ENTIDAD', 'UPDATE_ENTIDAD', 'DELETE_ENTIDAD', 'LOAD_ENTIDADES',
 ]);
 
 export function useApp() {

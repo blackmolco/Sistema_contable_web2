@@ -223,6 +223,31 @@ export async function deleteEntidad(id: string): Promise<void> {
   await apiFetch(`/api/entidades/${id}`, { method: 'DELETE' });
 }
 
+export interface BulkEntidadFila {
+  rut: string;
+  razonSocial: string;
+  cuentaId?: string;
+}
+
+export interface BulkEntidadResultado {
+  rut: string;
+  razonSocial: string;
+  ok: boolean;
+  error?: string;
+  actualizado?: boolean;
+}
+
+// Carga masiva de proveedores (o clientes) con su cuenta contable asociada
+// — no importa si el rut viene con puntos o sin puntos, el servidor lo
+// normaliza antes de guardar/buscar (ver backend/lib/rut.js).
+export async function bulkUpsertEntidades(filas: BulkEntidadFila[], tipo: Entidad['tipo'] = 'proveedor'): Promise<BulkEntidadResultado[]> {
+  const data = await apiFetch<{ resultados: BulkEntidadResultado[] }>('/api/entidades/bulk', {
+    method: 'POST',
+    body: JSON.stringify({ empresaId: getEmpresaActivaId(), tipo, filas }),
+  });
+  return data.resultados;
+}
+
 // ============ ASIENTOS ============
 
 const estadoToBackend: Record<string, string> = {

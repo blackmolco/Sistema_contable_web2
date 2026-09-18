@@ -32,6 +32,14 @@ function validarRut(rut) {
     return dv === dvCalculado;
 }
 
+// Clave de comparacion: sin puntos, espacios ni guion, en mayuscula. Dos
+// entradas del mismo RUT escritas distinto ("12.345.678-9", "12345678-9",
+// "12.345.678 9") deben resolver al mismo registro.
+function normalizarRut(rut) {
+    if (!rut || typeof rut !== 'string') return '';
+    return rut.replace(/[.\s-]/g, '').toUpperCase();
+}
+
 function formatearRut(rut) {
     const limpio = rut.replace(/[.\s\-]/g, '').toUpperCase();
     if (!validarRut(limpio)) return rut;
@@ -43,4 +51,4 @@ function formatearRut(rut) {
     return `${cuerpoFormateado}-${dv}`;
 }
 
-module.exports = { validarRut, formatearRut };
+module.exports = { validarRut, formatearRut, normalizarRut };
