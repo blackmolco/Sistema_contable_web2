@@ -74,6 +74,7 @@ router.post('/register', authenticateToken, async (req, res) => {
             if (data.rol !== 'contador' && data.rol !== 'usuario') {
                 return res.status(403).json({ error: 'No puede asignar ese rol' });
             }
+            if (!req.usuario.empresaId) return res.status(403).json({ error: 'Su usuario no tiene una empresa asignada' });
             data.empresaId = req.usuario.empresaId;
         }
         const existe = await prisma.usuario.findUnique({ where: { email: data.email } });

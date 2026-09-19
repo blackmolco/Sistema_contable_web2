@@ -122,8 +122,9 @@ router.put('/:id', authenticateToken, writeLimiter, validate(cuentaSchema.partia
         const actual = await prisma.cuenta.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
         if (!actual) return res.status(404).json({ error: 'Cuenta no encontrada' });
         if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
-        if (req.body.empresaId && req.body.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de una cuenta' });
-        const cuenta = await prisma.cuenta.update({ where: { id: req.params.id }, data: req.body });
+        if ('empresaId' in req.body && req.body.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de una cuenta' });
+        const { empresaId: _ignorada, ...datos } = req.body;
+        const cuenta = await prisma.cuenta.update({ where: { id: req.params.id }, data: datos });
         await auditLog(req.usuario.id, 'ACTUALIZAR', 'Cuenta', cuenta.id, req.body, req.ip, req.headers['user-agent']);
         res.json(cuenta);
     } catch (err) {

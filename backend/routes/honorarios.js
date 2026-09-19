@@ -80,7 +80,8 @@ router.put('/:id', authenticateToken, writeLimiter, validate(honorarioCreateSche
         if (!actual) return res.status(404).json({ error: 'Honorario no encontrado' });
         if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         const data = { ...req.body };
-        if (data.empresaId && data.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de un honorario' });
+        if ('empresaId' in data && data.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de un honorario' });
+        delete data.empresaId;
         if (data.fechaPago) data.fechaPago = new Date(data.fechaPago);
         const honorario = await prisma.honorario.update({ where: { id: req.params.id }, data });
         await auditLog(req.usuario.id, 'ACTUALIZAR', 'Honorario', honorario.id, req.body, req.ip, req.headers['user-agent']);

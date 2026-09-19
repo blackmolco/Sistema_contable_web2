@@ -7,6 +7,13 @@ const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
 const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 const { normalizarRut, formatearRut, validarRut } = require('../lib/rut');
+const { exigirCuentasDeEmpresa } = require('../services/validaciones');
+
+const manejarErrorTipado = (err, res, logMsg, msg500) => {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    logger.error({ err }, logMsg);
+    return res.status(500).json({ error: msg500 });
+};
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -78,6 +85,7 @@ router.post('/', authenticateToken, writeLimiter, validate(entidadSchema), async
         if (!exigirAccesoEmpresa(req, res, empresaId)) return;
         if (data.email === '') data.email = null;
 
+        await exigirCuentasDeEmpresa(prisma, empresaId, [data.cuentaDefaultId]);
         const rutNormalizado = normalizarRut(data.rut);
         data.rut = formatearRut(data.rut);
 
@@ -100,8 +108,7 @@ router.post('/', authenticateToken, writeLimiter, validate(entidadSchema), async
         await auditLog(req.usuario.id, 'CREAR', 'Entidad', entidad.id, { rut: entidad.rut, razonSocial: entidad.razonSocial }, req.ip, req.headers['user-agent']);
         res.status(201).json(entidad);
     } catch (err) {
-        logger.error({ err }, 'Error creando entidad');
-        res.status(500).json({ error: 'Error al crear entidad' });
+        manejarErrorTipado(err, res, 'Error creando entidad', 'Error al crear entidad');
     }
 });
 
@@ -171,8 +178,10 @@ router.put('/:id', authenticateToken, writeLimiter, validate(entidadSchema.parti
         if (!actual) return res.status(404).json({ error: 'Entidad no encontrada' });
         if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         const data = { ...req.body };
-        if (data.empresaId && data.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de una entidad' });
+        if ('empresaId' in data && data.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de una entidad' });
+        delete data.empresaId;
         if (data.email === '') data.email = null;
+        await exigirCuentasDeEmpresa(prisma, actual.empresaId, [data.cuentaDefaultId]);
         if (data.rut) {
             data.rutNormalizado = normalizarRut(data.rut);
             data.rut = formatearRut(data.rut);
@@ -181,8 +190,7 @@ router.put('/:id', authenticateToken, writeLimiter, validate(entidadSchema.parti
         await auditLog(req.usuario.id, 'ACTUALIZAR', 'Entidad', entidad.id, req.body, req.ip, req.headers['user-agent']);
         res.json(entidad);
     } catch (err) {
-        logger.error({ err }, 'Error actualizando entidad');
-        res.status(500).json({ error: 'Error al actualizar entidad' });
+        manejarErrorTipado(err, res, 'Error actualizando entidad', 'Error al actualizar entidad');
     }
 });
 

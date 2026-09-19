@@ -95,7 +95,7 @@ model Cuenta {
   activo            Boolean  @default(true)
   requiereAuxiliar  Boolean  @default(false)
   tipoAuxiliar      String?
-  empresaId         String?
+  empresaId         String
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -113,7 +113,7 @@ model AsientoContable {
   tipo          String?
   importacionId String?
   usuarioId     String?
-  empresaId     String?
+  empresaId     String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -189,7 +189,7 @@ model Trabajador {
   // (mujer 60+, hombre 65+, o extranjero) — '2' y '8' no descuentan AFP.
   tipoTrabajadorPrevired  String    @default("0")
   estado                  String    @default("activo")
-  empresaId               String?
+  empresaId               String
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
@@ -314,7 +314,7 @@ model DocumentoTributario {
   importacionId         String?
   documentoReferenciaId String?
   claveImportacion      String?
-  empresaId             String?
+  empresaId             String
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -342,7 +342,7 @@ model LibroCompra {
   iva              Float
   ivaNoRecuperable Float    @default(0)
   montoTotal       Float
-  empresaId        String?
+  empresaId        String
   createdAt        DateTime @default(now())
 
   @@index([empresaId])
@@ -361,7 +361,7 @@ model LibroVenta {
   montoExento     Float
   iva             Float
   montoTotal      Float
-  empresaId       String?
+  empresaId       String
   createdAt       DateTime @default(now())
 
   @@index([empresaId])
@@ -382,7 +382,7 @@ model Honorario {
   estado           String    @default("pendiente")
   asientoId        String?
   importacionId    String?
-  empresaId        String?
+  empresaId        String
   createdAt        DateTime  @default(now())
   claveImportacion String?
 
@@ -433,7 +433,7 @@ model Entidad {
   tipo            String   @default("ambos")
   cuentaDefaultId String?
   activo          Boolean  @default(true)
-  empresaId       String?
+  empresaId       String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -456,7 +456,7 @@ model ActivoFijo {
   valorNeto             Float
   ubicacion             String?
   estado                String   @default("activo")
-  empresaId             String?
+  empresaId             String
   createdAt             DateTime @default(now())
 
   // Depreciacion TRIBUTARIA (SII), separada de la financiera/contable de
@@ -485,7 +485,7 @@ model TesoreriaMovimiento {
   monto       Float
   origen      String
   estado      String   @default("proyectado")
-  empresaId   String?
+  empresaId   String
   createdAt   DateTime @default(now())
 
   @@index([empresaId])
@@ -499,7 +499,7 @@ model Documento {
   nombre       String
   tipo         String
   categoria    String
-  empresaId    String?
+  empresaId    String
   trabajadorId String?
   asientoId    String?
   usuarioId    String?
@@ -612,6 +612,10 @@ model PeriodoContable {
   fechaCierre      DateTime?
   usuarioCierreId  String?
   motivoReapertura String?
+  comentarioCierre String?
+  // true si se cerro con controles bloqueantes fallando (cierre forzado por un
+  // administrador, con motivo en comentarioCierre).
+  cierreForzado    Boolean   @default(false)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

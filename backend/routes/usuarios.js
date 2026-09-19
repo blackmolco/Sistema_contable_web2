@@ -43,6 +43,7 @@ function puedeGestionarUsuarios(rol) {
 // la operación no está permitida, o null si puede seguir.
 function errorSiSupervisorNoPuede(req, objetivo) {
     if (esAdminGlobal(req.usuario.rol)) return null; // admin global no tiene restricciones
+    if (!req.usuario.empresaId) return 'Su usuario no tiene una empresa asignada';
     if (objetivo.empresaId !== req.usuario.empresaId) return 'No tiene acceso a ese usuario';
     if (objetivo.rol !== 'contador' && objetivo.rol !== 'usuario') return 'No puede modificar una cuenta de administrador o supervisor';
     return null;

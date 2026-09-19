@@ -8,6 +8,7 @@ const { validarRut } = require('../lib/rut');
 const { requireRole } = require('../middlewares/requireRole');
 const { esAdmin } = require('../middlewares/empresaAccess');
 const { CODIGOS_REMUNERACIONES, CAMPO_CONFIG_POR_CONCEPTO } = require('../services/generarAsiento');
+const { exigirCuentasDeEmpresa } = require('../services/validaciones');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -181,6 +182,7 @@ router.patch('/:id/cuentas-remuneraciones', authenticateToken, writeLimiter, val
             if (cuentaId === undefined) continue;
             data[CAMPO_CONFIG_POR_CONCEPTO[concepto]] = cuentaId;
         }
+        await exigirCuentasDeEmpresa(prisma, req.params.id, Object.values(data));
         const config = await prisma.configCentralizacionRemuneraciones.upsert({
             where: { empresaId: req.params.id },
             create: { empresaId: req.params.id, ...data },
@@ -189,6 +191,7 @@ router.patch('/:id/cuentas-remuneraciones', authenticateToken, writeLimiter, val
         await auditLog(req.usuario.id, 'ACTUALIZAR', 'ConfigCentralizacionRemuneraciones', req.params.id, req.body, req.ip, req.headers['user-agent']);
         res.json(config);
     } catch (err) {
+        if (err.status) return res.status(err.status).json({ error: err.message });
         logger.error({ err }, 'Error guardando cuentas de centralización de remuneraciones');
         res.status(500).json({ error: 'Error al guardar la configuración' });
     }

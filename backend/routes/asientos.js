@@ -6,6 +6,7 @@ const { parsePagination, paginatedResponse } = require('../middlewares/paginatio
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
 const { exigirPeriodoAbierto } = require('../services/periodos');
+const { exigirCuentasDeEmpresa } = require('../services/validaciones');
 const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 
 const router = Router();
@@ -124,6 +125,7 @@ router.post('/:id/corregir', authenticateToken, writeLimiter, async (req, res) =
 
         const resultado = await prisma.$transaction(async tx => {
             await exigirPeriodoAbierto(tx, original.empresaId, fecha);
+            await exigirCuentasDeEmpresa(tx, original.empresaId, detalles.map(d => d.cuentaId));
             const empresa = await tx.empresa.update({ where: { id: original.empresaId }, data: { ultimoNumeroAsiento: { increment: 2 } } });
             const numeroCorreccion = empresa.ultimoNumeroAsiento;
             const reverso = await tx.asientoContable.create({
@@ -201,6 +203,7 @@ router.post('/', authenticateToken, writeLimiter, validate(asientoSchema), async
 
         const asiento = await prisma.$transaction(async (tx) => {
             await exigirPeriodoAbierto(tx, empresaId, asientoData.fecha);
+            await exigirCuentasDeEmpresa(tx, empresaId, detalles.map(d => d.cuentaId));
             const asientoId = existente ? existente.id : (id || require('crypto').randomUUID());
             await tx.detalleAsiento.deleteMany({ where: { asientoId } });
 

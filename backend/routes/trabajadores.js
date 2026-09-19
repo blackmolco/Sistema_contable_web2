@@ -130,7 +130,8 @@ router.put('/:id', authenticateToken, writeLimiter, validate(trabajadorSchema.pa
         if (!actual) return res.status(404).json({ error: 'Trabajador no encontrado' });
         if (!exigirAccesoEmpresa(req, res, actual.empresaId)) return;
         const data = { ...req.body };
-        if (data.empresaId && data.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de un trabajador' });
+        if ('empresaId' in data && data.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de un trabajador' });
+        delete data.empresaId;
         if (data.fechaNacimiento) data.fechaNacimiento = new Date(data.fechaNacimiento);
         if (data.fechaIngreso) data.fechaIngreso = new Date(data.fechaIngreso);
         if (data.fechaTermino) data.fechaTermino = new Date(data.fechaTermino);
@@ -204,7 +205,8 @@ router.post('/liquidaciones/calcular', authenticateToken, writeLimiter, validate
     try {
         const trabajador = await prisma.trabajador.findUnique({ where: { id: req.body.trabajadorId } });
         if (!trabajador) return res.status(404).json({ error: 'Trabajador no encontrado' });
-        if (!exigirAccesoEmpresa(req, res, req.body.empresaId ?? trabajador.empresaId)) return;
+        if (req.body.empresaId && req.body.empresaId !== trabajador.empresaId) return res.status(400).json({ error: 'El trabajador no pertenece a la empresa indicada' });
+        if (!exigirAccesoEmpresa(req, res, trabajador.empresaId)) return;
 
         const existente = await prisma.liquidacionSueldo.findUnique({
             where: { trabajadorId_periodo: { trabajadorId: req.body.trabajadorId, periodo: req.body.periodo } },

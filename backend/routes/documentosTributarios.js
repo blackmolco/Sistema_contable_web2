@@ -226,7 +226,7 @@ router.put('/:id', authenticateToken, writeLimiter, validate(docTributarioSchema
         // columna del documento (asientoId, folio, montoTotal, etc.) con
         // cualquier valor.
         const { id, empresaId: _empresaId, ...data } = req.body;
-        if (req.body.empresaId && req.body.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de un documento' });
+        if ('empresaId' in req.body && req.body.empresaId !== actual.empresaId) return res.status(400).json({ error: 'No se puede cambiar la empresa de un documento' });
         if (data.fechaEmision) data.fechaEmision = new Date(data.fechaEmision);
         if (data.fechaVencimiento !== undefined) data.fechaVencimiento = data.fechaVencimiento ? new Date(data.fechaVencimiento) : null;
         const doc = await prisma.documentoTributario.update({ where: { id: req.params.id }, data });

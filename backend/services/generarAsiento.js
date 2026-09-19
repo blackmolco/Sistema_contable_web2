@@ -127,14 +127,12 @@ async function lineasParaHonorario(tx, empresaId, { montoBruto, retencion, monto
  * Empresa.ultimoNumeroAsiento, serializado a nivel de fila por Postgres).
  */
 async function crearAsiento(tx, { empresaId, fecha, glosa, tipo, detalles, usuarioId, importacionId }) {
-    let numero = 1;
-    if (empresaId) {
-        const empresa = await tx.empresa.update({
-            where: { id: empresaId },
-            data: { ultimoNumeroAsiento: { increment: 1 } },
-        });
-        numero = empresa.ultimoNumeroAsiento;
-    }
+    if (!empresaId) throw Object.assign(new Error('El asiento debe pertenecer a una empresa'), { status: 400 });
+    const empresa = await tx.empresa.update({
+        where: { id: empresaId },
+        data: { ultimoNumeroAsiento: { increment: 1 } },
+    });
+    const numero = empresa.ultimoNumeroAsiento;
     return tx.asientoContable.create({
         data: {
             id: require('crypto').randomUUID(),

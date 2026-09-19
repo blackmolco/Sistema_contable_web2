@@ -13,6 +13,7 @@ const { lineasParaDocumento, lineasParaHonorario, crearAsiento } = require('../s
 const { exigirPeriodoAbierto } = require('../services/periodos');
 const { exigirAccesoEmpresa } = require('../middlewares/empresaAccess');
 const { normalizarRut, formatearRut } = require('../lib/rut');
+const { exigirCuentasDeEmpresa } = require('../services/validaciones');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -95,13 +96,16 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
                     where: { id: body.documentoReferenciaId, empresaId, tipoTransaccion: body.tipoTransaccion },
                 });
                 if (!documentoReferencia) throw Object.assign(new Error('El documento original no existe o pertenece a otra empresa'), { status: 404 });
-                if (documentoReferencia.rutReceptor !== body.entidad.rut) throw Object.assign(new Error('El RUT de la nota no coincide con el documento original'), { status: 409 });
+                if (normalizarRut(documentoReferencia.rutReceptor) !== normalizarRut(body.entidad.rut)) throw Object.assign(new Error('El RUT de la nota no coincide con el documento original'), { status: 409 });
                 if (body.tipoDocumento === 'nota_credito') {
+                    // DetalleAsiento no tiene relacion Prisma con Cuenta (solo cuentaId),
+                    // asi que las cuentas de control se resuelven aparte.
+                    const cuentasControl = await tx.cuenta.findMany({ where: { empresaId, requiereAuxiliar: true }, select: { id: true, naturaleza: true } });
+                    const naturalezaPorCuenta = new Map(cuentasControl.map(c => [c.id, c.naturaleza]));
                     const movimientos = await tx.detalleAsiento.findMany({
-                        where: { documentoId: documentoReferencia.id, asiento: { empresaId, estado: { not: 'anulado' } }, cuenta: { requiereAuxiliar: true } },
-                        include: { cuenta: { select: { naturaleza: true } } },
+                        where: { documentoId: documentoReferencia.id, asiento: { empresaId, estado: { not: 'anulado' } }, cuentaId: { in: cuentasControl.map(c => c.id) } },
                     });
-                    const saldoDisponible = movimientos.reduce((s, d) => s + (d.cuenta?.naturaleza === 'acreedora' ? d.haber - d.debe : d.debe - d.haber), 0);
+                    const saldoDisponible = movimientos.reduce((s, d) => s + (naturalezaPorCuenta.get(d.cuentaId) === 'acreedora' ? d.haber - d.debe : d.debe - d.haber), 0);
                     if ((body.total || 0) > saldoDisponible + 0.5) {
                         throw Object.assign(new Error(`La nota de crédito supera el saldo disponible del documento (${saldoDisponible})`), { status: 409 });
                     }
@@ -112,6 +116,7 @@ router.post('/', authenticateToken, writeLimiter, validate(ingresoSchema), async
             // 1) Upsert de la entidad por rutNormalizado (rut sin puntos/guion,
             // ver lib/rut.js) — no importa si el rut se escribio con puntos o
             // sin puntos, siempre resuelve a la misma Entidad.
+            await exigirCuentasDeEmpresa(tx, empresaId, [body.entidad.cuentaDefaultId, body.cuentaGastoId, body.cuentaIngresoId, body.cuentaHonorarioId]);
             const rutNormalizado = normalizarRut(body.entidad.rut);
             const entidadData = { ...body.entidad, rut: formatearRut(body.entidad.rut), rutNormalizado, empresaId };
             if (entidadData.email === '') entidadData.email = null;

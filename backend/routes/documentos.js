@@ -89,6 +89,10 @@ router.post('/upload', authenticateToken, writeLimiter, upload.single('archivo')
             return res.status(400).json({ error: 'No se encontro archivo' });
         }
         if (!exigirAccesoEmpresa(req, res, req.body.empresaId)) return;
+        if (req.body.trabajadorId) {
+            const trabajador = await prisma.trabajador.findFirst({ where: { id: req.body.trabajadorId, empresaId: req.body.empresaId }, select: { id: true } });
+            if (!trabajador) return res.status(400).json({ error: 'El trabajador no pertenece a la empresa' });
+        }
 
         const sanitizeFilename = (name) => path.basename(name).replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 200);
         const nombreOriginal = sanitizeFilename(req.file.originalname);
