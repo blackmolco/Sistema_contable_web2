@@ -288,7 +288,7 @@ export default function Dashboard() {
 
   // Calcular métricas (memoizadas)
   const documentosPeriodo = useMemo(() => state.documentos.filter(d => {
-    const fecha = String(d.fecha || d.fechaEmision || '').slice(0, 7);
+    const fecha = String(d.fecha || '').slice(0, 7);
     return fecha === periodoDashboard && d.estado !== 'anulado';
   }), [state.documentos, periodoDashboard]);
   const esCompra = (d: typeof state.documentos[number]) => d.libro === 'compras' || d.tipo === 'factura_compra' || (d as typeof d & { tipoTransaccion?: string }).tipoTransaccion === 'compra';
@@ -297,7 +297,7 @@ export default function Dashboard() {
   const totalCompras = useMemo(() => documentosPeriodo.filter(esCompra).reduce((sum, d) => sum + signoDocumento(d) * (d.total || 0), 0), [documentosPeriodo]);
   const ivaNeto = useMemo(() => documentosPeriodo.reduce((sum, d) => sum + signoDocumento(d) * (esCompra(d) ? -(d.iva || 0) : (d.iva || 0)), 0), [documentosPeriodo]);
   const totalVentasAnterior = useMemo(() => state.documentos.filter(d => {
-    const fecha = String(d.fecha || d.fechaEmision || '').slice(0, 7);
+    const fecha = String(d.fecha || '').slice(0, 7);
     return fecha === periodoAnteriorKey && d.estado !== 'anulado' && !esCompra(d);
   }).reduce((sum, d) => sum + signoDocumento(d) * (d.total || 0), 0), [state.documentos, periodoAnteriorKey]);
   const variacionVentas = totalVentasAnterior === 0 ? undefined : Math.round(((totalVentas - totalVentasAnterior) / Math.abs(totalVentasAnterior)) * 1000) / 10;
@@ -310,12 +310,12 @@ export default function Dashboard() {
     
     // Agrupar documentos por mes
     state.documentos.forEach(d => {
-      const fecha = String(d.fecha || d.fechaEmision || '');
+      const fecha = String(d.fecha || '');
       if (!fecha.startsWith(`${anioDashboard}-` ) || d.estado === 'anulado') return;
       const m = Number(fecha.slice(5, 7)) - 1;
       if (isNaN(m)) return;
       if (!agrupado[m]) agrupado[m] = { ventas: 0, compras: 0, gastos: 0, iva: 0, asientos: 0 };
-      const total = d.total || d.montoTotal || 0;
+      const total = d.total || 0;
       if (!esCompra(d)) {
         agrupado[m].ventas += signoDocumento(d) * total;
         agrupado[m].iva += signoDocumento(d) * (d.iva || 0);
@@ -391,9 +391,9 @@ export default function Dashboard() {
       const mesesTrim = [idx * 3, idx * 3 + 1, idx * 3 + 2];
       let ingreso = 0, gasto = 0;
       state.documentos.forEach(d => {
-        const m = new Date(d.fecha || d.fechaEmision || '').getMonth();
-        if (new Date(d.fecha || d.fechaEmision || '').getFullYear() === anioDashboard && mesesTrim.includes(m) && d.estado !== 'anulado') {
-          const total = d.total || d.montoTotal || 0;
+        const m = new Date(d.fecha || '').getMonth();
+        if (new Date(d.fecha || '').getFullYear() === anioDashboard && mesesTrim.includes(m) && d.estado !== 'anulado') {
+          const total = d.total || 0;
           if (!esCompra(d)) ingreso += signoDocumento(d) * total;
           else gasto += signoDocumento(d) * total;
         }
@@ -418,7 +418,7 @@ export default function Dashboard() {
   const proyeccionIA = useMemo(() => {
     const proyeccion = useTesoreriaStore.getState().proyectarFlujo(30);
     return proyeccion.map((p, i) => ({
-      dia: `Día ${p.dia || (i + 1)}`,
+      dia: `Día ${(p as { dia?: number }).dia || (i + 1)}`,
       proyectado: p.saldo,
       // La proyección se mantiene determinista mientras no existan datos
       // suficientes para un modelo real; evita que el Dashboard cambie al
@@ -433,7 +433,7 @@ export default function Dashboard() {
   // ========== ACTIVIDAD RECIENTE DESDE ESTADO REAL ==========
   const ultimosDocumentos = useMemo(
     () => [...state.documentos]
-      .sort((a, b) => new Date(b.fecha || b.fechaEmision || '').getTime() - new Date(a.fecha || a.fechaEmision || '').getTime())
+      .sort((a, b) => new Date(b.fecha || '').getTime() - new Date(a.fecha || '').getTime())
       .slice(0, 5),
     [state.documentos]
   );

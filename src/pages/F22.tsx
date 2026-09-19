@@ -84,9 +84,9 @@ export default function F22() {
 
     // Honorarios del año
     const honorarios = (state.honorarios ?? []).filter(h => {
-      const año = new Date(h.fecha ?? '').getFullYear();
+      const año = Number(String(h.periodo ?? '').slice(0, 4));
       return año === añoComercial;
-    }).reduce((s, h) => s + (h.honorario ?? h.honorarioBruto ?? 0), 0);
+    }).reduce((s, h) => s + (h.montoBruto ?? 0), 0);
 
     return { ingresos: Math.max(0, ingresos), gastos: Math.max(0, gastos), honorarios };
   }, [añoSel, state.asientos, state.cuentas, state.honorarios]);

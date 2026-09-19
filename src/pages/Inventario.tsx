@@ -116,7 +116,7 @@ export default function Inventario() {
             variant="secondary"
             icon={<Download size={18} />}
             onClick={() => {
-              const data = store.exportarInventario();
+              const data = JSON.stringify(store.productos, null, 2);
               const blob = new Blob([data], { type: 'application/json' });
               const url = URL.createObjectURL(blob);
               const link = document.createElement('a');
@@ -365,8 +365,6 @@ export default function Inventario() {
                   store.agregarProducto(datos);
                 }
 
-                setProductos(store.productos);
-                setAlertas(store.verificarAlertas());
                 setMostrarFormulario(false);
               }}
               className="space-y-4"

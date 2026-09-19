@@ -44,7 +44,6 @@ const CuentaCorriente = lazy(() => import('./pages/CuentaCorriente'));
 const Proveedores = lazy(() => import('./pages/Proveedores'));
 const LibroVentas = lazy(() => import('./pages/LibroVentas'));
 const Honorarios = lazy(() => import('./pages/Honorarios'));
-const Documentos = lazy(() => import('./pages/Documentos'));
 const LibroDiario = lazy(() => import('./pages/LibroDiario'));
 const MayorContable = lazy(() => import('./pages/MayorContable'));
 const BalanceOchoColumnas = lazy(() => import('./pages/BalanceOchoColumnas'));
@@ -57,22 +56,16 @@ const Remuneraciones = lazy(() => import('./pages/Remuneraciones'));
 const Inventario = lazy(() => import('./pages/Inventario'));
 const Configuracion = lazy(() => import('./pages/Configuracion'));
 const MiPerfil = lazy(() => import('./pages/MiPerfil'));
-const Reportes = lazy(() => import('./pages/Reportes'));
 const AlertasTributarias = lazy(() => import('./pages/AlertasTributarias'));
 const CierreTributario = lazy(() => import('./pages/CierreTributario'));
 const F29 = lazy(() => import('./pages/F29'));
 const SincronizacionSII = lazy(() => import('./pages/SincronizacionSII'));
 const TablasSII = lazy(() => import('./pages/TablasSII'));
 const Calculadora = lazy(() => import('./pages/Calculadora'));
-const PagoProveedores = lazy(() => import('./pages/PagoProveedores'));
 const CentralizacionLibros = lazy(() => import('./pages/CentralizacionLibros'));
 const ConfiguracionEmpresa = lazy(() => import('./pages/ConfiguracionEmpresa'));
 const BackupSettings = lazy(() => import('./pages/BackupSettings'));
 const ImportarDatos = lazy(() => import('./pages/ImportarDatos'));
-const ClientesProveedores = lazy(() => import('./pages/ClientesProveedores'));
-const CuentasCobrar = lazy(() => import('./pages/CuentasCobrar'));
-const CuentasPagar = lazy(() => import('./pages/CuentasPagar'));
-const NotasCreditoDebito = lazy(() => import('./pages/NotasCreditoDebito'));
 const F22 = lazy(() => import('./pages/F22'));
 const FlujoCaja = lazy(() => import('./pages/FlujoCaja'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
@@ -281,7 +274,6 @@ function AppContent() {
               <Route path="/configuracion" element={<ErrorBoundary moduleName="Configuración"><Configuracion /></ErrorBoundary>} />
               <Route path="/perfil" element={<ErrorBoundary moduleName="Mi Perfil"><MiPerfil /></ErrorBoundary>} />
               <Route path="/tesoreria" element={<ErrorBoundary moduleName="Tesorería"><Tesoreria /></ErrorBoundary>} />
-              <Route path="/reportes" element={<ErrorBoundary moduleName="Reportes"><Reportes /></ErrorBoundary>} />
               <Route path="/multi-empresa" element={<ErrorBoundary moduleName="Multi-Empresa"><ConfiguracionEmpresa /></ErrorBoundary>} />
               <Route path="/conciliacion" element={<ErrorBoundary moduleName="Conciliación Bancaria"><ConciliacionBancaria /></ErrorBoundary>} />
               <Route path="/analisis" element={<ErrorBoundary moduleName="Análisis Financiero"><AnalisisFinanciero /></ErrorBoundary>} />
@@ -298,15 +290,9 @@ function AppContent() {
               <Route path="/f29" element={<ErrorBoundary moduleName="F29"><F29 /></ErrorBoundary>} />
               <Route path="/libro-diario" element={<ErrorBoundary moduleName="Libro Diario"><LibroDiario /></ErrorBoundary>} />
               <Route path="/sincronizacion-sii" element={<ErrorBoundary moduleName="Sincronización SII"><SincronizacionSII /></ErrorBoundary>} />
-              <Route path="/pago-proveedores" element={<ErrorBoundary moduleName="Pago Proveedores"><PagoProveedores /></ErrorBoundary>} />
               <Route path="/cierre-tributario" element={<ErrorBoundary moduleName="Cierre Tributario"><CierreTributario /></ErrorBoundary>} />
               <Route path="/alertas" element={<ErrorBoundary moduleName="Alertas Tributarias"><AlertasTributarias /></ErrorBoundary>} />
               <Route path="/centralizacion-libros" element={<ErrorBoundary moduleName="Centralización Libros"><CentralizacionLibros /></ErrorBoundary>} />
-              <Route path="/documentos" element={<ErrorBoundary moduleName="Documentos"><Documentos /></ErrorBoundary>} />
-              <Route path="/clientes-proveedores" element={<ErrorBoundary moduleName="Clientes y Proveedores"><ClientesProveedores /></ErrorBoundary>} />
-              <Route path="/cuentas-cobrar" element={<ErrorBoundary moduleName="Cuentas por Cobrar"><CuentasCobrar /></ErrorBoundary>} />
-              <Route path="/cuentas-pagar" element={<ErrorBoundary moduleName="Cuentas por Pagar"><CuentasPagar /></ErrorBoundary>} />
-              <Route path="/notas-credito-debito" element={<ErrorBoundary moduleName="Notas Crédito/Débito"><NotasCreditoDebito /></ErrorBoundary>} />
               <Route path="/f22" element={<ErrorBoundary moduleName="Asistente F22"><F22 /></ErrorBoundary>} />
               <Route path="/flujo-caja" element={<ErrorBoundary moduleName="Flujo de Caja"><FlujoCaja /></ErrorBoundary>} />
               <Route path="/auditoria" element={<ErrorBoundary moduleName="Auditoría"><AuditLog /></ErrorBoundary>} />

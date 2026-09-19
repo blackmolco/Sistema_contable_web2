@@ -188,7 +188,7 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
     .filter((i): i is (typeof ALL_ITEMS)[number] => Boolean(i));
 
   // ── Badges de notificación ─────────────────────────────────────────────
-  const alertasActivas = (state.alertas ?? []).filter(a => !a.leida).length;
+  const alertasActivas = ((state as unknown as { alertas?: { leida?: boolean }[] }).alertas ?? []).filter(a => !a.leida).length;
 
   const BADGE_MAP: Record<string, number> = {
     '/alertas': alertasActivas,

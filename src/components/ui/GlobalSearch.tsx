@@ -83,16 +83,10 @@ const SYSTEM_ITEMS: Omit<SearchResult, 'tipo'>[] = [
   { id: 'm_facturacion', titulo: 'Nueva Factura (Facturación)', subtitulo: 'Módulo de facturación y emisión de DTEs', ruta: '/facturacion', categoria: 'Facturación', icon: 'PlusCircle' },
   { id: 'm_compras', titulo: 'Libro de Compras', subtitulo: 'Registro de compras recibidas y crédito fiscal IVA', ruta: '/libro-compras', categoria: 'Facturación', icon: 'Receipt' },
   { id: 'm_ventas', titulo: 'Libro de Ventas', subtitulo: 'Registro de facturas emitidas y débito fiscal IVA', ruta: '/libro-ventas', categoria: 'Facturación', icon: 'TrendingUp' },
-  { id: 'm_notas', titulo: 'Notas de Crédito / Débito', subtitulo: 'Emisión de documentos rectificatorios de facturas', ruta: '/notas-credito-debito', categoria: 'Facturación', icon: 'FileText' },
-  { id: 'm_documentos', titulo: 'Documentos Recibidos (OCR)', subtitulo: 'Carga de facturas XML / PDF y procesamiento OCR', ruta: '/documentos', categoria: 'Facturación', icon: 'Archive' },
-  { id: 'm_clientes', titulo: 'Clientes y Proveedores', subtitulo: 'Listado de RUTs y fichas comerciales', ruta: '/clientes-proveedores', categoria: 'Facturación', icon: 'Users' },
 
   // --- TESORERÍA ---
   { id: 'm_flujo', titulo: 'Flujo de Caja (Cash Flow)', subtitulo: 'Análisis de ingresos, egresos y proyecciones de caja', ruta: '/flujo-caja', categoria: 'Tesorería', icon: 'Wallet' },
   { id: 'm_conciliacion', titulo: 'Conciliación Bancaria', subtitulo: 'Cuadratura de cartola bancaria con contabilidad', ruta: '/conciliacion', categoria: 'Tesorería', icon: 'Landmark' },
-  { id: 'm_pagar', titulo: 'Cuentas por Pagar', subtitulo: 'Vencimientos pendientes con proveedores y egresos', ruta: '/cuentas-pagar', categoria: 'Tesorería', icon: 'DollarSign' },
-  { id: 'm_cobrar', titulo: 'Cuentas por Cobrar', subtitulo: 'Cartera de cobranza activa y control de facturas vencidas', ruta: '/cuentas-cobrar', categoria: 'Tesorería', icon: 'TrendingUp' },
-  { id: 'm_pago_prov', titulo: 'Pago a Proveedores', subtitulo: 'Nóminas de egreso y transferencias bancarias masivas', ruta: '/pago-proveedores', categoria: 'Tesorería', icon: 'Wallet' },
 
   // --- RECURSOS HUMANOS ---
 
@@ -116,7 +110,6 @@ const SYSTEM_ITEMS: Omit<SearchResult, 'tipo'>[] = [
   { id: 'a_crear_asiento', titulo: 'Crear Asiento Contable', subtitulo: 'Abrir directamente el módulo de asientos contables listo para registrar', ruta: '/asientos', categoria: 'Acciones', icon: 'PlusCircle', actionId: 'crear_asiento' },
   { id: 'a_sinc_banco', titulo: 'Sincronizar Banco (Fintoc)', subtitulo: 'Conectar cuenta bancaria para importar transacciones de cartola', ruta: '/conciliacion', categoria: 'Acciones', icon: 'RefreshCw', actionId: 'sincronizar_banco' },
   { id: 'a_verificar_log', titulo: 'Verificar integridad de bitácora', subtitulo: 'Correr algoritmo de integridad y firma del log de auditoría', ruta: '/auditoria', categoria: 'Acciones', icon: 'ShieldAlert', actionId: 'verificar_bitacora' },
-  { id: 'a_cargar_ocr', titulo: 'Cargar Factura XML/PDF (OCR)', subtitulo: 'Arrastrar archivos DTE o PDF para procesar por OCR y registrar compras', ruta: '/documentos', categoria: 'Acciones', icon: 'Archive', actionId: 'cargar_factura' },
   { id: 'a_calcular_hon', titulo: 'Calcular Honorario Líquido', subtitulo: 'Ejecutar calculadora rápida de retención de boletas de honorarios', ruta: '/calculadora', categoria: 'Acciones', icon: 'Calculator', actionId: 'calcular_honorario' },
   { id: 'a_descargar_tablas', titulo: 'Descargar Tablas Tributarias SII', subtitulo: 'Sincronizar y actualizar UF/UTM del SII con mindicador.cl', ruta: '/tablas-sii', categoria: 'Acciones', icon: 'RefreshCw', actionId: 'descargar_tablas' },
   { id: 'a_generar_dj', titulo: 'Generar Declaración Jurada 1887', subtitulo: 'Exportar planilla de sueldos para declaración jurada anual', ruta: '/f22', categoria: 'Acciones', icon: 'FileSpreadsheet', actionId: 'generar_dj_1887' },
@@ -127,7 +120,6 @@ const QUICK_LINKS = [
   { label: 'Dashboard',      path: '/',           icon: LayoutDashboard },
   { label: 'Asientos',       path: '/asientos',   icon: FileText },
   { label: 'Conciliación',   path: '/conciliacion',icon: Landmark },
-  { label: 'Documentos OCR', path: '/documentos',   icon: Archive },
   { label: 'F29',            path: '/f29',        icon: FileBarChart },
   { label: 'Calculadora',    path: '/calculadora', icon: Calculator },
 ];
@@ -202,14 +194,14 @@ function buscarTodo(q: string, state: ReturnType<typeof useApp>['state']): Searc
   (state.documentos ?? []).forEach(d => {
     if (
       (d.numero ?? '').toString().toLowerCase().includes(cleanQ) ||
-      (d.razonSocial ?? '').toLowerCase().includes(cleanQ) ||
-      (d.rutEmisor ?? '').toLowerCase().includes(cleanQ)
+      (d.receptor?.razonSocial ?? d.razonSocialCliente ?? '').toLowerCase().includes(cleanQ) ||
+      (d.receptor?.rut ?? d.rutCliente ?? '').toLowerCase().includes(cleanQ)
     ) {
       results.push({
         tipo: 'documento',
         id: d.id,
-        titulo: `${d.tipo?.toUpperCase() ?? 'DTE'} #${d.numero} — ${d.razonSocial ?? 'S/R'}`,
-        subtitulo: `RUT: ${d.rutEmisor ?? 'N/A'} | Total: $${(d.total ?? 0).toLocaleString()}`,
+        titulo: `${d.tipo?.toUpperCase() ?? 'DTE'} #${d.numero} — ${d.receptor?.razonSocial ?? d.razonSocialCliente ?? 'S/R'}`,
+        subtitulo: `RUT: ${d.receptor?.rut ?? d.rutCliente ?? 'N/A'} | Total: $${(d.total ?? 0).toLocaleString()}`,
         ruta: '/libro-compras',
         categoria: 'Documentos DTE',
       });

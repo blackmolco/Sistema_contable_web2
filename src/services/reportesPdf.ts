@@ -196,7 +196,7 @@ export function generarPDFLiquidacionDesdeLinea(
   }, indicadores);
 
   const rutSafe = linea.rut.replace(/[.-]/g, '');
-  const perSafe = periodo.replace(/\s/g, '_');
+  const perSafe = periodoLabel.replace(/\s/g, '_');
   doc.save(`liquidacion_${rutSafe}_${perSafe}.pdf`);
 }
 

@@ -107,7 +107,7 @@ export default function CentroControl() {
         detalles: (asiento.detalles || []).map((linea: any) => ({ ...linea, debe: Number(linea.debe || 0), haber: Number(linea.haber || 0) })),
         totalDebe: (asiento.detalles || []).reduce((s: number, linea: any) => s + Number(linea.debe || 0), 0),
         totalHaber: (asiento.detalles || []).reduce((s: number, linea: any) => s + Number(linea.haber || 0), 0),
-        estado: 'contabilizado',
+        estado: 'contabilizado' as const,
         tipo: asiento.tipo,
       };
       dispatch({ type: state.asientos.some(a => a.id === asientoLocal.id) ? 'UPDATE_ASIENTO' : 'ADD_ASIENTO', payload: asientoLocal });
@@ -257,13 +257,13 @@ export default function CentroControl() {
         <Card>
           <h2 className="font-display text-lg font-bold text-gray-900 dark:text-white">Accesos frecuentes</h2>
           <p className="mt-1 text-xs text-gray-500">Atajos para las tareas diarias.</p>
-          <div className="mt-4 space-y-2">{[
+          <div className="mt-4 space-y-2">{([
             ['/cuenta-corriente', 'Cuenta Corriente', WalletCards],
             ['/control-integridad', 'Control de Integridad', ShieldCheck],
             ['/periodos', 'Cierre de período', ClipboardCheck],
             ['/plan-cuentas', 'Plan de Cuentas', Users],
             ['/balance-8-columnas', 'Balance 8 Columnas', FileSearch],
-          ].map(([path, label, Icon]) => <button key={String(path)} type="button" onClick={() => navigate(String(path))} className="flex w-full items-center gap-3 rounded-xl border border-gray-100 px-3 py-3 text-left transition hover:border-primary/30 hover:bg-primary/5 dark:border-gray-800"><span className="rounded-lg bg-primary/10 p-2 text-primary"><Icon size={16} /></span><span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span><ArrowRight size={15} className="text-gray-400" /></button>)}</div>
+          ] as [string, string, React.ElementType][]).map(([path, label, Icon]) => <button key={path} type="button" onClick={() => navigate(path)} className="flex w-full items-center gap-3 rounded-xl border border-gray-100 px-3 py-3 text-left transition hover:border-primary/30 hover:bg-primary/5 dark:border-gray-800"><span className="rounded-lg bg-primary/10 p-2 text-primary"><Icon size={16} /></span><span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span><ArrowRight size={15} className="text-gray-400" /></button>)}</div>
         </Card>
       </div>
 

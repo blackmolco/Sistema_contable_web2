@@ -297,25 +297,6 @@ const SYNC_STEPS = [
   { id: 5, label: 'Sincronización completada',        icon: CheckCheck   },
 ];
 
-// Datos demo con nombres y RUTs chilenos realistas
-const EMPRESAS_DEMO = [
-  { rut: '76.543.210-K', nombre: 'Constructora Andina Ltda.'     },
-  { rut: '78.901.234-5', nombre: 'Supermercado El Roble S.A.'    },
-  { rut: '77.654.321-3', nombre: 'Servicios TI del Sur SpA'      },
-  { rut: '79.012.345-6', nombre: 'Comercial Los Andes Ltda.'     },
-  { rut: '76.111.222-1', nombre: 'Transporte Pacifico S.A.'      },
-  { rut: '77.333.444-2', nombre: 'Ferretería Central SpA'        },
-  { rut: '78.555.666-4', nombre: 'Clínica del Valle S.A.'        },
-  { rut: '76.777.888-5', nombre: 'Editorial Mapocho Ltda.'       },
-  { rut: '79.999.111-7', nombre: 'Distribuidora Norte S.A.'      },
-  { rut: '77.222.333-8', nombre: 'Servicios Integrales SpA'      },
-  { rut: '78.444.555-9', nombre: 'Inmobiliaria Cordillera Ltda.' },
-  { rut: '76.666.777-K', nombre: 'Agrícola del Sur S.A.'         },
-  { rut: '79.888.999-0', nombre: 'Consultora Austral SpA'        },
-  { rut: '77.010.203-1', nombre: 'Tecnologías Austral Ltda.'     },
-  { rut: '78.304.050-2', nombre: 'Logística Cóndor S.A.'        },
-];
-
 export default function SincronizacionSII() {
   const navigate = useNavigate();
   const { state, dispatch, showToast } = useApp();
@@ -729,56 +710,10 @@ export default function SincronizacionSII() {
           `${dataVentas.total} ventas y ${dataCompras.total} compras importadas desde el SII.`);
 
       } else {
-        // ── MODO SIMULACIÓN: backend no disponible ──────────────────────────
-        await delay(800);  setSyncStep(2);
-        await delay(800);  setSyncStep(3);
-        await delay(900);  setSyncStep(4);
-
-        const shuffle = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5);
-        const empresas = shuffle(EMPRESAS_DEMO);
-        const nVentas  = 12 + Math.floor(Math.random() * 6);
-        const nCompras = 6  + Math.floor(Math.random() * 5);
-
-        const genDocs = (n: number, esVenta: boolean) =>
-          Array.from({ length: n }).map((_, i) => {
-            const emp  = empresas[i % empresas.length];
-            const neto = Math.floor(Math.random() * 800000 + 80000);
-            const iva  = Math.round(neto * 0.19);
-            return {
-              id: generateId(),
-              tipo: (esVenta ? 'factura' : 'factura_compra') as any,
-              numero: (esVenta ? 15400 : 8200) + i,
-              serie: '',
-              fecha: new Date(anio, mes - 1, Math.floor(Math.random() * 28) + 1).toISOString(),
-              rutCliente: emp.rut,
-              razonSocialCliente: emp.nombre,
-              receptor: { rut: emp.rut, razonSocial: emp.nombre, giro: '', direccion: '', comuna: '', ciudad: '', contacto: '', email: '' },
-              condicionesPago: esVenta ? 'contado' : 'credito',
-              detalles: [],
-              subtotal: neto, neto, descuentoGlobal: 0, iva, totalExento: 0,
-              total: neto + iva,
-              estado: (esVenta ? 'emitido' : 'pendiente') as any,
-            };
-          });
-
-        const ventas  = genDocs(nVentas,  true);
-        const compras = genDocs(nCompras, false);
-        dispatch({ type: 'BATCH_ADD_DOCUMENTOS', payload: [...ventas, ...compras] });
-
-        await delay(600); setSyncStep(5); await delay(300);
-
-        setSyncResult({
-          ventas : ventas.length,
-          compras: compras.length,
-          docs   : [
-            ...ventas.slice(0, 4).map(d => ({ rut: d.rutCliente, nombre: d.razonSocialCliente, total: d.total, tipo: 'venta'  as const })),
-            ...compras.slice(0, 3).map(d => ({ rut: d.rutCliente, nombre: d.razonSocialCliente, total: d.total, tipo: 'compra' as const })),
-          ],
-          esReal : false,
+        // Nunca se inventan documentos: sin backend no hay sincronización.
+        throw Object.assign(new Error('BACKEND_INACTIVO'), {
+          userMsg: 'No hay conexión con el servidor, así que no se importó nada. Reintenta en unos minutos o usa la pestaña "Importar CSV".',
         });
-        setClave('');
-        showToast('warning', 'Simulación (backend inactivo)',
-          'Inicie el backend con "npm run dev:backend" para obtener datos reales del SII.');
       }
     };
 

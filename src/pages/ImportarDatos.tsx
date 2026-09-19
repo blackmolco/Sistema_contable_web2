@@ -23,6 +23,10 @@ import { ImportService, Plantilla, DatosImportados } from '../services/importSer
 import { useRemuneraciones } from '../context/AppContext';
 import type { Trabajador } from '../types';
 
+// Forma con la que este importador (CSV de trabajadores) arma sus filas: no
+// coincide con el tipo Trabajador actual (nombre/afpId/isapreId/cargaCivil).
+interface TrabajadorImportado { id: string; rut: string; nombres: string; apellidos: string; tipoContrato: string; sueldoBase: number; afp: string; isapre: string; cargasFamiliares: number }
+
 // ─── tipos locales ─────────────────────────────────────────────────────────────
 type Paso = 'seleccion' | 'preview' | 'resultado';
 
@@ -452,7 +456,7 @@ export default function ImportarDatos() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {resultado.trabajadores.map((t: Trabajador) => {
+                      {(resultado.trabajadores as unknown as TrabajadorImportado[]).map((t) => {
                         const rutLimpio = t.rut.replace(/\./g, '');
                         const duplicado = trabajadoresExistentes.some(e => e.rut.replace(/\./g, '') === rutLimpio);
                         return (

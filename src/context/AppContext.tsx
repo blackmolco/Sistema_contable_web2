@@ -323,7 +323,7 @@ export function useApp() {
     } else if (FACTURACION_ACTIONS.has(t)) {
       dFacturacion(action as Parameters<typeof dFacturacion>[0]);
     } else if (CLIENTES_ACTIONS.has(t)) {
-      dClientes(action as Parameters<typeof dClientes>[0]);
+      dClientes(action as unknown as Parameters<typeof dClientes>[0]);
     } else if (ENTIDADES_ACTIONS.has(t)) {
       dEntidades(action as Parameters<typeof dEntidades>[0]);
     } else {

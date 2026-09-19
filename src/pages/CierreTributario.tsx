@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Landmark, FileSpreadsheet, Calculator, Building2, Download, Plus, Trash2, Users, Percent, AlertTriangle, CheckCircle2, Shield } from 'lucide-react';
-import { Card } from '../components/ui/Cards';
+import { Card, Badge } from '../components/ui/Cards';
 import { useContabilidad } from '../context/ContabilidadContext';
 import { formatCurrency } from '../utils/calculos';
 import { Button, Input } from '../components/ui/FormElements';
