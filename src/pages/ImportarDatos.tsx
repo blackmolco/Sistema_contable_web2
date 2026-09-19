@@ -6,7 +6,6 @@ import {
   CheckCircle,
   AlertCircle,
   Table,
-  Users,
   ShoppingCart,
   Package,
   CreditCard,
@@ -20,12 +19,6 @@ import {
 import { Card, Button } from '../components/ui/Cards';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { ImportService, Plantilla, DatosImportados } from '../services/importService';
-import { useRemuneraciones } from '../context/AppContext';
-import type { Trabajador } from '../types';
-
-// Forma con la que este importador (CSV de trabajadores) arma sus filas: no
-// coincide con el tipo Trabajador actual (nombre/afpId/isapreId/cargaCivil).
-interface TrabajadorImportado { id: string; rut: string; nombres: string; apellidos: string; tipoContrato: string; sueldoBase: number; afp: string; isapre: string; cargasFamiliares: number }
 
 // ─── tipos locales ─────────────────────────────────────────────────────────────
 type Paso = 'seleccion' | 'preview' | 'resultado';
@@ -81,37 +74,15 @@ function parsearXMLDTE(xmlText: string): DTERegistro[] {
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
 const TIPO_LABELS: Record<string, string> = {
-  trabajadores:  'Trabajadores',
   asientos:      'Asientos Contables',
   facturas:      'Facturas',
   inventario:    'Inventario',
   plan_cuentas:  'Plan de Cuentas',
 };
 
-const AFP_NOMBRES: Record<string, string> = {
-  afp_capital:   'AFP Capital',
-  afp_cuprum:    'AFP Cuprum',
-  afp_habitat:   'AFP Hábitat',
-  afp_modelo:    'AFP Modelo',
-  afp_planvital: 'AFP PlanVital',
-  afp_provida:   'AFP ProVida',
-  afp_uno:       'AFP Uno',
-  afp_ninguna:   'Sin Afiliación AFP',
-};
-
-const TIPO_CONTRATO_LABELS: Record<string, string> = {
-  indefinido: 'Indefinido',
-  plazo_fijo: 'Plazo Fijo',
-  por_obra:   'Por Obra',
-  honorarios: 'Honorarios',
-  practica:   'Práctica',
-};
-
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function ImportarDatos() {
   const plantillas              = ImportService.getPlantillas();
-  const { state: remState, dispatch: remDispatch } = useRemuneraciones();
-  const trabajadoresExistentes  = remState.trabajadores;
 
   const [tipoSeleccionado, setTipoSeleccionado] = useState('');
   const [archivo,          setArchivo]           = useState<File | null>(null);
@@ -168,31 +139,6 @@ export default function ImportarDatos() {
   const handleConfirmar = () => {
     if (!resultado) return;
 
-    if (resultado.tipo === 'trabajadores' && resultado.trabajadores?.length) {
-      // Detectar RUTs duplicados con los ya existentes
-      const rutsExistentes = new Set(trabajadoresExistentes.map(t => t.rut.replace(/\./g, '')));
-      let importados = 0;
-      let omitidos   = 0;
-
-      resultado.trabajadores.forEach((t: Trabajador) => {
-        const rutLimpio = t.rut.replace(/\./g, '');
-        if (rutsExistentes.has(rutLimpio)) {
-          omitidos++;
-        } else {
-          remDispatch({ type: 'ADD_TRABAJADOR', payload: t });
-          importados++;
-        }
-      });
-
-      setResultado(prev => prev ? {
-        ...prev,
-        filas:   importados,
-        errores: omitidos > 0
-          ? [...(prev.errores ?? []), `${omitidos} trabajador(es) omitido(s) por RUT duplicado`]
-          : (prev.errores ?? []),
-      } : prev);
-    }
-
     setGuardado(true);
     setPaso('resultado');
   };
@@ -209,7 +155,6 @@ export default function ImportarDatos() {
   // ── iconos ──────────────────────────────────────────────────────────────────
   const getIcono = (tipo: string) => {
     switch (tipo) {
-      case 'trabajadores':  return <Users         size={20} className="text-blue-600"    />;
       case 'asientos':      return <CreditCard    size={20} className="text-purple-600"  />;
       case 'facturas':      return <ShoppingCart  size={20} className="text-emerald-600" />;
       case 'inventario':    return <Package       size={20} className="text-amber-600"   />;
@@ -388,9 +333,6 @@ export default function ImportarDatos() {
               </p>
               <p className="text-sm text-gray-600 mt-0.5">
                 Tipo: <strong>{TIPO_LABELS[resultado.tipo] ?? resultado.tipo}</strong>
-                {resultado.tipo === 'trabajadores' && resultado.trabajadores && (
-                  <> · {resultado.trabajadores.length} trabajador(es) válidos</>
-                )}
               </p>
             </div>
           </div>
@@ -425,66 +367,6 @@ export default function ImportarDatos() {
             </Card>
           )}
 
-          {/* Preview tabla trabajadores */}
-          {resultado.tipo === 'trabajadores' && resultado.trabajadores && resultado.trabajadores.length > 0 && (
-            <Card>
-              <button
-                className="flex items-center justify-between w-full mb-3"
-                onClick={() => setMostrarPreview(!mostrarPreview)}
-              >
-                <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                  <Eye size={16} />
-                  Vista previa — {resultado.trabajadores.length} trabajador(es)
-                </h3>
-                {mostrarPreview ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
-
-              {mostrarPreview && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-gray-50 text-gray-600 border-b">
-                        <th className="text-left py-2 px-3 font-medium">RUT</th>
-                        <th className="text-left py-2 px-3 font-medium">Nombres</th>
-                        <th className="text-left py-2 px-3 font-medium">Apellidos</th>
-                        <th className="text-left py-2 px-3 font-medium">Contrato</th>
-                        <th className="text-right py-2 px-3 font-medium">Sueldo Base</th>
-                        <th className="text-left py-2 px-3 font-medium">AFP</th>
-                        <th className="text-left py-2 px-3 font-medium">Isapre</th>
-                        <th className="text-right py-2 px-3 font-medium">Cargas</th>
-                        <th className="text-left py-2 px-3 font-medium">Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {(resultado.trabajadores as unknown as TrabajadorImportado[]).map((t) => {
-                        const rutLimpio = t.rut.replace(/\./g, '');
-                        const duplicado = trabajadoresExistentes.some(e => e.rut.replace(/\./g, '') === rutLimpio);
-                        return (
-                          <tr key={t.id} className={duplicado ? 'bg-amber-50' : ''}>
-                            <td className="py-2 px-3 font-mono">{t.rut}</td>
-                            <td className="py-2 px-3">{t.nombres}</td>
-                            <td className="py-2 px-3">{t.apellidos}</td>
-                            <td className="py-2 px-3">{TIPO_CONTRATO_LABELS[t.tipoContrato] ?? t.tipoContrato}</td>
-                            <td className="py-2 px-3 text-right">
-                              {t.sueldoBase.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                            </td>
-                            <td className="py-2 px-3">{AFP_NOMBRES[t.afp] ?? t.afp}</td>
-                            <td className="py-2 px-3">{t.isapre}</td>
-                            <td className="py-2 px-3 text-right">{t.cargasFamiliares}</td>
-                            <td className="py-2 px-3">
-                              {duplicado
-                                ? <span className="text-amber-600 font-medium">⚠ Duplicado (RUT ya existe)</span>
-                                : <span className="text-emerald-600">✓ Nuevo</span>}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Card>
-          )}
 
           {/* Acciones */}
           <div className="flex justify-between gap-3">
@@ -515,11 +397,6 @@ export default function ImportarDatos() {
             {resultado.errores.filter(e => e.includes('omitido')).map((e, i) => (
               <p key={i} className="text-sm text-amber-600 mb-1">{e}</p>
             ))}
-            {resultado.tipo === 'trabajadores' && (
-              <p className="text-sm text-gray-500 mt-2">
-                Los trabajadores están disponibles en <strong>Remuneraciones</strong>.
-              </p>
-            )}
             <div className="flex justify-center gap-3 mt-6">
               <Button variant="secondary" onClick={handleReset}>
                 Importar más datos

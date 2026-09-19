@@ -2,14 +2,12 @@
 // Solo CSV (UTF-8). Los archivos .xlsx/.xls deben guardarse como CSV primero.
 
 import { generateId } from '../utils/calculos';
-import type { Trabajador } from '../types';
 
 export interface DatosImportados {
-  tipo: 'trabajadores' | 'asientos' | 'facturas' | 'inventario' | 'plan_cuentas';
+  tipo: 'asientos' | 'facturas' | 'inventario' | 'plan_cuentas';
   filas: number;
   errores: string[];
   datos: Record<string, unknown>[];
-  trabajadores?: Trabajador[]; // populated when tipo === 'trabajadores'
 }
 
 export interface Plantilla {
@@ -28,18 +26,6 @@ export class ImportService {
   // Plantillas predefinidas
   private static getPlantillasPredeterminadas(): Plantilla[] {
     return [
-      {
-        id: 'plant_trabajadores',
-        nombre: 'Trabajadores',
-        descripcion: 'Importar nómina de trabajadores. Use CSV UTF-8. AFP e Isapre por nombre o ID.',
-        tipo: 'trabajadores',
-        // Columnas exactas que mapean al store Trabajador
-        columnas: ['rut', 'nombres', 'apellidos', 'email', 'fecha_ingreso', 'tipo_contrato', 'sueldo_base', 'afp', 'isapre', 'cargas_familiares'],
-        ejemplo: [
-          { rut: '12.345.678-5', nombres: 'Juan Andrés', apellidos: 'Pérez González', email: 'juan.perez@email.cl', fecha_ingreso: '2026-01-01', tipo_contrato: 'indefinido', sueldo_base: '800000', afp: 'AFP Hábitat', isapre: 'FONASA', cargas_familiares: '0' },
-          { rut: '9.876.543-3',  nombres: 'María',       apellidos: 'López Soto',     email: 'maria.lopez@email.cl',  fecha_ingreso: '2026-03-01', tipo_contrato: 'plazo_fijo',   sueldo_base: '600000', afp: 'AFP Modelo', isapre: 'Consalud', cargas_familiares: '2' },
-        ],
-      },
       {
         id: 'plant_asientos',
         nombre: 'Asientos Contables',
@@ -230,147 +216,16 @@ export class ImportService {
     return this.ISAPRE_ALIAS[k] ?? k.replace(/\s+/g, '_');
   }
 
-  // ── Convertir fila CSV → Trabajador (tipo types/index.ts) ────────────────────
-  // Acepta nombres de columna con variantes: mayúsculas, sin tildes, singular/plural,
-  // snake_case, camelCase, separador coma o punto y coma.
-  static mapearATrabajador(fila: Record<string, string>): {
-    trabajador: Trabajador | null;
-    errores: string[];
-    advertencias: string[];
-  } {
-    const errores: string[] = [];
-    const advertencias: string[] = [];
-
-    // Construir mapa normalizado: clave sin tildes, minúsculas, sin _/-/espacio → valor
-    const filaLimpia: Record<string, string> = {};
-    for (const [k, v] of Object.entries(fila)) {
-      const kLimpia = k.toLowerCase().trim()
-        .normalize('NFD').replace(/[̀-ͯ]/g, '')
-        .replace(/[\s_-]/g, '');
-      filaLimpia[kLimpia] = (v ?? '').trim();
-    }
-
-    // Busca valor por múltiples claves posibles (también normalizadas)
-    const get = (...claves: string[]): string => {
-      for (const c of claves) {
-        const cNorm = c.toLowerCase().replace(/[\s_-]/g, '')
-          .normalize('NFD').replace(/[̀-ͯ]/g, '');
-        const v = filaLimpia[cNorm];
-        if (v !== undefined && v !== '') return v;
-      }
-      return '';
-    };
-
-    // ── RUT ──────────────────────────────────────────────────────────────────
-    const rut = get('rut');
-    if (!rut) {
-      errores.push('Campo "rut" requerido');
-    } else if (!this.validarRUT(rut)) {
-      errores.push(`RUT inválido: "${rut}"`);
-    }
-
-    // ── Nombre (acepta nombre/nombres — se usa el campo "nombre" del tipo) ───
-    const nombre = get('nombre', 'nombres');
-    if (!nombre) errores.push('Campo "nombre" requerido');
-
-    // ── Apellidos ────────────────────────────────────────────────────────────
-    const apellidos = get('apellidos', 'apellido');
-    if (!apellidos) errores.push('Campo "apellidos" requerido');
-
-    // ── Campos opcionales del CSV ────────────────────────────────────────────
-    const fechaNacimiento = get('fecha_nacimiento', 'fechanacimiento', 'nacimiento') || '';
-    const cargo           = get('cargo', 'puesto', 'funcion') || '';
-    const departamento    = get('departamento', 'area', 'seccion') || '';
-
-    // ── Fecha ingreso (opcional — default hoy) ───────────────────────────────
-    let fechaIngreso = get('fecha_ingreso', 'fechaingreso', 'ingreso');
-    if (!fechaIngreso) {
-      fechaIngreso = new Date().toISOString().slice(0, 10);
-      advertencias.push('fecha_ingreso vacía — se usó la fecha de hoy como default');
-    } else {
-      // Normalizar dd/mm/yyyy → yyyy-mm-dd
-      const partes = fechaIngreso.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-      if (partes) {
-        fechaIngreso = `${partes[3]}-${partes[2].padStart(2,'0')}-${partes[1].padStart(2,'0')}`;
-      }
-    }
-
-    // ── Sueldo base ──────────────────────────────────────────────────────────
-    const sueldoRaw    = get('sueldo_base', 'sueldobase', 'sueldoBase', 'sueldo');
-    const sueldoLimpio = sueldoRaw.replace(/\$/g, '').replace(/\./g, '').replace(',', '.').replace(/\s/g, '');
-    const sueldoBase   = parseFloat(sueldoLimpio) || 0;
-    if (sueldoBase < 0)  errores.push('"sueldo_base" no puede ser negativo');
-    if (sueldoBase === 0) advertencias.push('"sueldo_base" es 0 — verifique el valor');
-
-    // ── Tipo contrato → tipo de types/index.ts: 'indefinido'|'plazo'|'honorarios' ──
-    type TipoContrato = 'indefinido' | 'plazo' | 'honorarios';
-    const tiposValidos: TipoContrato[] = ['indefinido', 'plazo', 'honorarios'];
-    const tipoRaw = get('tipo_contrato', 'tipocontrato', 'contrato').toLowerCase();
-    const tipoAliases: Record<string, TipoContrato> = {
-      'plazo fijo':  'plazo',
-      'plazo_fijo':  'plazo',
-      'plazofijo':   'plazo',
-      'obra':        'plazo',    // aproximación
-      'por obra':    'plazo',
-      'honorario':   'honorarios',
-      'honorarios':  'honorarios',
-      'practica':    'honorarios',
-    };
-    const tipoContrato: TipoContrato =
-      (tiposValidos as string[]).includes(tipoRaw) ? tipoRaw as TipoContrato
-      : tipoAliases[tipoRaw] ?? 'indefinido';
-    if (tipoRaw && !(tiposValidos as string[]).includes(tipoRaw) && !tipoAliases[tipoRaw]) {
-      advertencias.push(`"tipo_contrato" "${tipoRaw}" no reconocido — se usó "indefinido"`);
-    }
-
-    // ── AFP → afpId ──────────────────────────────────────────────────────────
-    const afpRaw    = get('afp');
-    const isapreRaw = get('isapre', 'salud', 'prevision_salud');
-
-    // ── Cargas familiares → cargaCivil ────────────────────────────────────────
-    const cargasRaw  = get('cargas_familiares', 'cargasfamiliares', 'cargas');
-    const cargaCivil = parseInt(cargasRaw) || 0;
-
-    if (errores.length > 0) return { trabajador: null, errores, advertencias };
-
-    const trabajador: Trabajador = {
-      id:             generateId(),
-      rut:            rut.replace(/\s/g, ''),
-      nombre,
-      apellidos,
-      fechaNacimiento,
-      cargo,
-      departamento,
-      fechaIngreso,
-      tipoContrato,
-      sueldoBase,
-      colacion:       0,
-      movilizacion:   0,
-      bonificacion:   0,
-      afpId:          this.normalizarAFP(afpRaw),
-      isapreId:       this.normalizarIsapre(isapreRaw),
-      pensionado:     false,
-      cargaCivil,
-      cargaMilitar:   0,
-      estado:         'activo',
-    };
-
-    return { trabajador, errores: [], advertencias };
-  }
-
   // ── Validar y procesar filas según el tipo ────────────────────────────────────
   private static validarDatos(tipo: string, filas: string[][], headers: string[]): {
     validos: Record<string, unknown>[];
     errores: string[];
-    trabajadores?: Trabajador[];
   } {
     const validos: Record<string, unknown>[] = [];
     const errores: string[] = [];
-    const trabajadores: Trabajador[] = [];
 
     // Columnas requeridas mínimas por tipo
     const requeridas: Record<string, string[]> = {
-      trabajadores: ['rut'],
       asientos: ['fecha', 'glosa'],
       facturas: ['tipo', 'folio', 'rut_emisor', 'fecha', 'total'],
       inventario: ['codigo', 'nombre'],
@@ -407,30 +262,17 @@ export class ImportService {
           obj[h] = v;
         });
 
-        if (tipo === 'trabajadores') {
-          const { trabajador, errores: errTrab } = this.mapearATrabajador(obj);
-          if (errTrab.length > 0) {
-            errores.push(`Fila ${rowIdx + 2}: ${errTrab.join('; ')}`);
-            return;
-          }
-          if (trabajador) {
-            trabajadores.push(trabajador);
-            validos.push(obj);
-          }
-        } else {
-          // Para otros tipos: validación genérica mínima
-          if (tipo === 'facturas' && obj['rut_emisor'] && !this.validarRUT(obj['rut_emisor'])) {
-            errores.push(`Fila ${rowIdx + 2}: RUT emisor inválido - ${obj['rut_emisor']}`);
-            return;
-          }
-          validos.push(obj);
+        if (tipo === 'facturas' && obj['rut_emisor'] && !this.validarRUT(obj['rut_emisor'])) {
+          errores.push(`Fila ${rowIdx + 2}: RUT emisor inválido - ${obj['rut_emisor']}`);
+          return;
         }
+        validos.push(obj);
       } catch {
         errores.push(`Fila ${rowIdx + 2}: Error inesperado al procesar`);
       }
     });
 
-    return { validos, errores, trabajadores };
+    return { validos, errores };
   }
 
   // Validar RUT chileno
@@ -482,8 +324,8 @@ export class ImportService {
       if (headers.length === 0) {
         return { tipo: tipo as DatosImportados['tipo'], filas: 0, errores: ['El archivo está vacío o no tiene encabezados.'], datos: [] };
       }
-      const { validos, errores, trabajadores } = this.validarDatos(tipo, filas, headers);
-      return { tipo: tipo as DatosImportados['tipo'], filas: validos.length, errores, datos: validos, trabajadores };
+      const { validos, errores } = this.validarDatos(tipo, filas, headers);
+      return { tipo: tipo as DatosImportados['tipo'], filas: validos.length, errores, datos: validos };
     };
 
     return (async () => {
