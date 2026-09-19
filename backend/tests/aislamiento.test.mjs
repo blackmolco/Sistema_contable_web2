@@ -119,7 +119,7 @@ const CASOS_LISTA_OTRA_EMPRESA = [
   '/api/cuentas', '/api/asientos', '/api/entidades', '/api/trabajadores', '/api/trabajadores/liquidaciones',
   '/api/honorarios', '/api/documentos-tributarios', '/api/libro-ventas', '/api/libro-compras', '/api/tesoreria',
   '/api/activos-fijos', '/api/periodos', '/api/importaciones-sii', '/api/documentos', '/api/busqueda?q=ab',
-  '/api/periodos/checklist?anio=2026&mes=5',
+  '/api/periodos/checklist?anio=2026&mes=5', '/api/respaldo/empresa',
 ].map(u => [u + (u.includes('?') ? '&' : '?') + 'empresaId=' + EMPRESA_B]);
 
 const CASOS_ESCRITURA_OTRA_EMPRESA = [
@@ -180,6 +180,32 @@ describe('Aislamiento multiempresa (usuario de A contra datos de B)', () => {
 
   it('un supervisor de A tampoco accede a B', async () => {
     const res = await llamar('get', '/api/asientos?empresaId=' + EMPRESA_B, undefined, tokenSupervisorA);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('Respaldo de empresa', () => {
+  it('un usuario comun (contador) no puede descargar el respaldo ni de su propia empresa', async () => {
+    duenio = EMPRESA_A;
+    const res = await llamar('get', '/api/respaldo/empresa?empresaId=' + EMPRESA_A);
+    expect(res.status).toBe(403);
+  });
+
+  it('el supervisor de A descarga el respaldo de A: JSON con checksum, y solo consulta filas de A', async () => {
+    duenio = EMPRESA_A;
+    const res = await llamar('get', '/api/respaldo/empresa?empresaId=' + EMPRESA_A, undefined, tokenSupervisorA);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toMatch(/attachment; filename="respaldo_.*\.json"/);
+    const cuerpo = JSON.parse(res.text);
+    expect(cuerpo.formato).toBe('sistema-contable-respaldo');
+    expect(cuerpo.checksum).toMatch(/^[0-9a-f]{64}$/);
+    for (const c of llamadas.filter(x => x.metodo === 'findMany' && x.args?.where?.empresaId !== undefined)) {
+      expect(c.args.where.empresaId).toBe(EMPRESA_A);
+    }
+  });
+
+  it('el supervisor de A no descarga el respaldo de B', async () => {
+    const res = await llamar('get', '/api/respaldo/empresa?empresaId=' + EMPRESA_B, undefined, tokenSupervisorA);
     expect(res.status).toBe(403);
   });
 });

@@ -148,6 +148,7 @@ app.use('/api/normativa',              require('./routes/normativa'));
 app.use('/api/sii',                    require('./routes/sii'));
 app.use('/api/busqueda',               require('./routes/busqueda'));
 app.use('/api/audit-logs',             require('./routes/auditoria'));
+app.use('/api/respaldo',               require('./routes/respaldo'));
 app.use('/api/empresas',               require('./routes/empresas'));
 app.use('/api/tablas-sii',             require('./routes/tablasSii'));
 app.use('/api/usuarios',               require('./routes/usuarios'));
