@@ -10,16 +10,10 @@ env:
   NODE_VERSION: '20'
 
 jobs:
-  # OJO: no se corre "tsc -b" (typecheck real, project references) aca —
-  # tiene ~80 errores preexistentes repartidos en paginas viejas/ocultas
-  # (ClientesProveedores, CuentasCobrar/Pagar, Dashboard, F22, Documentos,
-  # etc.), acumulados antes de esta sesion. Vercel despliega con
-  # "npm run build" (vite build, sin tsc -b), asi que esos errores nunca
-  # bloquearon nada en produccion -- pero agregarlo aca tal cual dejaria
-  # el pipeline en rojo desde el primer push. Queda pendiente una pasada
-  # aparte para limpiarlos y recien ahi sumar un paso de typecheck real.
+  # Typecheck estricto (tsc -b) obligatorio: un error de tipos bloquea el merge.
+  # Antes se omitia por ~80 errores heredados de paginas viejas; ya se limpiaron.
   lint-and-typecheck:
-    name: Lint
+    name: Lint y typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +29,9 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
+
+      - name: Typecheck (tsc -b)
+        run: npx tsc -b --noEmit
 
   test:
     name: Tests (frontend)
@@ -78,17 +75,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # "build", no "build:prod": build:prod corre "tsc -b" y hoy tiene ~80
-      # errores de TypeScript preexistentes en paginas viejas/ocultas
-      # (ClientesProveedores, CuentasCobrar/Pagar, Dashboard, F22,
-      # Documentos, etc.). Vercel despliega con "npm run build" (vite
-      # build, sin typecheck), asi que este paso valida exactamente lo que
-      # de verdad se publica -- agregar tsc -b aca dejaria el pipeline en
-      # rojo por errores que nunca bloquearon un deploy real. Queda
-      # pendiente una limpieza aparte de esos errores para recien ahi sumar
-      # un paso de typecheck real.
       - name: Build production
-        run: npm run build
+        run: npm run build:prod
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
