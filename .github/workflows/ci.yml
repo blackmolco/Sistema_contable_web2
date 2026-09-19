@@ -84,7 +84,14 @@ jobs:
         run: npx prisma generate
 
       - name: Run offline tests
-        run: npx vitest run tests/aislamiento.test.mjs tests/cierreMensual.test.mjs tests/remuneraciones.test.mjs --reporter=default --reporter=github-actions
+        run: |
+          npx vitest run tests/aislamiento.test.mjs tests/cierreMensual.test.mjs tests/remuneraciones.test.mjs > vitest.log 2>&1 || {
+            cat vitest.log
+            MSG=$(tail -c 3000 vitest.log | tr -d '\033\r' | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=vitest fallo::$MSG"
+            exit 1
+          }
+          cat vitest.log
 
   # backend/tests/ (supertest + vitest propio, backend/vitest.config.mjs) NO
   # se corre aca a proposito: algunos de esos tests (health check, login)
