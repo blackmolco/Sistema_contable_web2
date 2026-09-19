@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
+import { LogIn, Mail, Lock, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { ApiAuthService, AuthError } from '../../services/apiAuth';
 import { Button, Input } from '../ui/FormElements';
@@ -26,7 +26,41 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // 'login' | 'olvide' (pedir el enlace) | 'restablecer' (llegó desde el correo con ?restablecer=token)
+  const tokenUrl = new URLSearchParams(window.location.search).get('restablecer');
+  const [modo, setModo] = useState<'login' | 'olvide' | 'restablecer'>(tokenUrl ? 'restablecer' : 'login');
+  const [aviso, setAviso] = useState('');
+  const [nuevaClave, setNuevaClave] = useState('');
+  const [nuevaClave2, setNuevaClave2] = useState('');
   const { indicadores, loading: loadingIndicadores } = useIndicadores();
+
+  const cambiarModo = (m: 'login' | 'olvide' | 'restablecer') => { setModo(m); setError(''); setAviso(''); };
+
+  const handleOlvide = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(''); setAviso(''); setLoading(true);
+    try {
+      setAviso(await ApiAuthService.solicitarRestablecimiento(email));
+    } catch (err) {
+      setError(err instanceof AuthError ? err.message : 'No se pudo enviar el correo. Intenta nuevamente.');
+    } finally { setLoading(false); }
+  };
+
+  const handleRestablecer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (nuevaClave.length < 8) { setError('La contraseña debe tener al menos 8 caracteres.'); return; }
+    if (nuevaClave !== nuevaClave2) { setError('Las contraseñas no coinciden.'); return; }
+    setLoading(true);
+    try {
+      const mensaje = await ApiAuthService.restablecerClave(tokenUrl || '', nuevaClave);
+      window.history.replaceState({}, '', window.location.pathname);
+      setNuevaClave(''); setNuevaClave2('');
+      setModo('login'); setAviso(mensaje);
+    } catch (err) {
+      setError(err instanceof AuthError ? err.message : 'No se pudo restablecer la contraseña.');
+    } finally { setLoading(false); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,8 +169,21 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
           className="w-full max-w-sm"
         >
-          <h2 className="font-display text-2xl font-semibold text-gray-900">Iniciar sesión</h2>
-          <p className="mt-1.5 text-sm text-gray-500">Ingresa con tu cuenta para continuar.</p>
+          <h2 className="font-display text-2xl font-semibold text-gray-900">
+            {modo === 'login' ? 'Iniciar sesión' : modo === 'olvide' ? 'Recuperar contraseña' : 'Nueva contraseña'}
+          </h2>
+          <p className="mt-1.5 text-sm text-gray-500">
+            {modo === 'login' ? 'Ingresa con tu cuenta para continuar.'
+              : modo === 'olvide' ? 'Te enviaremos un enlace a tu correo para crear una nueva contraseña.'
+              : 'Elige una contraseña nueva de al menos 8 caracteres.'}
+          </p>
+
+          {aviso && (
+            <div className="mt-6 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-2">
+              <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-emerald-800">{aviso}</p>
+            </div>
+          )}
 
           {error && (
             <div className="mt-6 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
@@ -145,6 +192,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </div>
           )}
 
+          {modo === 'login' && (
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <Input
               type="email"
@@ -176,7 +224,59 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             >
               Ingresar
             </Button>
+            <button type="button" onClick={() => cambiarModo('olvide')} className="w-full text-center text-sm text-gray-500 hover:text-gray-800 underline-offset-2 hover:underline">
+              ¿Olvidaste tu contraseña?
+            </button>
           </form>
+          )}
+
+          {modo === 'olvide' && (
+            <form onSubmit={handleOlvide} className="mt-6 space-y-4">
+              <Input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                leftIcon={<Mail size={18} />}
+                className="py-3"
+                autoComplete="email"
+                required
+              />
+              <Button type="submit" className="w-full" size="lg" loading={loading}>Enviar enlace</Button>
+              <button type="button" onClick={() => cambiarModo('login')} className="w-full flex items-center justify-center gap-1.5 text-sm text-gray-500 hover:text-gray-800">
+                <ArrowLeft size={14} /> Volver a iniciar sesión
+              </button>
+            </form>
+          )}
+
+          {modo === 'restablecer' && (
+            <form onSubmit={handleRestablecer} className="mt-6 space-y-4">
+              <Input
+                type="password"
+                placeholder="Nueva contraseña"
+                value={nuevaClave}
+                onChange={(e) => setNuevaClave(e.target.value)}
+                leftIcon={<Lock size={18} />}
+                className="py-3"
+                autoComplete="new-password"
+                required
+              />
+              <Input
+                type="password"
+                placeholder="Repite la nueva contraseña"
+                value={nuevaClave2}
+                onChange={(e) => setNuevaClave2(e.target.value)}
+                leftIcon={<Lock size={18} />}
+                className="py-3"
+                autoComplete="new-password"
+                required
+              />
+              <Button type="submit" className="w-full" size="lg" loading={loading}>Guardar contraseña</Button>
+              <button type="button" onClick={() => { window.history.replaceState({}, '', window.location.pathname); cambiarModo('login'); }} className="w-full flex items-center justify-center gap-1.5 text-sm text-gray-500 hover:text-gray-800">
+                <ArrowLeft size={14} /> Volver a iniciar sesión
+              </button>
+            </form>
+          )}
 
           <p className="mt-8 text-xs text-gray-400 text-center">
             © 2026 Sistema para Valenzuela &amp; Asociados Asesorías SpA

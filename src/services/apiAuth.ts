@@ -72,6 +72,29 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   return data.user;
 }
 
+/** Pide el correo de recuperación. Siempre responde igual, exista o no la cuenta. */
+export async function solicitarRestablecimiento(email: string): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/auth/olvide-clave`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new AuthError(data.error || 'No se pudo enviar el correo', res.status);
+  return data.message as string;
+}
+
+export async function restablecerClave(token: string, passwordNuevo: string): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/auth/restablecer-clave`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, passwordNuevo }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new AuthError(data.error || (data.detalles && data.detalles[0]) || 'No se pudo restablecer la contraseña', res.status);
+  return data.message as string;
+}
+
 export async function logout(): Promise<void> {
   const token = getToken();
   if (token) {
@@ -119,6 +142,8 @@ export function refresh(): Promise<string | null> {
 /** Objeto de conveniencia para usar como ApiAuthService.login(...), etc. */
 export const ApiAuthService = {
   login,
+  solicitarRestablecimiento,
+  restablecerClave,
   logout,
   isAuthenticated,
   getUser,

@@ -21,12 +21,32 @@ model Usuario {
   ultimoAcceso  DateTime?
   fechaCreacion DateTime  @default(now())
   empresaId     String?
+  // Bloqueo temporal tras varios intentos de contrasena fallidos.
+  intentosFallidos Int       @default(0)
+  bloqueadoHasta   DateTime?
 
   empresa    Empresa?          @relation(fields: [empresaId], references: [id])
   sesiones   Sesion[]
+  restablecimientos RestablecerClave[]
   asientos   AsientoContable[] @relation("AsientoUsuario")
   auditLogs  AuditLog[]
   documentos Documento[]       @relation("DocumentoUsuario")
+}
+
+// Enlace de recuperacion de contrasena: se guarda solo el hash del token (el
+// token en claro viaja unicamente por correo), vence a los 30 minutos y solo
+// se puede usar una vez.
+model RestablecerClave {
+  id        String    @id @default(uuid())
+  usuarioId String
+  tokenHash String    @unique
+  expiraEn  DateTime
+  usadoEn   DateTime?
+  creadoEn  DateTime  @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
 }
 
 model Sesion {

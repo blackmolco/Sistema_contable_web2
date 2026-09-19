@@ -6,7 +6,13 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
 const { getJwtSecret } = require('../shared');
+const crypto = require('crypto');
 const { sendEmail } = require('../email');
+
+const MAX_INTENTOS = 5;
+const BLOQUEO_MINUTOS = 15;
+const RESTABLECER_MINUTOS = 30;
+const hashToken = (t) => crypto.createHash('sha256').update(t).digest('hex');
 
 const router = Router();
 
@@ -134,8 +140,22 @@ router.post('/login', authLimiter, async (req, res) => {
         if (!usuario || !usuario.activo) {
             return res.status(401).json({ error: 'Credenciales invalidas' });
         }
+        // Bloqueo por cuenta: frena la fuerza bruta aunque cambie la IP.
+        if (usuario.bloqueadoHasta && usuario.bloqueadoHasta > new Date()) {
+            return res.status(429).json({ error: 'Demasiados intentos fallidos. Intente nuevamente en unos minutos o use "Olvidé mi contraseña".' });
+        }
         const passwordValid = await bcrypt.compare(password, usuario.passwordHash);
         if (!passwordValid) {
+            const intentos = (usuario.intentosFallidos || 0) + 1;
+            const bloquear = intentos >= MAX_INTENTOS;
+            await prisma.usuario.update({
+                where: { id: usuario.id },
+                data: {
+                    intentosFallidos: bloquear ? 0 : intentos,
+                    bloqueadoHasta: bloquear ? new Date(Date.now() + BLOQUEO_MINUTOS * 60 * 1000) : null,
+                },
+            });
+            if (bloquear) await auditLog(usuario.id, 'BLOQUEO_LOGIN', 'Usuario', usuario.id, { intentos: MAX_INTENTOS }, req.ip, req.headers['user-agent']);
             return res.status(401).json({ error: 'Credenciales invalidas' });
         }
         const JWT_SECRET = getJwtSecret();
@@ -161,7 +181,7 @@ router.post('/login', authLimiter, async (req, res) => {
         });
         await prisma.usuario.update({
             where: { id: usuario.id },
-            data: { ultimoAcceso: new Date() },
+            data: { ultimoAcceso: new Date(), intentosFallidos: 0, bloqueadoHasta: null },
         });
         logger.info({ usuarioId: usuario.id, email }, 'Login exitoso');
         res.json({
@@ -239,6 +259,81 @@ router.post('/change-password', authenticateToken, authLimiter, async (req, res)
         }
         logger.error({ err }, 'Error cambiando contrasena');
         res.status(500).json({ error: 'Error al cambiar contrasena' });
+    }
+});
+
+const olvideSchema = z.object({ email: z.string().email('Email invalido') });
+const restablecerSchema = z.object({
+    token: z.string().min(20).max(200),
+    passwordNuevo: z.string().min(8, 'La contrasena nueva debe tener al menos 8 caracteres'),
+});
+
+const olvideLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    message: { error: 'Demasiadas solicitudes. Intente nuevamente en una hora.' },
+});
+
+const urlFrontend = () => {
+    const desdeCors = (process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).find(o => o && !o.includes('localhost') && !o.includes('127.0.0.1'));
+    return (process.env.FRONTEND_URL || desdeCors || 'http://localhost:5173').replace(/\/$/, '');
+};
+
+// Recuperacion de contrasena. Responde SIEMPRE lo mismo, exista o no el
+// correo, para no revelar que cuentas existen.
+router.post('/olvide-clave', olvideLimiter, async (req, res) => {
+    const respuesta = { message: 'Si el correo está registrado, recibirás un enlace para crear una nueva contraseña (vence en 30 minutos).' };
+    try {
+        const { email } = olvideSchema.parse(req.body);
+        const usuario = await prisma.usuario.findUnique({ where: { email } });
+        if (usuario && usuario.activo) {
+            const token = crypto.randomBytes(32).toString('hex');
+            // Solo el ultimo enlace vale: se invalidan los anteriores sin usar.
+            await prisma.restablecerClave.deleteMany({ where: { usuarioId: usuario.id, usadoEn: null } });
+            await prisma.restablecerClave.create({
+                data: { usuarioId: usuario.id, tokenHash: hashToken(token), expiraEn: new Date(Date.now() + RESTABLECER_MINUTOS * 60 * 1000) },
+            });
+            const enlace = `${urlFrontend()}/?restablecer=${token}`;
+            await sendEmail({
+                to: usuario.email,
+                subject: 'Recuperar contraseña - Sistema Contable',
+                text: `Hola ${usuario.nombre},
+
+Recibimos una solicitud para crear una nueva contraseña. Usa este enlace (vence en ${RESTABLECER_MINUTOS} minutos y solo sirve una vez):
+
+${enlace}
+
+Si no fuiste tú, ignora este correo: tu contraseña actual sigue siendo la misma.`,
+            });
+            await auditLog(usuario.id, 'SOLICITAR_RESTABLECER_CLAVE', 'Usuario', usuario.id, {}, req.ip, req.headers['user-agent']);
+        }
+        res.json(respuesta);
+    } catch (err) {
+        if (err instanceof z.ZodError) return res.status(400).json({ error: 'Correo invalido' });
+        logger.error({ err }, 'Error en olvide-clave');
+        res.json(respuesta);
+    }
+});
+
+router.post('/restablecer-clave', authLimiter, async (req, res) => {
+    try {
+        const { token, passwordNuevo } = restablecerSchema.parse(req.body);
+        const registro = await prisma.restablecerClave.findUnique({ where: { tokenHash: hashToken(token) } });
+        if (!registro || registro.usadoEn || registro.expiraEn < new Date()) {
+            return res.status(400).json({ error: 'El enlace no es válido o ya venció. Solicita uno nuevo.' });
+        }
+        const passwordHash = await bcrypt.hash(passwordNuevo, 10);
+        await prisma.$transaction([
+            prisma.usuario.update({ where: { id: registro.usuarioId }, data: { passwordHash, intentosFallidos: 0, bloqueadoHasta: null } }),
+            prisma.restablecerClave.update({ where: { id: registro.id }, data: { usadoEn: new Date() } }),
+            prisma.sesion.deleteMany({ where: { usuarioId: registro.usuarioId } }),
+        ]);
+        await auditLog(registro.usuarioId, 'RESTABLECER_CLAVE', 'Usuario', registro.usuarioId, {}, req.ip, req.headers['user-agent']);
+        res.json({ message: 'Contraseña actualizada. Ya puedes iniciar sesión.' });
+    } catch (err) {
+        if (err instanceof z.ZodError) return res.status(400).json({ error: 'Datos invalidos', detalles: err.errors.map(e => e.message) });
+        logger.error({ err }, 'Error restableciendo contrasena');
+        res.status(500).json({ error: 'No se pudo restablecer la contraseña' });
     }
 });
 
