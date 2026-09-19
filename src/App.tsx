@@ -65,7 +65,6 @@ const Calculadora = lazy(() => import('./pages/Calculadora'));
 const CentralizacionLibros = lazy(() => import('./pages/CentralizacionLibros'));
 const ConfiguracionEmpresa = lazy(() => import('./pages/ConfiguracionEmpresa'));
 const BackupSettings = lazy(() => import('./pages/BackupSettings'));
-const ImportarDatos = lazy(() => import('./pages/ImportarDatos'));
 const F22 = lazy(() => import('./pages/F22'));
 const FlujoCaja = lazy(() => import('./pages/FlujoCaja'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
@@ -278,7 +277,6 @@ function AppContent() {
               <Route path="/conciliacion" element={<ErrorBoundary moduleName="Conciliación Bancaria"><ConciliacionBancaria /></ErrorBoundary>} />
               <Route path="/analisis" element={<ErrorBoundary moduleName="Análisis Financiero"><AnalisisFinanciero /></ErrorBoundary>} />
               <Route path="/tablas-sii" element={<ErrorBoundary moduleName="Tablas SII"><TablasSII /></ErrorBoundary>} />
-              <Route path="/importar" element={<ErrorBoundary moduleName="Importar Datos"><ImportarDatos /></ErrorBoundary>} />
               <Route path="/backup" element={<ErrorBoundary moduleName="Backup"><BackupSettings /></ErrorBoundary>} />
               <Route path="/analisis-financiero" element={<ErrorBoundary moduleName="Análisis Financiero"><AnalisisFinanciero /></ErrorBoundary>} />
               <Route path="/inventario" element={<ErrorBoundary moduleName="Inventario"><Inventario /></ErrorBoundary>} />
