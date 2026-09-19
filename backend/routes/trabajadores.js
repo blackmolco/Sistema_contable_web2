@@ -63,7 +63,8 @@ const calcularLiquidacionSchema = z.object({
     horasSemanales: z.number().min(1).max(45).optional(),
     colacion: z.number().min(0).optional(),
     movilizacion: z.number().min(0).optional(),
-    viaticos: z.number().min(0).default(0),
+    // viaticos NO se acepta: la liquidacion no guarda ese monto, asi que sumaba
+    // al liquido pero no llegaba a la centralizacion (asiento descuadrado).
     anticipos: z.number().min(0).default(0),
     prestamos: z.number().min(0).default(0),
     empresaId: z.string().min(1).optional().nullable(),
