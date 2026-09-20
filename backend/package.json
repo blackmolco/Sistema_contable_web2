@@ -7,7 +7,9 @@
     "dev": "node --watch index.js",
     "seed": "node prisma/seed.js",
     "migrate": "prisma migrate deploy",
-    "migrate:dev": "prisma migrate dev",
+    "migrate:dev": "node scripts/dev.js npx prisma migrate dev",
+    "db:migrar-dev": "node scripts/dev.js npx prisma migrate deploy",
+    "db:estudio-dev": "node scripts/dev.js npx prisma studio",
     "studio": "prisma studio",
     "test": "vitest run --config vitest.config.mjs",
     "test:watch": "vitest --config vitest.config.mjs"

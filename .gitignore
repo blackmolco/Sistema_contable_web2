@@ -49,3 +49,7 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# Base de desarrollo local (contiene claves)
+backend/.env.desarrollo
+.env.desarrollo
