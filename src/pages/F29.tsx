@@ -5,6 +5,7 @@ import { formatCurrency, generateId } from '../utils/calculos';
 import { useApp } from '../context/AppContext';
 import { RETENCION_HONORARIOS } from '../data/normativa';
 import { DetalleAsiento } from '../types';
+import { useCuentasSistema } from '../hooks/useCuentasSistema';
 
 // Carga manual de CSV y su mapeo de cuentas: reemplazados por "Cargar desde
 // Libros del Sistema" (arriba) e Ingreso de Documentos — el codigo queda
@@ -24,6 +25,7 @@ interface RCVLine {
 }
 
 export default function F29() {
+  const { codigos: cod, filas: cuentasSistema } = useCuentasSistema();
   const { state, dispatch, showToast } = useApp();
   
   const [comprasNeto, setComprasNeto] = useState(0);
@@ -121,12 +123,12 @@ export default function F29() {
     let ivaDebitoMayor = 0;
     let ivaCreditoMayor = 0;
     asientosPeriodo.forEach(a => a.detalles.forEach(d => {
-      if (d.cuentaCodigo === '2-01-002-0001') ivaDebitoMayor += d.haber - d.debe;
-      if (d.cuentaCodigo === '1-02-002-0001') ivaCreditoMayor += d.debe - d.haber;
+      if (d.cuentaCodigo === cod.ivaDebito) ivaDebitoMayor += d.haber - d.debe;
+      if (d.cuentaCodigo === cod.ivaCredito) ivaCreditoMayor += d.debe - d.haber;
     }));
     let remanenteAnterior = 0;
     state.asientos.filter(a => a.estado !== 'anulado' && a.fecha.slice(0, 10) < inicio).forEach(a => a.detalles.forEach(d => {
-      if (d.cuentaCodigo === '1-02-002-0002') remanenteAnterior += d.debe - d.haber;
+      if (d.cuentaCodigo === cod.remanenteIva) remanenteAnterior += d.debe - d.haber;
     }));
     const sinAsiento = datosDelSistema.documentos.filter(d => !d.asientoId).length;
     return {
@@ -137,7 +139,7 @@ export default function F29() {
       diferenciaDebito: datosDelSistema.ventasIva - ivaDebitoMayor,
       diferenciaCredito: datosDelSistema.comprasIva - ivaCreditoMayor,
     };
-  }, [state.asientos, datosDelSistema, mesAuto, anioAuto]);
+  }, [state.asientos, datosDelSistema, mesAuto, anioAuto, cod.ivaDebito, cod.ivaCredito, cod.remanenteIva]);
 
   const conciliado = Math.abs(controlContable.diferenciaDebito) < 1 && Math.abs(controlContable.diferenciaCredito) < 1 && controlContable.sinAsiento === 0;
 
@@ -149,7 +151,12 @@ export default function F29() {
   const totalAPagar = (ventasIva - creditoDisponible) + honorariosRetencion + ppm;
 
   // --- Lógica de Cierre de IVA ---
-  const buscarCuenta = (codigo: string, defaultNombre: string, defaultId: string) => {
+  const buscarCuenta = (concepto: 'ivaDebito' | 'ivaCredito' | 'ivaPorPagar' | 'remanenteIva', defaultNombre: string, defaultId: string) => {
+    const codigo = cod[concepto];
+    const config = cuentasSistema?.find(f => f.concepto === concepto);
+    if (config?.cuentaId) {
+      return { cuentaId: config.cuentaId, cuentaCodigo: config.cuentaCodigo ?? codigo, cuentaNombre: config.cuentaNombre ?? defaultNombre };
+    }
     const c = state.cuentas?.find(x => x.codigo === codigo || x.nombre.toLowerCase().includes(defaultNombre.toLowerCase()));
     return {
       cuentaId: c?.id || defaultId,
@@ -163,10 +170,10 @@ export default function F29() {
     a => a.glosa === glosaCierreIva && a.estado !== 'anulado'
   );
 
-  const cIvaDebito = buscarCuenta('2-01-002-0001', 'IVA Débito Fiscal', 'iva-debito-fiscal');
-  const cIvaCredito = buscarCuenta('1-02-002-0001', 'IVA Crédito Fiscal', 'iva-credito-fiscal');
-  const cIvaPagar = buscarCuenta('2-01-002-0003', 'IVA por Pagar', 'iva-por-pagar');
-  const cRemanente = buscarCuenta('1-02-002-0002', 'Remanente de Crédito Fiscal', 'remanente-credito-fiscal');
+  const cIvaDebito = buscarCuenta('ivaDebito', 'IVA Débito Fiscal', 'iva-debito-fiscal');
+  const cIvaCredito = buscarCuenta('ivaCredito', 'IVA Crédito Fiscal', 'iva-credito-fiscal');
+  const cIvaPagar = buscarCuenta('ivaPorPagar', 'IVA por Pagar', 'iva-por-pagar');
+  const cRemanente = buscarCuenta('remanenteIva', 'Remanente de Crédito Fiscal', 'remanente-credito-fiscal');
 
   const debeDebito = ventasIva;
   const haberCredito = comprasIva;
@@ -300,8 +307,8 @@ export default function F29() {
 
     if (comprasIva > 0) {
       detalles.push({
-        cuentaId: 'iva-credito-fiscal',
-        cuentaCodigo: '1-02-002-0001',
+        cuentaId: cuentasSistema?.find(f => f.concepto === 'ivaCredito')?.cuentaId ?? 'iva-credito-fiscal',
+        cuentaCodigo: cod.ivaCredito,
         cuentaNombre: 'IVA Credito Fiscal',
         debe: comprasIva,
         haber: 0,
@@ -309,8 +316,8 @@ export default function F29() {
     }
 
     detalles.push({
-      cuentaId: 'proveedores',
-      cuentaCodigo: '2-01-001-0001',
+      cuentaId: cuentasSistema?.find(f => f.concepto === 'proveedores')?.cuentaId ?? 'proveedores',
+      cuentaCodigo: cod.proveedores,
       cuentaNombre: 'Proveedores (Acreedores por Compras)',
       debe: 0,
       haber: comprasNeto + comprasIva,
@@ -345,7 +352,7 @@ export default function F29() {
     ));
   };
 
-  const cuentasGasto = state.cuentas.filter(c => c.codigo.startsWith('5') || c.codigo.startsWith('4'));
+  const cuentasGasto = state.cuentas.filter(c => c.tipo === 'gasto' || c.tipo === 'ingreso');
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto f29-container">

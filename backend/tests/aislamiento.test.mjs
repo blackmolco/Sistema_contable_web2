@@ -133,6 +133,7 @@ const CASOS_ESCRITURA_OTRA_EMPRESA = [
   ['post', '/api/trabajadores/liquidaciones/descentralizar', { empresaId: EMPRESA_B, periodo: '2026-05' }],
   ['post', '/api/ingreso-documentos', { tipoDocumento: 'factura', tipoTransaccion: 'venta', folio: 1, fecha: '2026-05-10', entidad: { rut: '11.111.111-1', razonSocial: 'Cliente ajeno' }, neto: 100, iva: 19, total: 119, empresaId: EMPRESA_B }],
   ['post', '/api/cuenta-corriente/aplicar', { empresaId: EMPRESA_B, fecha: '2026-05-10', cuentaMedioId: UUID, aplicaciones: [{ documentoId: UUID, rut: '1-9', nombre: 'X', cuentaControlId: UUID, monto: 10 }] }],
+  ['patch', '/api/empresas/'+EMPRESA_B+'/cuentas-sistema', { clientes: UUID }],
   ['post', '/api/asientos', { fecha: '2026-05-10', glosa: 'hack', empresaId: EMPRESA_B, detalles: [{ debe: 10, haber: 0 }, { debe: 0, haber: 10 }] }],
 ];
 
@@ -207,6 +208,33 @@ describe('Respaldo de empresa', () => {
   it('el supervisor de A no descarga el respaldo de B', async () => {
     const res = await llamar('get', '/api/respaldo/empresa?empresaId=' + EMPRESA_B, undefined, tokenSupervisorA);
     expect(res.status).toBe(403);
+  });
+});
+
+describe('Cuentas del sistema por empresa', () => {
+  beforeEach(() => { duenio = EMPRESA_A; llamadas = []; });
+
+  it('el GET de otra empresa responde 403', async () => {
+    const res = await llamar('get', '/api/empresas/' + EMPRESA_B + '/cuentas-sistema');
+    expect(res.status).toBe(403);
+  });
+
+  it('un contador no puede cambiar las cuentas ni de su propia empresa', async () => {
+    const res = await llamar('patch', '/api/empresas/' + EMPRESA_A + '/cuentas-sistema', { clientes: UUID });
+    expect(res.status).toBe(403);
+    expect(hayEscritura()).toEqual([]);
+  });
+
+  it('el supervisor de A configura las cuentas de A', async () => {
+    const res = await llamar('patch', '/api/empresas/' + EMPRESA_A + '/cuentas-sistema', { clientes: UUID }, tokenSupervisorA);
+    expect(res.status).toBe(200);
+    const w = hayEscritura().find(l => l.modelo === 'configCuentasSistema');
+    expect(w.args.where.empresaId).toBe(EMPRESA_A);
+  });
+
+  it('rechaza claves desconocidas', async () => {
+    const res = await llamar('patch', '/api/empresas/' + EMPRESA_A + '/cuentas-sistema', { inventada: UUID }, tokenSupervisorA);
+    expect(res.status).toBe(400);
   });
 });
 

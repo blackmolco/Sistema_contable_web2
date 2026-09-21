@@ -8,6 +8,7 @@ import { Button, Select } from '../components/ui/FormElements';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDate } from '../utils/calculos';
 import { getBrandRgb } from '../utils/brandColor';
+import { useCuentasSistema } from '../hooks/useCuentasSistema';
 
 interface FilaBalance8 {
   codigo: string; nombre: string; tipo: string;
@@ -17,9 +18,9 @@ interface FilaBalance8 {
 
 const redondear = (valor: number) => Math.round(valor);
 const celda = (valor: number) => valor ? formatCurrency(valor) : '';
-const CODIGO_UTILIDADES_ACUMULADAS = '3-01-003-0001';
 
 export default function BalanceOchoColumnas() {
+  const { codigos: { utilidadesAcumuladas: CODIGO_UTILIDADES_ACUMULADAS } } = useCuentasSistema();
   const { state } = useApp();
   const hoy = new Date();
   const [anioCorte, setAnioCorte] = useState(String(hoy.getFullYear()));
@@ -109,7 +110,7 @@ export default function BalanceOchoColumnas() {
       else filasCalculadas.push(actualizada);
     }
     return filasCalculadas.sort((a, b) => a.codigo.localeCompare(b.codigo));
-  }, [state.asientos, state.cuentas, fechaInicio, fechaFin]);
+  }, [state.asientos, state.cuentas, fechaInicio, fechaFin, CODIGO_UTILIDADES_ACUMULADAS]);
 
   const totales = useMemo(() => filas.reduce((t, f) => ({
     sumasDebe: t.sumasDebe + f.sumasDebe, sumasHaber: t.sumasHaber + f.sumasHaber,

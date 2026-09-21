@@ -5,7 +5,7 @@
 // administrador con motivo, ver routes/periodos.js); las 'advertencia' solo
 // informan.
 
-const CODIGOS_IVA = { debito: '2-01-002-0001', credito: '1-02-002-0001' };
+const { resolverCuentas, CODIGOS_POR_DEFECTO } = require('./cuentasSistema');
 const TOLERANCIA = 1; // pesos
 
 function rangoDelMes(anio, mes) {
@@ -21,6 +21,12 @@ async function evaluarCierre(prisma, empresaId, anio, mes) {
     const periodoStr = `${anio}-${String(mes).padStart(2, '0')}`;
     const enPeriodo = { gte: desde, lt: hasta };
     const asientosWhere = { empresaId, fecha: enPeriodo, estado: { not: 'anulado' } };
+    // Codigos de IVA segun el plan de ESTA empresa (o el estandar).
+    const sistema = await resolverCuentas(prisma, empresaId);
+    const CODIGOS_IVA = {
+        debito: sistema.ivaDebito?.codigo ?? CODIGOS_POR_DEFECTO.ivaDebito,
+        credito: sistema.ivaCredito?.codigo ?? CODIGOS_POR_DEFECTO.ivaCredito,
+    };
 
     const [asientos, pendientes, docsSinAsiento, honSinAsiento, liqSinCentralizar, trabajadoresActivos, liqCalculadas, auxSinRut, activos, asientosDepreciacion, previo] = await Promise.all([
         prisma.asientoContable.findMany({ where: asientosWhere, select: { id: true, numero: true, detalles: { select: { debe: true, haber: true, cuentaCodigo: true } } } }),

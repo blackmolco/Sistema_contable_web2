@@ -152,6 +152,14 @@ const DraggableWidget = React.memo(function DraggableWidget({
 export default function Dashboard() {
   const navigate = useNavigate();
   const { state, showToast } = useApp();
+  // Una cuenta es gasto por su tipo (vale para cualquier plan de cuentas); si el
+  // código no está en el plan cargado, se asume el plan estándar (grupo 5).
+  const tipoPorCodigo = useMemo(() => new Map(state.cuentas.map(c => [c.codigo, c.tipo])), [state.cuentas]);
+  const esCuentaGasto = useCallback((codigo?: string) => {
+    if (!codigo) return false;
+    const tipo = tipoPorCodigo.get(codigo);
+    return tipo ? tipo === 'gasto' : codigo.startsWith('5');
+  }, [tipoPorCodigo]);
   const hoyDashboard = new Date();
   const [periodoDashboard, setPeriodoDashboard] = useState(`${hoyDashboard.getFullYear()}-${String(hoyDashboard.getMonth() + 1).padStart(2, '0')}`);
   const [anioDashboard, mesDashboard] = periodoDashboard.split('-').map(Number);
@@ -325,7 +333,7 @@ export default function Dashboard() {
       }
     });
 
-    // Agrupar asientos por mes (gastos = cuentas código 5xx)
+    // Agrupar asientos por mes (gastos = cuentas de tipo gasto)
     state.asientos.forEach(a => {
       const fecha = String(a.fecha);
       if (!fecha.startsWith(`${anioDashboard}-`) || a.estado === 'anulado') return;
@@ -334,7 +342,7 @@ export default function Dashboard() {
       if (!agrupado[m]) agrupado[m] = { ventas: 0, compras: 0, gastos: 0, iva: 0, asientos: 0 };
       agrupado[m].asientos += 1;
       a.detalles?.forEach(det => {
-        if (det.cuentaCodigo?.startsWith('5')) {
+        if (esCuentaGasto(det.cuentaCodigo)) {
           agrupado[m].gastos += det.debe || 0;
         }
       });
@@ -348,7 +356,7 @@ export default function Dashboard() {
       iva: agrupado[i]?.iva || 0,
       asientos: agrupado[i]?.asientos || 0,
     }));
-  }, [state.documentos, state.asientos, anioDashboard]);
+  }, [state.documentos, state.asientos, anioDashboard, esCuentaGasto]);
 
   // Datos de distribución desde gastos reales
   const datosDistribucion = useMemo(() => {
@@ -356,10 +364,11 @@ export default function Dashboard() {
     state.asientos.forEach(a => {
       a.detalles?.forEach(det => {
         const cod = det.cuentaCodigo || '';
-        if (cod.startsWith('5') && det.debe) {
-          const tipo = cod.startsWith('5-02-001') ? 'Sueldos'
+        if (esCuentaGasto(cod) && det.debe) {
+          // Plan estándar (5-02-...) o plan propio con puntos (6.1 personal, 6.2 operación)
+          const tipo = cod.startsWith('5-02-001') || cod.startsWith('6.1.') ? 'Sueldos'
             : cod.startsWith('5-02-003') ? 'Arriendos'
-            : cod.startsWith('5-02-004') ? 'Servicios'
+            : cod.startsWith('5-02-004') || cod.startsWith('6.2.') ? 'Servicios'
             : 'Otros';
           gastosPorTipo[tipo] = (gastosPorTipo[tipo] || 0) + det.debe;
         }
@@ -382,7 +391,7 @@ export default function Dashboard() {
       valor: Math.round((valor / total) * 100),
       color: colores[nombre] || CHART_PALETTE.neutro,
     }));
-  }, [state.asientos]);
+  }, [state.asientos, esCuentaGasto]);
 
   // Datos trimestrales
   const datosTrimestre = useMemo(() => {
@@ -402,7 +411,7 @@ export default function Dashboard() {
         const m = new Date(a.fecha).getMonth();
         if (new Date(a.fecha).getFullYear() === anioDashboard && mesesTrim.includes(m) && a.estado !== 'anulado') {
           a.detalles?.forEach(det => {
-            if (det.cuentaCodigo?.startsWith('5')) gasto += det.debe || 0;
+            if (esCuentaGasto(det.cuentaCodigo)) gasto += det.debe || 0;
           });
         }
       });
@@ -412,7 +421,7 @@ export default function Dashboard() {
         gasto: gasto,
       };
     });
-  }, [state.documentos, state.asientos, anioDashboard]);
+  }, [state.documentos, state.asientos, anioDashboard, esCuentaGasto]);
 
   // ========== PREDICCIONES IA ==========
   const proyeccionIA = useMemo(() => {

@@ -17,6 +17,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useCuentasSistema } from '../hooks/useCuentasSistema';
 import { formatCurrency, formatDate } from '../utils/calculos';
 import { Modal } from '../components/ui/Modal';
 import { contabilizarDocumento } from '../services/apiSync';
@@ -51,6 +52,7 @@ function Metric({ label, value, detail, tone, onClick }: { label: string; value:
 }
 
 export default function CentroControl() {
+  const { codigos: cod } = useCuentasSistema();
   const navigate = useNavigate();
   const { state, dispatch, showToast } = useApp();
   const [query, setQuery] = useState('');
@@ -83,7 +85,7 @@ export default function CentroControl() {
     const rut = d.receptor?.rut || d.rutCliente || '';
     const entidad = entidades.find(e => e.rut?.replace(/[^0-9kK]/g, '').toUpperCase() === rut.replace(/[^0-9kK]/g, '').toUpperCase());
     if (entidad?.cuentaDefaultId && cuentas.some(c => c.id === entidad.cuentaDefaultId && c.permiteMovimiento)) return entidad.cuentaDefaultId;
-    const codigo = esCompraDocumento(d) ? '5-03-004-0001' : '4-01-001-0001';
+    const codigo = esCompraDocumento(d) ? cod.cuentaPorClasificar : cod.ventas;
     return cuentas.find(c => c.codigo === codigo && c.permiteMovimiento)?.id || '';
   };
   const opcionesCuenta = (d: any) => cuentas

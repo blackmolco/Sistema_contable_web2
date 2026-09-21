@@ -15,6 +15,7 @@ import { Card, Badge, DataTable } from '../components/ui/Cards';
 import { Button, Input, Select } from '../components/ui/FormElements';
 import { Modal } from '../components/ui/Modal';
 import { Cuenta, TipoCuenta } from '../types';
+import CuentasSistemaCard from '../components/CuentasSistemaCard';
 import { formatCurrency } from '../utils/calculos';
 
 export default function PlanCuentas() {
@@ -23,7 +24,7 @@ export default function PlanCuentas() {
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   const [showModal, setShowModal] = useState(false);
   const [editingCuenta, setEditingCuenta] = useState<Cuenta | null>(null);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['1', '2', '3', '4', '5', '6']));
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['1', '2', '3', '4', '5', '6', '7']));
   const [showModalElimnar, setShowModalElimnar] = useState(false);
   const [cuentaAEliminar, setCuentaAEliminar] = useState<Cuenta | null>(null);
 
@@ -61,10 +62,11 @@ export default function PlanCuentas() {
       '4': [],
       '5': [],
       '6': [],
+      '7': [],
     };
 
     cuentasFiltradas.forEach((cuenta) => {
-      const grupoKey = cuenta.codigo.split('-')[0];
+      const grupoKey = cuenta.codigo.split(/[-.]/)[0];
       if (gruposMap[grupoKey]) {
         gruposMap[grupoKey].push(cuenta);
       }
@@ -163,6 +165,7 @@ export default function PlanCuentas() {
       '4': 'Ingresos',
       '5': 'Costos y Gastos',
       '6': 'Otros',
+      '7': 'Resultado financiero e impuestos',
     };
     return nombres[grupo] || grupo;
   };
@@ -175,6 +178,7 @@ export default function PlanCuentas() {
       '4': 'bg-emerald-100 text-emerald-700',
       '5': 'bg-amber-100 text-amber-700',
       '6': 'bg-gray-100 text-gray-700',
+      '7': 'bg-slate-100 text-slate-700',
     };
     return colores[grupo] || 'bg-gray-100 text-gray-700';
   };
@@ -229,6 +233,8 @@ export default function PlanCuentas() {
           </div>
         </div>
       </Card>
+
+      <CuentasSistemaCard />
 
       {/* Tree View */}
       <Card padding="none">

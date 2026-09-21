@@ -9,6 +9,7 @@ const { requireRole } = require('../middlewares/requireRole');
 const { esAdmin } = require('../middlewares/empresaAccess');
 const { CODIGOS_REMUNERACIONES, CAMPO_CONFIG_POR_CONCEPTO } = require('../services/generarAsiento');
 const { exigirCuentasDeEmpresa } = require('../services/validaciones');
+const { CONCEPTOS, resolverCuentas } = require('../services/cuentasSistema');
 
 const router = Router();
 const writeLimiter = rateLimit({
@@ -193,6 +194,68 @@ router.patch('/:id/cuentas-remuneraciones', authenticateToken, writeLimiter, val
     } catch (err) {
         if (err.status) return res.status(err.status).json({ error: err.message });
         logger.error({ err }, 'Error guardando cuentas de centralización de remuneraciones');
+        res.status(500).json({ error: 'Error al guardar la configuración' });
+    }
+});
+
+// Cuentas que el sistema usa para generar asientos automaticos (clientes,
+// proveedores, IVA, ventas, honorarios...). Cada empresa puede tener su propio
+// plan de cuentas: aqui se ve y se cambia cual cuenta cumple cada funcion.
+router.get('/:id/cuentas-sistema', authenticateToken, async (req, res) => {
+    try {
+        if (!esAdmin(req.usuario) && req.usuario.empresaId !== req.params.id) {
+            return res.status(403).json({ error: 'No tiene acceso a esta empresa' });
+        }
+        const [config, resueltas] = await Promise.all([
+            prisma.configCuentasSistema.findUnique({ where: { empresaId: req.params.id } }),
+            resolverCuentas(prisma, req.params.id),
+        ]);
+        const configuradas = (config && config.cuentas) || {};
+        res.json(Object.entries(CONCEPTOS).map(([concepto, def]) => {
+            const cuenta = resueltas[concepto];
+            return {
+                concepto,
+                label: def.label,
+                codigoDefault: def.codigo,
+                cuentaId: cuenta?.id ?? null,
+                cuentaCodigo: cuenta?.codigo ?? null,
+                cuentaNombre: cuenta?.nombre ?? null,
+                esPersonalizada: Boolean(configuradas[concepto] && cuenta && configuradas[concepto] === cuenta.id),
+            };
+        }));
+    } catch (err) {
+        logger.error({ err }, 'Error obteniendo cuentas del sistema');
+        res.status(500).json({ error: 'Error al obtener la configuración' });
+    }
+});
+
+const cuentasSistemaSchema = z.object(
+    Object.fromEntries(Object.keys(CONCEPTOS).map(c => [c, z.string().min(1).nullable().optional()]))
+).strict();
+
+// null en un concepto = volver al codigo del plan estandar para ese concepto.
+router.patch('/:id/cuentas-sistema', authenticateToken, writeLimiter, validate(cuentasSistemaSchema), async (req, res) => {
+    try {
+        if (!puedeConfigurarCentralizacion(req, req.params.id)) {
+            return res.status(403).json({ error: 'No tiene permiso para configurar las cuentas de esta empresa' });
+        }
+        await exigirCuentasDeEmpresa(prisma, req.params.id, Object.values(req.body));
+        const actual = await prisma.configCuentasSistema.findUnique({ where: { empresaId: req.params.id } });
+        const cuentas = { ...((actual && actual.cuentas) || {}) };
+        for (const [concepto, cuentaId] of Object.entries(req.body)) {
+            if (cuentaId === undefined) continue;
+            if (cuentaId === null) delete cuentas[concepto]; else cuentas[concepto] = cuentaId;
+        }
+        const config = await prisma.configCuentasSistema.upsert({
+            where: { empresaId: req.params.id },
+            create: { empresaId: req.params.id, cuentas },
+            update: { cuentas },
+        });
+        await auditLog(req.usuario.id, 'ACTUALIZAR', 'ConfigCuentasSistema', req.params.id, req.body, req.ip, req.headers['user-agent']);
+        res.json(config);
+    } catch (err) {
+        if (err.status) return res.status(err.status).json({ error: err.message });
+        logger.error({ err }, 'Error guardando cuentas del sistema');
         res.status(500).json({ error: 'Error al guardar la configuración' });
     }
 });

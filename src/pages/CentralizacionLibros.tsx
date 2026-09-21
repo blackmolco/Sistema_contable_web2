@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Card } from '../components/ui/Cards';
 import { useApp } from '../context/AppContext';
+import { useCuentasSistema } from '../hooks/useCuentasSistema';
 import { formatCurrency, generateId } from '../utils/calculos';
 
 // ─── Tipos locales ─────────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ const MESES_NOMBRE = [
 ];
 
 export default function CentralizacionLibros() {
+  const { codigos: cod } = useCuentasSistema();
   const { state, dispatch, showToast } = useApp();
   const [tipo, setTipo]   = useState<'ventas' | 'compras' | 'boletas'>('ventas');
   const [mes, setMes]     = useState(new Date().getMonth() + 1);
@@ -142,13 +144,13 @@ export default function CentralizacionLibros() {
     const detalles = [
       {
         cuentaId: esBoleta ? 'banco' : 'cxc',
-        cuentaCodigo: esBoleta ? '1-01-002-0001' : '1-02-001-0001',
+        cuentaCodigo: esBoleta ? cod.cajaBoletas : cod.clientes,
         cuentaNombre: esBoleta ? 'Banco Cuenta Corriente' : 'Clientes (Deudores por Ventas)',
         debe: totalFinal, haber: 0,
       },
       {
         cuentaId: 'venta',
-        cuentaCodigo: '4-01-001-0001',
+        cuentaCodigo: cod.ventas,
         cuentaNombre: 'Ventas',
         debe: 0, haber: totalNeto,
       },
@@ -157,7 +159,7 @@ export default function CentralizacionLibros() {
     if (totalIva > 0) {
       detalles.push({
         cuentaId: 'iva-debito',
-        cuentaCodigo: '2-01-002-0001',
+        cuentaCodigo: cod.ivaDebito,
         cuentaNombre: 'IVA Débito Fiscal',
         debe: 0, haber: totalIva,
       });
@@ -207,7 +209,7 @@ export default function CentralizacionLibros() {
     if (totalIva > 0) {
       detalles.push({
         cuentaId: 'iva-credito',
-        cuentaCodigo: '1-02-002-0001',
+        cuentaCodigo: cod.ivaCredito,
         cuentaNombre: 'IVA Crédito Fiscal',
         debe: totalIva, haber: 0,
       });
@@ -216,7 +218,7 @@ export default function CentralizacionLibros() {
     // Proveedores (CxP)
     detalles.push({
       cuentaId: 'cxp',
-      cuentaCodigo: '2-01-001-0001',
+      cuentaCodigo: cod.proveedores,
       cuentaNombre: 'Proveedores (Acreedores por Compras)',
       debe: 0, haber: totalFinal,
     });

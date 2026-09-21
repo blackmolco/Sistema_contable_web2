@@ -11,6 +11,7 @@ import { SearchSelect, Input, Select, Button } from '../components/ui/FormElemen
 import { Modal } from '../components/ui/Modal';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useApp } from '../context/AppContext';
+import { useCuentasSistema } from '../hooks/useCuentasSistema';
 import { formatRUT, formatCurrency, generateId } from '../utils/calculos';
 import { cerrarImportacionInterrumpida, fetchImportacionesSII, finalizarImportacionSII, ingresoDocumento, iniciarImportacionSII, ImportacionSII, IngresoDocumentoPayload, revertirImportacionSII } from '../services/apiSync';
 import { Cuenta, TipoCuenta } from '../types';
@@ -298,6 +299,7 @@ const SYNC_STEPS = [
 ];
 
 export default function SincronizacionSII() {
+  const { codigos: cod } = useCuentasSistema();
   const navigate = useNavigate();
   const { state, dispatch, showToast } = useApp();
   const [tab, setTab]           = useState<'manual' | 'auto'>('manual');
@@ -427,7 +429,7 @@ export default function SincronizacionSII() {
         });
         setCuentasPorRut(iniciales);
       } else {
-        setCuentaIngresoId(state.cuentas.find(c => c.codigo === '4-01-001-0001')?.id || '');
+        setCuentaIngresoId(state.cuentas.find(c => c.codigo === cod.ventas)?.id || '');
       }
       const totalSum = filas.reduce((s, f) => s + f.total, 0);
       showToast('success', 'Archivo leído',
@@ -452,7 +454,7 @@ export default function SincronizacionSII() {
   // de gasto ya asignada (ni en Entidad.cuentaDefaultId ni en el mapeo
   // rutCuentas que ya usa Centralización de Libros) — se prioriza no
   // bloquear la importación por esto; se puede reclasificar después.
-  const CODIGO_CUENTA_POR_CLASIFICAR = '5-03-004-0001';
+  const CODIGO_CUENTA_POR_CLASIFICAR = cod.cuentaPorClasificar;
 
   const fechaISO = (fila: FilaRCV) => {
     const [d, m, y] = fila.fecha.split('/');

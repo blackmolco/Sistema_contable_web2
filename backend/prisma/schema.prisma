@@ -273,6 +273,16 @@ model LiquidacionSueldo {
 // cuentas distinto, asi que se puede pisar concepto por concepto. Un solo
 // registro por empresa (empresaId como PK); null en un campo = seguir
 // usando el codigo por defecto para ese concepto.
+// Cuentas que el sistema usa para generar asientos automaticos (clientes,
+// proveedores, IVA, ventas, honorarios...), por empresa. Cada empresa puede
+// tener su propio plan de cuentas; `cuentas` es { concepto: cuentaId } y lo
+// que falte cae al codigo del plan estandar (ver services/cuentasSistema.js).
+model ConfigCuentasSistema {
+  empresaId     String   @id
+  cuentas       Json     @default("{}")
+  actualizadoEn DateTime @updatedAt
+}
+
 model ConfigCentralizacionRemuneraciones {
   empresaId                          String   @id
   cuentaRemuneracionesGastoId        String?

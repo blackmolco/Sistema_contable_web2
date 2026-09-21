@@ -10,6 +10,7 @@ function prismaCon({
   asientos = [], pendientes = 0, docsSinAsiento = 0, honSinAsiento = 0, liqSinCentralizar = 0,
   trabajadoresActivos = 0, liqCalculadas = 0, auxSinRut = 0, activos = 0, asientosDepreciacion = 0,
   periodoAnterior = { estado: 'cerrado' }, documentos = [],
+  configuracion = null, cuentasEmpresa = [{ id: 'c-aux' }],
 } = {}) {
   return {
     asientoContable: {
@@ -23,7 +24,8 @@ function prismaCon({
     honorario: { count: async () => honSinAsiento },
     liquidacionSueldo: { count: async ({ where }) => (where.asientoId === null ? liqSinCentralizar : liqCalculadas) },
     trabajador: { count: async () => trabajadoresActivos },
-    cuenta: { findMany: async () => [{ id: 'c-aux' }] },
+    cuenta: { findMany: async () => cuentasEmpresa },
+    configCuentasSistema: { findUnique: async () => configuracion },
     detalleAsiento: { count: async () => auxSinRut },
     activoFijo: { count: async () => activos },
     periodoContable: { findUnique: async () => periodoAnterior },
@@ -88,6 +90,26 @@ describe('evaluarCierre', () => {
     expect(fallo(mal, 'iva_debito').ok).toBe(false);
     expect(fallo(mal, 'iva_credito').ok).toBe(false);
     expect(mal.puedeCerrar).toBe(false);
+  });
+
+  it('usa las cuentas de IVA del plan propio de la empresa (no los codigos del plan estandar)', async () => {
+    const documentos = [
+      { tipo: 'factura', tipoTransaccion: 'venta', iva: 190 },
+      { tipo: 'factura', tipoTransaccion: 'compra', iva: 95 },
+    ];
+    const cuentasEmpresa = [
+      { id: 'iva-d', codigo: '2.1.04.03', nombre: 'IVA Débito Fiscal' },
+      { id: 'iva-c', codigo: '1.1.05.02', nombre: 'IVA Crédito Fiscal' },
+    ];
+    const configuracion = { cuentas: { ivaDebito: 'iva-d', ivaCredito: 'iva-c' } };
+    const mayor = [{ id: 'a1', numero: 1, detalles: [
+      { debe: 0, haber: 190, cuentaCodigo: '2.1.04.03' },
+      { debe: 95, haber: 0, cuentaCodigo: '1.1.05.02' },
+      { debe: 95, haber: 0, cuentaCodigo: '9.9' },
+    ] }];
+    const r = await evaluarCierre(prismaCon({ documentos, asientos: mayor, cuentasEmpresa, configuracion }), 'e1', 2026, 5);
+    expect(fallo(r, 'iva_debito').ok).toBe(true);
+    expect(fallo(r, 'iva_credito').ok).toBe(true);
   });
 
   it('las advertencias no impiden cerrar', async () => {

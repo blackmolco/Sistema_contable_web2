@@ -28,6 +28,8 @@ const CODIGOS_REMUNERACIONES = {
     deudoresVarios: '1-02-001-0003',            // reverso de anticipos/préstamos al personal descontados este mes
 };
 
+const { resolverCuentas, falta } = require('./cuentasSistema');
+
 async function buscarCuenta(tx, empresaId, codigo) {
     return tx.cuenta.findFirst({ where: { codigo, empresaId, activo: true } });
 }
@@ -80,44 +82,42 @@ async function lineasParaDocumento(tx, empresaId, { tipo, tipoTransaccion, neto 
     const netoTotal = (total || 0) - (iva || 0);
     const invertido = tipo === 'nota_credito';
 
+    // Cuentas del sistema de ESTA empresa (su plan propio o el estandar).
+    const sistema = await resolverCuentas(tx, empresaId);
+
     if (tipoTransaccion === 'venta') {
-        const [cuentaClientes, cuentaVentas, cuentaIvaDebito] = await Promise.all([
-            buscarCuenta(tx, empresaId, CODIGOS.clientes),
-            cuentaIngresoId
-                ? tx.cuenta.findFirst({ where: { id: cuentaIngresoId, empresaId, activo: true, permiteMovimiento: true, tipo: 'ingreso' } })
-                : buscarCuenta(tx, empresaId, CODIGOS.ventas),
-            buscarCuenta(tx, empresaId, CODIGOS.ivaDebito),
-        ]);
-        if (!cuentaClientes) throw new Error(`Falta la cuenta ${CODIGOS.clientes} (Clientes) en el plan de cuentas`);
-        if (netoTotal && !cuentaVentas) throw new Error(`Falta la cuenta ${CODIGOS.ventas} (Ventas) en el plan de cuentas`);
-        if (iva && !cuentaIvaDebito) throw new Error(`Falta la cuenta ${CODIGOS.ivaDebito} (IVA Débito Fiscal) en el plan de cuentas`);
+        const cuentaClientes = sistema.clientes;
+        const cuentaVentas = cuentaIngresoId
+            ? await tx.cuenta.findFirst({ where: { id: cuentaIngresoId, empresaId, activo: true, permiteMovimiento: true, tipo: 'ingreso' } })
+            : sistema.ventas;
+        const cuentaIvaDebito = sistema.ivaDebito;
+        if (!cuentaClientes) throw falta('clientes');
+        if (netoTotal && !cuentaVentas) throw falta('ventas');
+        if (iva && !cuentaIvaDebito) throw falta('ivaDebito');
         return reglaVenta({ netoTotal, iva, total, cuentaClientes, cuentaVentas, cuentaIvaDebito, entidad, documentoId, invertido });
     }
 
     // compra
     const cuentaGasto = cuentaGastoId ? await tx.cuenta.findFirst({ where: { id: cuentaGastoId, empresaId, activo: true, permiteMovimiento: true } }) : null;
-    const [cuentaProveedores, cuentaIvaCredito] = await Promise.all([
-        buscarCuenta(tx, empresaId, CODIGOS.proveedores),
-        buscarCuenta(tx, empresaId, CODIGOS.ivaCredito),
-    ]);
-    if (!cuentaProveedores) throw new Error(`Falta la cuenta ${CODIGOS.proveedores} (Proveedores) en el plan de cuentas`);
+    const cuentaProveedores = sistema.proveedores;
+    const cuentaIvaCredito = sistema.ivaCredito;
+    if (!cuentaProveedores) throw falta('proveedores');
     if (netoTotal && !cuentaGasto) throw new Error('Debe elegir la cuenta de gasto/activo para esta compra');
-    if (iva && !cuentaIvaCredito) throw new Error(`Falta la cuenta ${CODIGOS.ivaCredito} (IVA Crédito Fiscal) en el plan de cuentas`);
+    if (iva && !cuentaIvaCredito) throw falta('ivaCredito');
     return reglaCompra({ netoTotal, iva, total, cuentaGasto, cuentaProveedores, cuentaIvaCredito, entidad, documentoId, invertido });
 }
 
 /** Arma las líneas del asiento para una boleta de honorarios. */
 async function lineasParaHonorario(tx, empresaId, { montoBruto, retencion, montoLiquido, entidad, documentoId, cuentaHonorarioId }) {
-    const [cuentaGastoHonorarios, cuentaRetencion, cuentaPorPagar] = await Promise.all([
-        cuentaHonorarioId
-            ? tx.cuenta.findFirst({ where: { id: cuentaHonorarioId, empresaId, activo: true, permiteMovimiento: true, tipo: 'gasto' } })
-            : buscarCuenta(tx, empresaId, CODIGOS.honorariosGasto),
-        buscarCuenta(tx, empresaId, CODIGOS.retencionHonorarios),
-        buscarCuenta(tx, empresaId, CODIGOS.honorariosPorPagar),
-    ]);
-    if (!cuentaGastoHonorarios) throw new Error(`Falta la cuenta ${CODIGOS.honorariosGasto} (Honorarios a Terceros) en el plan de cuentas`);
-    if (!cuentaPorPagar) throw new Error(`Falta la cuenta ${CODIGOS.honorariosPorPagar} (Honorarios por pagar) en el plan de cuentas`);
-    if (retencion && !cuentaRetencion) throw new Error(`Falta la cuenta ${CODIGOS.retencionHonorarios} (Retención 2ª categoría) en el plan de cuentas`);
+    const sistema = await resolverCuentas(tx, empresaId);
+    const cuentaGastoHonorarios = cuentaHonorarioId
+        ? await tx.cuenta.findFirst({ where: { id: cuentaHonorarioId, empresaId, activo: true, permiteMovimiento: true, tipo: 'gasto' } })
+        : sistema.honorariosGasto;
+    const cuentaRetencion = sistema.retencionHonorarios;
+    const cuentaPorPagar = sistema.honorariosPorPagar;
+    if (!cuentaGastoHonorarios) throw falta('honorariosGasto');
+    if (!cuentaPorPagar) throw falta('honorariosPorPagar');
+    if (retencion && !cuentaRetencion) throw falta('retencionHonorarios');
     return reglaHonorario({ montoBruto, retencion, montoLiquido, cuentaGastoHonorarios, cuentaRetencion, cuentaPorPagar, entidad, documentoId });
 }
 

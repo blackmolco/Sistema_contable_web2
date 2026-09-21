@@ -16,25 +16,24 @@ import { Button, Input } from '../components/ui/FormElements';
 import { formatCurrency } from '../utils/calculos';
 import { generarPDFEstadoFinanciero } from '../services/reportesPdf';
 import { CHART_PALETTE } from '../utils/chartPalette';
-
-const CODIGO_UTILIDADES_ACUMULADAS = '3-01-003-0001';
+import { useCuentasSistema } from '../hooks/useCuentasSistema';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-/** Devuelve los dos primeros segmentos del código jerárquico, ej. "1-01" */
-function subgrupo(codigo: string): string {
-  const parts = codigo.split('-');
-  return parts.length >= 2 ? `${parts[0]}-${parts[1]}` : parts[0];
+/**
+ * Corriente / no corriente según el código, que puede venir en el plan
+ * estándar ("1-01-001-0001": corriente = 1-01 y 1-02) o en un plan propio con
+ * puntos ("1.1.02.01": corriente = 1.1).
+ */
+function esCorriente(codigo: string, grupo: '1' | '2'): boolean {
+  const [g, sub] = codigo.split(/[-.]/);
+  if (g !== grupo) return false;
+  if (codigo.includes('.')) return sub === '1';
+  return grupo === '1' ? sub === '01' || sub === '02' : sub === '01';
 }
 
-function esActivoCorriente(codigo: string): boolean {
-  const sg = subgrupo(codigo);
-  return sg === '1-01' || sg === '1-02';
-}
-
-function esPasivoCorriente(codigo: string): boolean {
-  return subgrupo(codigo) === '2-01';
-}
+const esActivoCorriente = (codigo: string) => esCorriente(codigo, '1');
+const esPasivoCorriente = (codigo: string) => esCorriente(codigo, '2');
 
 // ── Tipos internos ─────────────────────────────────────────────────────────────
 
@@ -49,6 +48,7 @@ interface FilaCuenta {
 
 export default function EstadosFinancieros() {
   const { state } = useApp();
+  const { codigos: { utilidadesAcumuladas: CODIGO_UTILIDADES_ACUMULADAS } } = useCuentasSistema();
   const [fechaCorte, setFechaCorte] = useState(new Date().toISOString().slice(0, 10));
   const inicioEjercicio = `${fechaCorte.slice(0, 4)}-01-01`;
 
@@ -124,7 +124,7 @@ export default function EstadosFinancieros() {
       }
     }
     return resultado.sort((a, b) => a.codigo.localeCompare(b.codigo));
-  }, [state.cuentas, saldosPorCuenta, resultadoAcumuladoAnterior]);
+  }, [state.cuentas, saldosPorCuenta, resultadoAcumuladoAnterior, CODIGO_UTILIDADES_ACUMULADAS]);
 
   // 3. Agrupar por categoría contable
   const activosCorrientes   = useMemo(() => filas.filter(f => f.tipo === 'activo'     &&  esActivoCorriente(f.codigo)), [filas]);
