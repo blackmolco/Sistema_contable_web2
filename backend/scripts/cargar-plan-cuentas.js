@@ -34,7 +34,7 @@ const SISTEMA = {
     ivaDebito: '2.1.04.03',
     ivaCredito: '1.1.05.02',
     remanenteIva: '1.1.05.06',
-    ivaPorPagar: null,
+    ivaPorPagar: '2.1.04.08',
     honorariosGasto: '6.1.01.18',
     honorariosPorPagar: '2.1.02.02',
     retencionHonorarios: '2.1.04.05',
@@ -49,12 +49,18 @@ const REMUNERACIONES = {
     cuentaRemuneracionesPorPagarId: '2.1.02.01',
     cuentaImposicionesPorPagarId: '2.1.02.03',
     cuentaSaludPorPagarId: '2.1.02.05', // Fonasa; el plan trae Isapre (2.1.02.04) aparte
-    cuentaCesantiaPorPagarId: null,
+    cuentaCesantiaPorPagarId: '2.1.02.09',
     cuentaImpuestoUnicoPorPagarId: '2.1.04.04',
     cuentaMutualPorPagarId: '2.1.02.07',
-    cuentaReformaPrevisionalPorPagarId: null,
+    cuentaReformaPrevisionalPorPagarId: '2.1.02.10',
     cuentaDeudoresVariosId: '1.1.02.08',
 };
+// Cuentas que el plan entregado no trae y el sistema necesita (agregadas a pedido).
+const AGREGADAS = [
+    { codigo: '2.1.04.08', nombre: 'IVA por Pagar' },
+    { codigo: '2.1.02.09', nombre: 'Seguro de Cesantía por Pagar' },
+    { codigo: '2.1.02.10', nombre: 'SIS y Reforma Previsional por Pagar' },
+];
 const AUXILIAR = {
     '1.1.02.01': 'cliente', '2.1.01.01': 'proveedor', '2.1.02.02': 'honorario',
     '2.1.02.01': 'trabajador', '1.1.02.08': 'trabajador',
@@ -70,6 +76,10 @@ function leerPlan(ruta) {
         const codigo = m[1];
         cuentas.push({ codigo, nombre: m[2].replace(/\s+/g, ' ').trim(), nivel: codigo.split('.').length });
     }
+    for (const extra of AGREGADAS) {
+        if (!cuentas.some(c => c.codigo === extra.codigo)) cuentas.push({ ...extra, nivel: 4 });
+    }
+    cuentas.sort((a, b) => a.codigo.split('.').map(n => n.padStart(3, '0')).join('.').localeCompare(b.codigo.split('.').map(n => n.padStart(3, '0')).join('.')));
     const codigos = new Set(cuentas.map(c => c.codigo));
     return cuentas.map(c => {
         const partes = c.codigo.split('.');
@@ -116,8 +126,7 @@ async function main() {
 
     const faltan = [...Object.entries(SISTEMA), ...Object.entries(REMUNERACIONES)].filter(([, cod]) => cod && !plan.some(c => c.codigo === cod));
     if (faltan.length) throw new Error('El archivo no trae estas cuentas esperadas: ' + faltan.map(f => f[1]).join(', '));
-    console.log('Sin cuenta en el plan nuevo (habra que crearlas o decidir cual usar):');
-    for (const [k, v] of [...Object.entries(SISTEMA), ...Object.entries(REMUNERACIONES)]) if (!v) console.log('   -', k);
+    console.log(`Se agregan al plan ${AGREGADAS.length} cuentas que el archivo no trae: ${AGREGADAS.map(a => a.codigo + ' ' + a.nombre).join('; ')}`);
 
     if (!APLICAR) { console.log('\nSIMULACION: no se escribio nada. Repite con --aplicar para ejecutar.'); return; }
 
