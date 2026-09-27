@@ -137,6 +137,11 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
   // Auditoría igual que un admin, pero acotado a su empresa (lo aplica el
   // backend; aquí solo se decide si el ítem del menú aparece).
   const esAdminOSupervisor = esAdmin || rol === 'supervisor';
+  // Permiso puntual (no depende del rol): un contador/usuario puede tener
+  // bloqueado el modulo de Remuneraciones. admin y supervisor nunca se ven
+  // afectados (ver middlewares/permisos.js en el backend).
+  const accesoRemuneraciones = useAuthStore(s => s.user?.accesoRemuneraciones);
+  const sinAccesoRemuneraciones = !esAdminOSupervisor && accesoRemuneraciones === false;
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
@@ -146,9 +151,10 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
   // "Usuarios" y "Log de Auditoría" solo los ve quien administra (admin
   // global o supervisor de su empresa) — el resto de roles ni sabe que
   // existen.
-  const categoriasVisibles = esAdminOSupervisor
+  const categoriasVisibles = (esAdminOSupervisor
     ? menuCategories
-    : menuCategories.map(c => ({ ...c, items: c.items.filter(i => i.path !== '/usuarios' && i.path !== '/auditoria') }));
+    : menuCategories.map(c => ({ ...c, items: c.items.filter(i => i.path !== '/usuarios' && i.path !== '/auditoria') }))
+  ).filter(c => !(sinAccesoRemuneraciones && c.title === 'Remuneraciones'));
 
   // ── Categorías colapsables (persistidas) ───────────────────────────────
   const [openCategories, setOpenCategories] = React.useState<Record<string, boolean>>(() =>

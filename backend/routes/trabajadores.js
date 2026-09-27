@@ -1,6 +1,7 @@
 ﻿const { Router } = require('express');
 const { prisma, logger, auditLog } = require('../shared');
 const { authenticateToken } = require('../middlewares/authenticate');
+const { exigirAccesoRemuneraciones } = require('../middlewares/permisos');
 const { validate } = require('../middlewares/validate');
 const { parsePagination, paginatedResponse } = require('../middlewares/pagination');
 const { z } = require('zod');
@@ -71,7 +72,7 @@ const calcularLiquidacionSchema = z.object({
 });
 
 // === TRABAJADORES ===
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, exigirAccesoRemuneraciones, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
         const { estado, busqueda } = req.query;
@@ -97,7 +98,7 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 });
 
-router.post('/', authenticateToken, writeLimiter, validate(trabajadorSchema), async (req, res) => {
+router.post('/', authenticateToken, exigirAccesoRemuneraciones, writeLimiter, validate(trabajadorSchema), async (req, res) => {
     try {
         const { id, ...rest } = req.body;
         if (!exigirAccesoEmpresa(req, res, rest.empresaId)) return;
@@ -125,7 +126,7 @@ router.post('/', authenticateToken, writeLimiter, validate(trabajadorSchema), as
     }
 });
 
-router.put('/:id', authenticateToken, writeLimiter, validate(trabajadorSchema.partial()), async (req, res) => {
+router.put('/:id', authenticateToken, exigirAccesoRemuneraciones, writeLimiter, validate(trabajadorSchema.partial()), async (req, res) => {
     try {
         const actual = await prisma.trabajador.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
         if (!actual) return res.status(404).json({ error: 'Trabajador no encontrado' });
@@ -150,7 +151,7 @@ router.put('/:id', authenticateToken, writeLimiter, validate(trabajadorSchema.pa
 // solo centralizada — borrarlo de verdad haria cascada sobre
 // LiquidacionSueldo (onDelete: Cascade) y se perderia ese historial, asi
 // que en ese caso se deja como estaba: solo se desvincula (soft delete).
-router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
+router.delete('/:id', authenticateToken, exigirAccesoRemuneraciones, writeLimiter, async (req, res) => {
     try {
         const actual = await prisma.trabajador.findUnique({ where: { id: req.params.id }, select: { empresaId: true } });
         if (!actual) return res.status(404).json({ error: 'Trabajador no encontrado' });
@@ -177,7 +178,7 @@ router.delete('/:id', authenticateToken, writeLimiter, async (req, res) => {
 });
 
 // === LIQUIDACIONES ===
-router.get('/liquidaciones', authenticateToken, async (req, res) => {
+router.get('/liquidaciones', authenticateToken, exigirAccesoRemuneraciones, async (req, res) => {
     try {
         const { page, limit, offset } = parsePagination(req);
         const { trabajadorId, periodo } = req.query;
@@ -202,7 +203,7 @@ router.get('/liquidaciones', authenticateToken, async (req, res) => {
 // validacion de que fueran correctos). Se puede recalcular mientras siga
 // 'calculada' (no 'pagada' ni ya centralizada); una vez centralizada
 // (asientoId seteado) hay que descentralizar primero para tocarla.
-router.post('/liquidaciones/calcular', authenticateToken, writeLimiter, validate(calcularLiquidacionSchema), async (req, res) => {
+router.post('/liquidaciones/calcular', authenticateToken, exigirAccesoRemuneraciones, writeLimiter, validate(calcularLiquidacionSchema), async (req, res) => {
     try {
         const trabajador = await prisma.trabajador.findUnique({ where: { id: req.body.trabajadorId } });
         if (!trabajador) return res.status(404).json({ error: 'Trabajador no encontrado' });
@@ -242,7 +243,7 @@ router.post('/liquidaciones/calcular', authenticateToken, writeLimiter, validate
 // centralizada (asientoId seteado) hay que descentralizar el período
 // primero (libera TODAS las del período, no una sola: el asiento es uno
 // solo para todo el período, no se puede tocar a medias).
-router.delete('/liquidaciones/:id', authenticateToken, writeLimiter, async (req, res) => {
+router.delete('/liquidaciones/:id', authenticateToken, exigirAccesoRemuneraciones, writeLimiter, async (req, res) => {
     try {
         const liquidacion = await prisma.liquidacionSueldo.findUnique({
             where: { id: req.params.id },
@@ -265,7 +266,7 @@ router.delete('/liquidaciones/:id', authenticateToken, writeLimiter, async (req,
 // Centraliza TODAS las liquidaciones no centralizadas de una empresa/período
 // en un solo asiento contable — atómico: todo o nada, con numeración segura
 // (ver services/generarAsiento.js).
-router.post('/liquidaciones/centralizar', authenticateToken, writeLimiter, async (req, res) => {
+router.post('/liquidaciones/centralizar', authenticateToken, exigirAccesoRemuneraciones, writeLimiter, async (req, res) => {
     try {
         const { empresaId, periodo } = req.body || {};
         if (!empresaId || !periodo) return res.status(400).json({ error: "Faltan 'empresaId' y 'periodo'" });
@@ -310,7 +311,7 @@ router.post('/liquidaciones/centralizar', authenticateToken, writeLimiter, async
 // Deshace una centralización: anula el asiento (nunca se borra, igual que
 // el resto de la app — ver routes/asientos.js) y libera las liquidaciones
 // de ese período para que se puedan recalcular y volver a centralizar.
-router.post('/liquidaciones/descentralizar', authenticateToken, writeLimiter, async (req, res) => {
+router.post('/liquidaciones/descentralizar', authenticateToken, exigirAccesoRemuneraciones, writeLimiter, async (req, res) => {
     try {
         const { empresaId, periodo } = req.body || {};
         if (!empresaId || !periodo) return res.status(400).json({ error: "Faltan 'empresaId' y 'periodo'" });

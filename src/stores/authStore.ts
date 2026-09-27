@@ -23,6 +23,9 @@ export interface User {
   rol: 'admin' | 'administrador' | 'supervisor' | 'contador' | 'usuario';
   empresaId: string;
   avatar?: string;
+  // Permiso puntual (no depende del rol): false = sin acceso al modulo de
+  // Remuneraciones. admin y supervisor siempre tienen acceso (ver backend).
+  accesoRemuneraciones?: boolean;
 }
 
 interface AuthState {

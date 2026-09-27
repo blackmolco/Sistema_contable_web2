@@ -10,6 +10,10 @@ const router = Router();
 const actualizarUsuarioSchema = z.object({
     rol: z.enum(['admin', 'supervisor', 'contador', 'usuario']).optional(),
     empresaId: z.string().min(1).nullable().optional(),
+    // Permiso puntual, no depende del rol (ver middlewares/permisos.js) —
+    // solo tiene efecto para contador/usuario; admin y supervisor siempre
+    // tienen acceso a Remuneraciones sin importar este campo.
+    accesoRemuneraciones: z.boolean().optional(),
 });
 
 const cambiarPasswordAdminSchema = z.object({
@@ -77,6 +81,7 @@ router.get('/', authenticateToken, async (req, res) => {
                 email: true,
                 rol: true,
                 empresaId: true,
+                accesoRemuneraciones: true,
                 activo: true,
                 ultimoAcceso: true,
                 fechaCreacion: true,
@@ -123,7 +128,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
             return res.status(403).json({ error: 'No tiene permiso para modificar usuarios' });
         }
         const datos = actualizarUsuarioSchema.parse(req.body);
-        if (datos.rol === undefined && datos.empresaId === undefined) {
+        if (datos.rol === undefined && datos.empresaId === undefined && datos.accesoRemuneraciones === undefined) {
             return res.status(400).json({ error: 'No hay cambios que aplicar' });
         }
 
@@ -160,10 +165,13 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 
         const usuario = await prisma.usuario.update({
             where: { id: req.params.id },
-            data: { rol: nuevoRol, empresaId: nuevaEmpresaId },
-            select: { id: true, nombre: true, email: true, rol: true, empresaId: true, activo: true },
+            data: {
+                rol: nuevoRol, empresaId: nuevaEmpresaId,
+                ...(datos.accesoRemuneraciones !== undefined ? { accesoRemuneraciones: datos.accesoRemuneraciones } : {}),
+            },
+            select: { id: true, nombre: true, email: true, rol: true, empresaId: true, accesoRemuneraciones: true, activo: true },
         });
-        await auditLog(req.usuario.id, 'ACTUALIZAR', 'Usuario', usuario.id, { rol: usuario.rol, empresaId: usuario.empresaId }, req.ip, req.headers['user-agent']);
+        await auditLog(req.usuario.id, 'ACTUALIZAR', 'Usuario', usuario.id, { rol: usuario.rol, empresaId: usuario.empresaId, accesoRemuneraciones: usuario.accesoRemuneraciones }, req.ip, req.headers['user-agent']);
 
         const empresa = usuario.empresaId ? await prisma.empresa.findUnique({ where: { id: usuario.empresaId } }) : null;
         const empresaTexto = usuario.rol === 'admin' ? 'todas las empresas' : (empresa ? empresa.razonSocial : 'sin empresa asignada');

@@ -23,6 +23,7 @@ interface Usuario {
   email: string;
   rol: string;
   empresaId: string | null;
+  accesoRemuneraciones?: boolean;
   activo: boolean;
   ultimoAcceso?: string;
 }
@@ -34,7 +35,7 @@ const ROL_LABELS: Record<string, { label: string; color: string }> = {
   usuario:    { label: 'Usuario',    color: 'bg-gray-100 text-gray-600' },
 };
 
-const initialForm = { nombre: '', email: '', password: '', rol: 'usuario', empresaId: '' };
+const initialForm = { nombre: '', email: '', password: '', rol: 'usuario', empresaId: '', accesoRemuneraciones: true };
 
 export default function GestionUsuarios() {
   const currentUserId = useAuthStore(s => s.user?.id);
@@ -54,7 +55,7 @@ export default function GestionUsuarios() {
   const [formEmailWarning, setFormEmailWarning] = useState<string | null>(null);
 
   const [editandoId, setEditandoId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ rol: 'usuario', empresaId: '' });
+  const [editForm, setEditForm] = useState({ rol: 'usuario', empresaId: '', accesoRemuneraciones: true });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editEmailWarning, setEditEmailWarning] = useState<string | null>(null);
@@ -97,7 +98,7 @@ export default function GestionUsuarios() {
 
   const iniciarEdicion = (u: Usuario) => {
     setEditandoId(u.id);
-    setEditForm({ rol: u.rol, empresaId: u.empresaId ?? '' });
+    setEditForm({ rol: u.rol, empresaId: u.empresaId ?? '', accesoRemuneraciones: u.accesoRemuneraciones !== false });
     setEditError(null);
   };
 
@@ -106,9 +107,12 @@ export default function GestionUsuarios() {
     setEditError(null);
     setEditEmailWarning(null);
     try {
-      const body: Record<string, string | null> = { rol: editForm.rol };
+      const body: Record<string, string | null | boolean> = { rol: editForm.rol };
       if (editForm.rol !== 'admin') {
         body.empresaId = editForm.empresaId.trim() || null;
+      }
+      if (editForm.rol === 'contador' || editForm.rol === 'usuario') {
+        body.accesoRemuneraciones = editForm.accesoRemuneraciones;
       }
       const res = await apiFetchRaw(`/api/usuarios/${id}`, {
         method: 'PATCH',
@@ -236,13 +240,14 @@ export default function GestionUsuarios() {
     setFormSuccess(false);
     setFormEmailWarning(null);
     try {
-      const body: Record<string, string> = {
+      const body: Record<string, string | boolean> = {
         nombre: form.nombre,
         email: form.email,
         password: form.password,
         rol: form.rol,
       };
       if (form.empresaId.trim()) body.empresaId = form.empresaId.trim();
+      if (form.rol === 'contador' || form.rol === 'usuario') body.accesoRemuneraciones = form.accesoRemuneraciones;
 
       const res = await apiFetchRaw('/api/auth/register', {
         method: 'POST',
@@ -335,6 +340,17 @@ export default function GestionUsuarios() {
                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
             </div>
+            {(form.rol === 'contador' || form.rol === 'usuario') && (
+              <label className="flex items-center gap-2 text-sm text-gray-700 mt-1">
+                <input
+                  type="checkbox"
+                  checked={form.accesoRemuneraciones}
+                  onChange={e => setForm(f => ({ ...f, accesoRemuneraciones: e.target.checked }))}
+                  className="rounded border-gray-300"
+                />
+                Acceso a Remuneraciones
+              </label>
+            )}
             <div className="md:col-span-2">
               {form.rol === 'admin' ? (
                 <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
@@ -467,6 +483,20 @@ export default function GestionUsuarios() {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${color}`}>
                             {label}
                           </span>
+                        )}
+                        {editando && (editForm.rol === 'contador' || editForm.rol === 'usuario') && (
+                          <label className="flex items-center gap-1.5 mt-1.5 text-[11px] text-gray-600 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={editForm.accesoRemuneraciones}
+                              onChange={e => setEditForm(f => ({ ...f, accesoRemuneraciones: e.target.checked }))}
+                              className="rounded border-gray-300"
+                            />
+                            Remuneraciones
+                          </label>
+                        )}
+                        {!editando && (u.rol === 'contador' || u.rol === 'usuario') && u.accesoRemuneraciones === false && (
+                          <span className="block mt-1 text-[10px] text-red-600">Sin Remuneraciones</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-xs">

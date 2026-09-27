@@ -24,6 +24,13 @@ model Usuario {
   // Bloqueo temporal tras varios intentos de contrasena fallidos.
   intentosFallidos Int       @default(0)
   bloqueadoHasta   DateTime?
+  // Permiso puntual (no un rol nuevo): si es false, el usuario no puede
+  // entrar al modulo de Remuneraciones ni por menu ni por URL directa — el
+  // backend rechaza con 403 cualquier ruta de trabajadores/liquidaciones
+  // (ver middlewares/permisos.js) y el frontend oculta el menu y muestra un
+  // error si igual entra por la URL (ver App.tsx). admin y supervisor
+  // siempre tienen acceso, sin importar este campo.
+  accesoRemuneraciones Boolean @default(true)
 
   empresa    Empresa?          @relation(fields: [empresaId], references: [id])
   sesiones   Sesion[]

@@ -76,6 +76,7 @@ const tokenA = token({ rol: 'contador', empresaId: EMPRESA_A });
 const tokenSupervisorA = token({ rol: 'supervisor', empresaId: EMPRESA_A });
 const tokenSinEmpresa = token({ rol: 'contador', empresaId: null });
 const tokenAdmin = token({ rol: 'admin', empresaId: null });
+const tokenContadorSinRemuneraciones = token({ rol: 'contador', empresaId: EMPRESA_A, accesoRemuneraciones: false });
 
 const request = require('supertest');
 let app;
@@ -245,6 +246,35 @@ describe('Usuarios sin empresa', () => {
       expect(res.status).toBe(400);
     }
     expect(llamadas).toEqual([]);
+  });
+});
+
+describe('Permiso puntual: acceso a Remuneraciones', () => {
+  beforeEach(() => { duenio = EMPRESA_A; llamadas = []; });
+
+  it('un contador con accesoRemuneraciones:false no puede leer ni escribir trabajadores/liquidaciones', async () => {
+    for (const [metodo, url] of [
+      ['get', '/api/trabajadores?empresaId=' + EMPRESA_A],
+      ['get', '/api/trabajadores/liquidaciones?empresaId=' + EMPRESA_A],
+      ['post', '/api/trabajadores/liquidaciones/calcular'],
+      ['post', '/api/trabajadores/liquidaciones/centralizar'],
+      ['get', '/api/empresas/' + EMPRESA_A + '/cuentas-remuneraciones'],
+    ]) {
+      const res = await llamar(metodo, url, metodo === 'post' ? { empresaId: EMPRESA_A } : undefined, tokenContadorSinRemuneraciones);
+      expect(res.status).toBe(403);
+    }
+    expect(hayEscritura()).toEqual([]);
+  });
+
+  it('un contador normal (sin el campo, o en true) SI puede entrar', async () => {
+    const res = await llamar('get', '/api/trabajadores?empresaId=' + EMPRESA_A);
+    expect(res.status).toBe(200);
+  });
+
+  it('un supervisor entra a Remuneraciones aunque tenga el permiso en false (nunca se le bloquea a el)', async () => {
+    const tokenSupervisorSinRemuneraciones = token({ rol: 'supervisor', empresaId: EMPRESA_A, accesoRemuneraciones: false });
+    const res = await llamar('get', '/api/trabajadores?empresaId=' + EMPRESA_A, undefined, tokenSupervisorSinRemuneraciones);
+    expect(res.status).toBe(200);
   });
 });
 

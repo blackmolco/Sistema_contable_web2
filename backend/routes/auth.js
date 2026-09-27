@@ -28,6 +28,8 @@ const authRegisterSchema = z.object({
     rut: z.string().optional().nullable(),
     rol: z.enum(['admin', 'supervisor', 'usuario', 'contador']).default('usuario'),
     empresaId: z.string().optional().nullable(),
+    // Permiso puntual, no depende del rol (ver middlewares/permisos.js).
+    accesoRemuneraciones: z.boolean().default(true),
 });
 
 const changePasswordSchema = z.object({
@@ -96,6 +98,7 @@ router.post('/register', authenticateToken, async (req, res) => {
                 rut: data.rut || '00.000.000-0',
                 rol: data.rol,
                 empresaId: data.empresaId ?? null,
+                accesoRemuneraciones: data.accesoRemuneraciones,
                 activo: true,
             },
         });
@@ -160,7 +163,7 @@ router.post('/login', authLimiter, async (req, res) => {
         }
         const JWT_SECRET = getJwtSecret();
         const token = jwt.sign(
-            { id: usuario.id, email: usuario.email, rol: usuario.rol, empresaId: usuario.empresaId },
+            { id: usuario.id, email: usuario.email, rol: usuario.rol, empresaId: usuario.empresaId, accesoRemuneraciones: usuario.accesoRemuneraciones },
             JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
         );
@@ -194,6 +197,7 @@ router.post('/login', authLimiter, async (req, res) => {
                 rut: usuario.rut,
                 rol: usuario.rol,
                 empresaId: usuario.empresaId,
+                accesoRemuneraciones: usuario.accesoRemuneraciones,
             },
         });
     } catch (err) {
@@ -221,7 +225,7 @@ router.post('/refresh', authLimiter, async (req, res) => {
             return res.status(401).json({ error: 'Usuario desactivado o no encontrado' });
         }
         const newToken = jwt.sign(
-            { id: usuario.id, email: usuario.email, rol: usuario.rol, empresaId: usuario.empresaId },
+            { id: usuario.id, email: usuario.email, rol: usuario.rol, empresaId: usuario.empresaId, accesoRemuneraciones: usuario.accesoRemuneraciones },
             JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
         );

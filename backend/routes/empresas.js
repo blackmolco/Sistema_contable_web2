@@ -9,6 +9,7 @@ const { requireRole } = require('../middlewares/requireRole');
 const { esAdmin } = require('../middlewares/empresaAccess');
 const { CODIGOS_REMUNERACIONES, CAMPO_CONFIG_POR_CONCEPTO } = require('../services/generarAsiento');
 const { exigirCuentasDeEmpresa } = require('../services/validaciones');
+const { exigirAccesoRemuneraciones } = require('../middlewares/permisos');
 const { CONCEPTOS, resolverCuentas } = require('../services/cuentasSistema');
 
 const router = Router();
@@ -126,7 +127,7 @@ function puedeConfigurarCentralizacion(req, empresaId) {
 // Muestra, por cada concepto, la cuenta que se va a usar al centralizar:
 // la personalizada si existe, si no la que resuelve el codigo por defecto
 // (o null si esa tampoco existe en el plan de cuentas de esta empresa).
-router.get('/:id/cuentas-remuneraciones', authenticateToken, async (req, res) => {
+router.get('/:id/cuentas-remuneraciones', authenticateToken, exigirAccesoRemuneraciones, async (req, res) => {
     try {
         if (!esAdmin(req.usuario) && req.usuario.empresaId !== req.params.id) {
             return res.status(403).json({ error: 'No tiene acceso a esta empresa' });
@@ -173,7 +174,7 @@ const cuentasRemuneracionesSchema = z.object(
 // Guarda, concepto por concepto, que cuenta usar al centralizar en vez del
 // codigo fijo por defecto. null en un concepto = volver a usar el codigo
 // por defecto para ese concepto.
-router.patch('/:id/cuentas-remuneraciones', authenticateToken, writeLimiter, validate(cuentasRemuneracionesSchema), async (req, res) => {
+router.patch('/:id/cuentas-remuneraciones', authenticateToken, exigirAccesoRemuneraciones, writeLimiter, validate(cuentasRemuneracionesSchema), async (req, res) => {
     try {
         if (!puedeConfigurarCentralizacion(req, req.params.id)) {
             return res.status(403).json({ error: 'No tiene permiso para configurar la centralización de esta empresa' });

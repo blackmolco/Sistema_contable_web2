@@ -84,6 +84,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           rut: user.rut || '',
           rol: user.rol === 'administrador' ? 'admin' : (user.rol as any) || 'contador',
           empresaId: user.empresaId || '',
+          accesoRemuneraciones: user.accesoRemuneraciones,
         },
         isAuthenticated: true,
       });

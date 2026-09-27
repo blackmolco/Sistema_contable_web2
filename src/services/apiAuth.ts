@@ -13,6 +13,7 @@ export interface AuthUser {
   rut?: string;
   rol: string;
   empresaId?: string | null;
+  accesoRemuneraciones?: boolean;
 }
 
 export interface LoginResponse {

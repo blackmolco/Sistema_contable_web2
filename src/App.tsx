@@ -2,6 +2,7 @@ import React, { Suspense, lazy, ComponentType, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { useAuthStore } from './stores/authStore';
+import AccesoDenegado from './components/AccesoDenegado';
 import { useAppStore } from './stores/appStore';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import Login from './components/auth/Login';
@@ -53,6 +54,20 @@ const Tesoreria = lazy(() => import('./pages/Tesoreria'));
 const AnalisisFinanciero = lazy(() => import('./pages/AnalisisFinanciero'));
 const ActivoFijo = lazy(() => import('./pages/ActivoFijo'));
 const Remuneraciones = lazy(() => import('./pages/Remuneraciones'));
+
+// Bloquea la entrada a Remuneraciones por URL directa cuando el usuario
+// tiene el permiso puntual en false — el menu ya lo oculta (Sidebar.tsx),
+// esto cubre a quien igual escribe/guarda la URL. admin y supervisor nunca
+// se ven afectados, igual que en el backend (middlewares/permisos.js).
+function RutaRemuneraciones() {
+  const rol = useAuthStore(s => s.user?.rol);
+  const esAdminOSupervisor = rol === 'admin' || rol === 'administrador' || rol === 'supervisor';
+  const accesoRemuneraciones = useAuthStore(s => s.user?.accesoRemuneraciones);
+  if (!esAdminOSupervisor && accesoRemuneraciones === false) {
+    return <AccesoDenegado modulo="Remuneraciones" />;
+  }
+  return <Remuneraciones />;
+}
 const Inventario = lazy(() => import('./pages/Inventario'));
 const Configuracion = lazy(() => import('./pages/Configuracion'));
 const MiPerfil = lazy(() => import('./pages/MiPerfil'));
@@ -281,7 +296,7 @@ function AppContent() {
               <Route path="/analisis-financiero" element={<ErrorBoundary moduleName="Análisis Financiero"><AnalisisFinanciero /></ErrorBoundary>} />
               <Route path="/inventario" element={<ErrorBoundary moduleName="Inventario"><Inventario /></ErrorBoundary>} />
               <Route path="/activo-fijo" element={<ErrorBoundary moduleName="Activo Fijo"><ActivoFijo /></ErrorBoundary>} />
-              <Route path="/remuneraciones" element={<ErrorBoundary moduleName="Remuneraciones"><Remuneraciones /></ErrorBoundary>} />
+              <Route path="/remuneraciones" element={<ErrorBoundary moduleName="Remuneraciones"><RutaRemuneraciones /></ErrorBoundary>} />
               <Route path="/herramientas/sii" element={<ErrorBoundary moduleName="Herramientas SII"><TablasSII /></ErrorBoundary>} />
               <Route path="/balance-8-columnas" element={<ErrorBoundary moduleName="Balance 8 Columnas"><BalanceOchoColumnas /></ErrorBoundary>} />
               <Route path="/libro-mayor" element={<ErrorBoundary moduleName="Libro Mayor"><MayorContable /></ErrorBoundary>} />
