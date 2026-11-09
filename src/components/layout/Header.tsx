@@ -88,10 +88,10 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
           <div className="hidden xl:flex items-center gap-2" aria-label="Contexto de trabajo actual">
             <div className="flex items-center gap-2 rounded-lg border border-primary/15 bg-primary/5 px-3 py-1.5">
               <Building2 size={15} className="text-primary" />
-              <div className="min-w-0 max-w-52">
+              <div className="min-w-0 max-w-72" title={empresaActiva?.razonSocial}>
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Empresa activa</p>
                 <p className="truncate text-xs font-semibold text-gray-900 dark:text-gray-100">
-                  {empresaActiva?.nombreFantasia || empresaActiva?.razonSocial || 'Sin empresa seleccionada'}
+                  {empresaActiva?.razonSocial || empresaActiva?.nombreFantasia || 'Sin empresa seleccionada'}
                 </p>
               </div>
             </div>
