@@ -54,6 +54,7 @@ export default function LibroDiario() {
 
   const asientosOrdenados = [...state.asientos]
     .filter(a => {
+      if (a.estado === 'anulado') return false; // los anulados quedan fuera del libro
       const fechaAsiento = new Date(a.fecha);
       const coincideAnio = fechaAsiento.getFullYear() === anioFiltroNum;
       const coincideMes = fechaAsiento.getMonth() + 1 === mesFiltroNum || mesFiltroNum === 0;

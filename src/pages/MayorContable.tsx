@@ -27,10 +27,13 @@ export default function MayorContable() {
   const [cuentaSeleccionada, setCuentaSeleccionada] = useState<string>('');
   const [vistaT, setVistaT] = useState(false);
 
+  // Los comprobantes anulados no cuentan en el mayor.
+  const asientosVigentes = useMemo(() => state.asientos.filter((a) => a.estado !== 'anulado'), [state.asientos]);
+
   // 1. Extraer todas las cuentas únicas que tienen movimientos
   const cuentasUnicas = useMemo(() => {
     const map = new Map<string, { codigo: string; nombre: string }>();
-    state.asientos.forEach((a) => {
+    asientosVigentes.forEach((a) => {
       a.detalles.forEach((d) => {
         if (!map.has(d.cuentaCodigo)) {
           map.set(d.cuentaCodigo, { codigo: d.cuentaCodigo, nombre: d.cuentaNombre });
@@ -38,7 +41,7 @@ export default function MayorContable() {
       });
     });
     return Array.from(map.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
-  }, [state.asientos]);
+  }, [asientosVigentes]);
 
   // 2. Filtrar por buscador
   const cuentasFiltradas = cuentasUnicas.filter(
@@ -67,7 +70,7 @@ export default function MayorContable() {
     if (!cuentaSeleccionada || !fechaDesde) return 0;
     if (tipoCuentaSeleccionada === 'ingreso' || tipoCuentaSeleccionada === 'gasto') return 0;
     let saldo = 0;
-    state.asientos
+    asientosVigentes
       .filter((a) => new Date(a.fecha) < new Date(fechaDesde))
       .forEach((asiento) => {
         asiento.detalles
@@ -75,7 +78,7 @@ export default function MayorContable() {
           .forEach((linea) => { saldo += linea.debe - linea.haber; });
       });
     return saldo;
-  }, [state.asientos, cuentaSeleccionada, fechaDesde, tipoCuentaSeleccionada]);
+  }, [asientosVigentes, cuentaSeleccionada, fechaDesde, tipoCuentaSeleccionada]);
 
   // 3. Generar movimientos para la cuenta seleccionada
   const movimientosMayor = useMemo(() => {
@@ -84,7 +87,7 @@ export default function MayorContable() {
     const movimientos: MovimientoMayor[] = [];
     let saldoAcumulado = saldoAnterior;
 
-    const asientosFiltrados = state.asientos
+    const asientosFiltrados = asientosVigentes
       .filter((a) => {
         if (fechaDesde && new Date(a.fecha) < new Date(fechaDesde)) return false;
         if (fechaHasta && new Date(a.fecha) > new Date(fechaHasta)) return false;
@@ -110,7 +113,7 @@ export default function MayorContable() {
     });
 
     return movimientos;
-  }, [state.asientos, cuentaSeleccionada, fechaDesde, fechaHasta, saldoAnterior]);
+  }, [asientosVigentes, cuentaSeleccionada, fechaDesde, fechaHasta, saldoAnterior]);
 
   const handlePrint = () => {
     if (!cuentaSeleccionada) {
