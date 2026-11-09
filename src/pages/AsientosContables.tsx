@@ -8,7 +8,7 @@ import { Modal, ConfirmDialog } from '../components/ui/Modal';
 import { AsientoContable, DetalleAsiento, PlantillaAsiento } from '../types';
 import { formatCurrency, formatDate, generateId } from '../utils/calculos';
 import { AsientoContableSchema, formatZodErrors } from '../utils/schemas';
-import { corregirAsiento, reversarAsiento } from '../services/apiSync';
+import { corregirAsiento, reversarAsiento, updateAsientoEstado } from '../services/apiSync';
 
 export default function AsientosContables() {
   const { state, dispatch, showToast } = useApp();
@@ -31,6 +31,7 @@ export default function AsientosContables() {
   const [editingAsiento, setEditingAsiento] = useState<AsientoContable | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmAnularId, setConfirmAnularId] = useState<string | null>(null);
+  const [anulando, setAnulando] = useState(false);
   const [reversoId, setReversoId] = useState<string | null>(null);
   const [motivoReverso, setMotivoReverso] = useState('');
   const [motivoCorreccion, setMotivoCorreccion] = useState('');
@@ -385,13 +386,26 @@ export default function AsientosContables() {
     setConfirmDeleteId(null);
   };
 
-  const handleConfirmAnular = () => {
-    if (!confirmAnularId) return;
+  // La anulación se confirma con el servidor ANTES de mostrar el éxito. Antes la
+  // pantalla se actualizaba al tiro y el guardado corría de fondo: si fallaba, o
+  // si la página se recargaba en ese instante, la anulación "desaparecía" sin
+  // aviso claro.
+  const handleConfirmAnular = async () => {
+    if (!confirmAnularId || anulando) return;
     const asiento = state.asientos.find(a => a.id === confirmAnularId);
     if (!asiento) return;
-    dispatch({ type: 'SET_ESTADO_ASIENTO', payload: { id: asiento.id, estado: 'anulado' } });
-    showToast('success', 'Comprobante anulado', `El asiento #${asiento.numero} quedó fuera de los informes activos y conserva su historial.`);
-    setConfirmAnularId(null);
+    setAnulando(true);
+    try {
+      await updateAsientoEstado(asiento.id, 'anulado');
+      showToast('success', 'Comprobante anulado', `El asiento #${asiento.numero} quedó fuera de los informes activos y conserva su historial.`);
+      setConfirmAnularId(null);
+      // Recarga desde el servidor: la pantalla muestra lo que realmente quedó guardado.
+      window.dispatchEvent(new Event('scc:login'));
+    } catch (e) {
+      showToast('error', 'No se pudo anular', e instanceof Error ? e.message : 'Error inesperado');
+    } finally {
+      setAnulando(false);
+    }
   };
 
   const confirmarReverso = async () => {
@@ -987,6 +1001,7 @@ export default function AsientosContables() {
         isOpen={!!confirmAnularId}
         onClose={() => setConfirmAnularId(null)}
         onConfirm={handleConfirmAnular}
+        loading={anulando}
         title="Anular comprobante contabilizado"
         message="El comprobante no se eliminará físicamente. Quedará anulado, fuera de los informes activos y con su trazabilidad conservada. ¿Confirmas?"
         confirmText="Sí, anular"
