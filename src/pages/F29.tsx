@@ -67,7 +67,7 @@ export default function F29() {
       d.libro === 'ventas' ||
       (d.libro !== 'compras' && d.tipo !== 'factura_compra');
 
-    const docsDelPeriodo = (state.documentos ?? []).filter(d => matchPeriodo(d.fecha));
+    const docsDelPeriodo = (state.documentos ?? []).filter(d => d.estado !== 'anulado' && matchPeriodo(d.fecha));
     const ventas  = docsDelPeriodo.filter(esVenta);
     const compras = docsDelPeriodo.filter(esCompra);
     // Las notas de crédito restan y las notas de débito suman en el libro

@@ -277,13 +277,29 @@ router.put('/:id', authenticateToken, writeLimiter, async (req, res) => {
         if (actual.estado === 'contabilizado' && estado === 'pendiente') {
             return res.status(409).json({ error: 'Un asiento contabilizado debe corregirse mediante reverso' });
         }
-        const asiento = await prisma.asientoContable.update({
-            where: { id: req.params.id },
-            data: { estado },
-            include: { detalles: true },
+        // Anular un comprobante que nace de un documento (factura, boleta de
+        // honorarios) anula tambien ese documento. Si no, seguiria saliendo en el
+        // Libro de Ventas/Compras y en el F29 sin un asiento que lo respalde.
+        // Todo en una transaccion: o se anulan los dos o ninguno.
+        let documentosAnulados = 0;
+        let honorariosAnulados = 0;
+        const asiento = await prisma.$transaction(async (tx) => {
+            const actualizado = await tx.asientoContable.update({
+                where: { id: req.params.id },
+                data: { estado },
+                include: { detalles: true },
+            });
+            if (estado === 'anulado') {
+                const filtro = { asientoId: actualizado.id, empresaId: actualizado.empresaId, estado: { not: 'anulado' } };
+                documentosAnulados = (await tx.documentoTributario.updateMany({ where: filtro, data: { estado: 'anulado' } })).count;
+                honorariosAnulados = (await tx.honorario.updateMany({ where: filtro, data: { estado: 'anulado' } })).count;
+            }
+            return actualizado;
         });
-        await auditLog(req.usuario.id, 'ACTUALIZAR', 'AsientoContable', asiento.id, { estado }, req.ip, req.headers['user-agent']);
-        res.json(asiento);
+        await auditLog(req.usuario.id, 'ACTUALIZAR', 'AsientoContable', asiento.id,
+            estado === 'anulado' ? { estado, documentosAnulados, honorariosAnulados } : { estado },
+            req.ip, req.headers['user-agent']);
+        res.json({ ...asiento, documentosAnulados, honorariosAnulados });
     } catch (err) {
         logger.error({ err }, 'Error actualizando asiento');
         res.status(500).json({ error: 'Error al actualizar asiento' });

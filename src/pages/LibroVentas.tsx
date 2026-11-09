@@ -44,7 +44,7 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
   // Se incluyen TODOS los tipos (facturas afectas/exentas, notas de crédito y
   // débito). Las notas de crédito restan; ver `signo` más abajo.
   const documentos = useMemo(
-    () => state.documentos.filter((d) => (tipo === 'ventas' ? esVenta(d) : esCompra(d))),
+    () => state.documentos.filter((d) => d.estado !== 'anulado' && (tipo === 'ventas' ? esVenta(d) : esCompra(d))),
     [state.documentos, tipo]
   );
 

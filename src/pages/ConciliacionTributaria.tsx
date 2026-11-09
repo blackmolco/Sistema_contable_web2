@@ -12,7 +12,7 @@ export default function ConciliacionTributaria() {
   const [anio, setAnio] = useState(hoy.getFullYear());
   const r = useMemo(() => {
     const periodo = (f:string) => { const p=f.slice(0,10).split('-'); return Number(p[0])===anio&&Number(p[1])===mes; };
-    const docs=state.documentos.filter(d=>periodo(d.fecha));
+    const docs=state.documentos.filter(d=>d.estado!=='anulado'&&periodo(d.fecha));
     const ventas=docs.filter(d=>d.libro==='ventas'); const compras=docs.filter(d=>d.libro==='compras');
     const signo=(d:typeof docs[number])=>d.tipo==='nota_credito'?-1:1;
     const ivaVentas=ventas.reduce((s,d)=>s+(d.iva||0)*signo(d),0);
