@@ -414,7 +414,7 @@ export default function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps)
               <span className="text-sm font-semibold text-white">AD</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate" style={{ color: 'var(--sidebar-fg)' }}>{state.configuracion.nombreFantasia}</p>
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--sidebar-fg)' }}>{state.configuracion.razonSocial || state.configuracion.nombreFantasia}</p>
               <p className="text-xs truncate" style={{ color: 'var(--sidebar-fg-faint)' }}>{state.configuracion.rut}</p>
             </div>
             <button
