@@ -21,6 +21,7 @@ import { useCuentasSistema } from '../hooks/useCuentasSistema';
 import { formatCurrency, formatDate } from '../utils/calculos';
 import { Modal } from '../components/ui/Modal';
 import { contabilizarDocumento } from '../services/apiSync';
+import { leerEstadoImportacion } from '../utils/estadoImportacion';
 
 type Hallazgo = {
   id: string;
@@ -165,13 +166,11 @@ export default function CentroControl() {
     ? cuentasPagar.reduce((sum, c) => sum + Math.max(0, Number(c.monto ?? 0) - Number(c.montoPagado ?? 0)), 0)
     : documentosActivos.filter(d => esCompra(d) && (d.estado === 'pendiente' || !d.asientoId)).reduce((sum, d) => sum + Number(d.total ?? 0), 0));
 
-  const [importState, setImportState] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('scc_importacion_sii_estado') || 'null'); } catch { return null; }
-  });
+  const [importState, setImportState] = useState(leerEstadoImportacion);
 
   React.useEffect(() => {
     const actualizar = () => {
-      try { setImportState(JSON.parse(localStorage.getItem('scc_importacion_sii_estado') || 'null')); } catch { setImportState(null); }
+      setImportState(leerEstadoImportacion());
       setUltimaActualizacion(new Date());
     };
     window.addEventListener('scc:login', actualizar);

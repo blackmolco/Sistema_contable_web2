@@ -5,6 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { useAppStore } from '../../stores/appStore';
 import { ApiAuthService } from '../../services/apiAuth';
 import { formatRUT } from '../../utils/calculos';
+import { leerEstadoImportacion } from '../../utils/estadoImportacion';
 import GlobalSearch from '../ui/GlobalSearch';
 
 interface HeaderProps {
@@ -28,10 +29,8 @@ export default function Header({ onToggleSidebar, onOpenSearch, onCloseSearch, i
 
   useEffect(() => {
     const leerEstado = () => {
-      try {
-        const raw = localStorage.getItem('scc_importacion_sii_estado');
-        setImportacionSII(raw ? JSON.parse(raw) : null);
-      } catch { setImportacionSII(null); }
+      const estado = leerEstadoImportacion();
+      setImportacionSII(estado ? { estado: estado.estado ?? '', hecho: estado.hecho ?? 0, total: estado.total ?? 0, tipo: estado.tipo, nombreArchivo: estado.nombreArchivo } : null);
     };
     leerEstado();
     window.addEventListener('scc:importacion-sii', leerEstado);

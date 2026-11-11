@@ -537,6 +537,7 @@ export default function SincronizacionSII() {
     let exitosos = 0;
     let sinCuentaAsignada = 0;
     const errores: string[] = [];
+    let procesadas = 0;
 
     for (const fila of filasNuevas) {
       const tipoInterno = TIPO_DOC_MAP[fila.tipoDoc] || 'factura';
@@ -572,11 +573,11 @@ export default function SincronizacionSII() {
       } catch (err) {
         errores.push(`Folio ${fila.folio || '—'}: ${err instanceof Error ? err.message : 'error desconocido'}`);
       }
-      setImportProgress(prev => {
-        const hecho = (prev?.hecho ?? 0) + 1;
-        publicarEstadoImportacion({ importacionId, estado: 'procesando', hecho, total: filasNuevas.length, tipo: tipoArchivo, nombreArchivo, actualizado: Date.now() });
-        return prev ? { ...prev, hecho } : null;
-      });
+      // Se publica aqui, en orden, y no dentro de setImportProgress(prev => ...):
+      // esa funcion la ejecuta React despues y pisaba el estado final "completada".
+      procesadas++;
+      publicarEstadoImportacion({ importacionId, estado: 'procesando', hecho: procesadas, total: filasNuevas.length, tipo: tipoArchivo, nombreArchivo, actualizado: Date.now() });
+      setImportProgress({ hecho: procesadas, total: filasNuevas.length });
     }
 
     setImportProgress(null);
