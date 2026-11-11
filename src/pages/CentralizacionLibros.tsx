@@ -7,6 +7,7 @@ import { Card } from '../components/ui/Cards';
 import { useApp } from '../context/AppContext';
 import { useCuentasSistema } from '../hooks/useCuentasSistema';
 import { formatCurrency, generateId } from '../utils/calculos';
+import { anioMesDe } from '../utils/periodo';
 
 // ─── Tipos locales ─────────────────────────────────────────────────────────────
 interface AsignacionCuenta {
@@ -39,8 +40,8 @@ export default function CentralizacionLibros() {
   // ─── Documentos del período ─────────────────────────────────────────────────
   const docsPeriodo = useMemo(() => {
     return state.documentos.filter(d => {
-      const fecha = new Date(d.fecha);
-      const coincidePeriodo = fecha.getFullYear() === anio && fecha.getMonth() + 1 === mes;
+      const p = anioMesDe(d.fecha); // por texto: new Date() corre lo fechado el dia 1 al mes anterior
+      const coincidePeriodo = p?.anio === anio && p?.mes === mes;
       if (!coincidePeriodo) return false;
 
       // Ventas: facturas, facturas exentas y notas de crédito emitidas (estado emitido)

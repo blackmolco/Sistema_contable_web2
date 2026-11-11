@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import { useAppStore } from '../stores/appStore';
 import { apiFetch, apiFetchRaw } from '../services/httpClient';
 import { getErrorMessage } from '../services/errorHandler';
+import { anioMesDe } from '../utils/periodo';
 
 type TipoActivo = 'computacional' | 'vehiculo' | 'mueble' | 'maquinaria' | 'inmueble';
 type MetodoTributario = 'normal' | 'acelerada' | 'instantanea';
@@ -43,12 +44,10 @@ const VIDA_UTIL_DEFAULT: Record<TipoActivo, { normal: number; acelerada: number 
 const CATEGORIAS_SIN_INSTANTANEA = new Set<TipoActivo>(['inmueble']);
 
 function mesesTranscurridosDesde(fecha: string): number {
-  const f = new Date(fecha);
   const hoy = new Date();
-  let meses = (hoy.getFullYear() - f.getFullYear()) * 12;
-  meses -= f.getMonth() + 1;
-  meses += hoy.getMonth() + 1;
-  return Math.max(0, meses);
+  // Año y mes por texto: new Date('2026-05-01') cae el 30 de abril en Chile y sumaba un mes de uso de mas.
+  const f = anioMesDe(fecha) ?? { anio: new Date(fecha).getFullYear(), mes: new Date(fecha).getMonth() + 1 };
+  return Math.max(0, (hoy.getFullYear() - f.anio) * 12 + (hoy.getMonth() + 1) - f.mes);
 }
 
 function mapActivoDelBackend(a: Record<string, any>): Activo {

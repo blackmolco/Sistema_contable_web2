@@ -3,6 +3,7 @@ import { FileSpreadsheet, Info, AlertCircle, CheckCircle, Printer, RefreshCw } f
 import { useApp } from '../context/AppContext';
 import { Card } from '../components/ui/Cards';
 import { Button, Input, Select } from '../components/ui/FormElements';
+import { anioMesDe } from '../utils/periodo';
 
 // Tasa impuesto de primera categoría por año tributario
 const TASA_PRIMERA_CATEGORIA: Record<number, number> = {
@@ -61,7 +62,7 @@ export default function F22() {
   const datosSistema = useMemo(() => {
     const añoComercial = añoSel - 1;
     const asientos = (state.asientos ?? []).filter(a => {
-      const año = new Date(a.fecha).getFullYear();
+      const año = anioMesDe(a.fecha)?.anio; // por texto: new Date() corre el 1 de enero al año anterior
       return año === añoComercial && a.estado !== 'anulado';
     });
 
@@ -219,7 +220,7 @@ export default function F22() {
     const comYear = añoSel - 1;
     const honorariosAnuales = (state.honorarios ?? []).filter(h => {
       const f = h.fechaPago || h.periodo;
-      const año = new Date(f).getFullYear();
+      const año = anioMesDe(f)?.anio; // 'YYYY-MM' por texto: new Date('2026-01') cae en 2025 en Chile
       return año === comYear;
     });
 

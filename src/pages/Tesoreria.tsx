@@ -216,6 +216,8 @@ export default function Tesoreria() {
               <XAxis
                 dataKey="fecha"
                 tickFormatter={(val) => {
+                  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(val));
+                  if (m) return `${Number(m[3])}/${Number(m[2])}`; // por texto: new Date() corre el dia 1 al anterior
                   const date = new Date(val);
                   return `${date.getDate()}/${date.getMonth() + 1}`;
                 }}

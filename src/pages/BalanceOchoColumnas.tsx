@@ -8,6 +8,7 @@ import { Button, Select } from '../components/ui/FormElements';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDate } from '../utils/calculos';
 import { getBrandRgb } from '../utils/brandColor';
+import { anioMesDe } from '../utils/periodo';
 import { useCuentasSistema } from '../hooks/useCuentasSistema';
 
 interface FilaBalance8 {
@@ -26,7 +27,7 @@ export default function BalanceOchoColumnas() {
   const [anioCorte, setAnioCorte] = useState(String(hoy.getFullYear()));
   const [mesCorte, setMesCorte] = useState(String(hoy.getMonth() + 1));
   const [tipoCorte, setTipoCorte] = useState<'mensual' | 'anual'>('mensual');
-  const aniosDisponibles = Array.from(new Set((state.asientos ?? []).map(a => new Date(a.fecha).getFullYear())))
+  const aniosDisponibles = Array.from(new Set((state.asientos ?? []).map(a => anioMesDe(a.fecha)?.anio ?? new Date(a.fecha).getFullYear())))
     .sort((a, b) => b - a);
   if (!aniosDisponibles.includes(hoy.getFullYear())) aniosDisponibles.unshift(hoy.getFullYear());
   const fechaInicio = `${anioCorte}-01-01`;

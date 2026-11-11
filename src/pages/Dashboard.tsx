@@ -49,6 +49,7 @@ import { WidgetNotas, type NotaRapida, NOTA_COLORES } from '../components/dashbo
 import { WidgetAlertas } from '../components/dashboard/WidgetAlertas';
 import { WidgetActividad } from '../components/dashboard/WidgetActividad';
 import { CHART_PALETTE } from '../utils/chartPalette';
+import { anioMesDe } from '../utils/periodo';
 
 // Tipos para widgets configurables
 interface WidgetConfig {
@@ -400,16 +401,16 @@ export default function Dashboard() {
       const mesesTrim = [idx * 3, idx * 3 + 1, idx * 3 + 2];
       let ingreso = 0, gasto = 0;
       state.documentos.forEach(d => {
-        const m = new Date(d.fecha || '').getMonth();
-        if (new Date(d.fecha || '').getFullYear() === anioDashboard && mesesTrim.includes(m) && d.estado !== 'anulado') {
+        const p = anioMesDe(d.fecha); // por texto: new Date() corre lo fechado el dia 1 al mes anterior
+        if (p && p.anio === anioDashboard && mesesTrim.includes(p.mes - 1) && d.estado !== 'anulado') {
           const total = d.total || 0;
           if (!esCompra(d)) ingreso += signoDocumento(d) * total;
           else gasto += signoDocumento(d) * total;
         }
       });
       state.asientos.forEach(a => {
-        const m = new Date(a.fecha).getMonth();
-        if (new Date(a.fecha).getFullYear() === anioDashboard && mesesTrim.includes(m) && a.estado !== 'anulado') {
+        const p = anioMesDe(a.fecha);
+        if (p && p.anio === anioDashboard && mesesTrim.includes(p.mes - 1) && a.estado !== 'anulado') {
           a.detalles?.forEach(det => {
             if (esCuentaGasto(det.cuentaCodigo)) gasto += det.debe || 0;
           });
