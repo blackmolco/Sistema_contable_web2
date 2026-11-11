@@ -7,6 +7,7 @@ import { Button, Input, Select, SearchSelect, MontoInput, Textarea } from '../co
 import { Modal, ConfirmDialog } from '../components/ui/Modal';
 import { AsientoContable, DetalleAsiento, PlantillaAsiento } from '../types';
 import { formatCurrency, formatDate, generateId } from '../utils/calculos';
+import { anioMesDe } from '../utils/periodo';
 import { AsientoContableSchema, formatZodErrors } from '../utils/schemas';
 import { corregirAsiento, reversarAsiento, updateAsientoEstado } from '../services/apiSync';
 
@@ -22,7 +23,7 @@ export default function AsientosContables() {
   // tienen asientos, e incluye siempre el año en curso.
   const anioActual = new Date().getFullYear();
   const aniosDisponibles = Array.from(
-    new Set((state.asientos ?? []).map((a) => new Date(a.fecha).getFullYear()))
+    new Set((state.asientos ?? []).map((a) => anioMesDe(a.fecha)?.anio ?? new Date(a.fecha).getFullYear()))
   ).sort((a, b) => b - a);
   if (!aniosDisponibles.includes(anioActual)) aniosDisponibles.unshift(anioActual);
   const [anioFiltro, setAnioFiltro] = useState(String(anioActual));
@@ -68,7 +69,7 @@ export default function AsientosContables() {
     if (!asientoIdEnlace || asientoConsultado) return;
     const asiento = (state.asientos ?? []).find((a) => a.id === asientoIdEnlace);
     if (!asiento) return;
-    setAnioFiltro(String(new Date(asiento.fecha).getFullYear()));
+    setAnioFiltro(String(anioMesDe(asiento.fecha)?.anio ?? new Date(asiento.fecha).getFullYear()));
     if (modoEnlace === 'editar') abrirModalEditar(asiento);
     else setAsientoConsultado(asiento);
   }, [asientoIdEnlace, modoEnlace, asientoConsultado, state.asientos]);
@@ -91,8 +92,9 @@ export default function AsientosContables() {
 
   // Filtrar asientos
   const asientosFiltrados = (state.asientos ?? []).filter((a) => {
-    const coincideAnio = String(new Date(a.fecha).getFullYear()) === anioFiltro;
-    const coincideMes = mesFiltro === 'todos' || String(new Date(a.fecha).getMonth() + 1) === mesFiltro;
+    const periodo = anioMesDe(a.fecha); // por texto: new Date() corre el dia 1 al mes anterior
+    const coincideAnio = String(periodo?.anio) === anioFiltro;
+    const coincideMes = mesFiltro === 'todos' || String(periodo?.mes) === mesFiltro;
     const coincideNumero = numeroBusqueda === '' || a.numero.toString().includes(numeroBusqueda.trim());
     const coincideGlosa = glosaBusqueda === '' || a.glosa.toLowerCase().includes(glosaBusqueda.trim().toLowerCase());
     return coincideAnio && coincideMes && coincideNumero && coincideGlosa;

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Download,
   FileText,
@@ -14,6 +14,7 @@ import { Card, Badge } from '../components/ui/Cards';
 import { Button, Select } from '../components/ui/FormElements';
 import { formatCurrency, formatDate, formatRUT, getNombreMes, getPeriodoActual } from '../utils/calculos';
 import { MESES, TIPOS_DOCUMENTO_SII } from '../data/normativa';
+import { anioMesDe } from '../utils/periodo';
 
 interface LibroVentasProps {
   tipo: 'ventas' | 'compras';
@@ -27,6 +28,10 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
   const now = new Date();
   const [selectedMes, setSelectedMes]   = useState<number>(now.getMonth() + 1);
   const [selectedAnio, setSelectedAnio] = useState<number>(now.getFullYear());
+  // Mientras el usuario no elija un periodo, el libro abre en el ultimo mes que tenga
+  // documentos: antes abria siempre en el mes en curso y, con documentos de meses
+  // anteriores, parecia vacio ("cargue las facturas y no aparecen").
+  const [periodoElegido, setPeriodoElegido] = useState(false);
 
   // ── Clasificación robusta compra/venta ────────────────────────────────────────
   // Usa el campo `libro` (origen explícito) y, como respaldo para documentos
@@ -51,10 +56,19 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
   // ── Filtrar por mes Y año (ambos estados usados directamente) ─────────────────
   const registrosFiltrados = useMemo(() => {
     return documentos.filter((doc) => {
-      const docDate = new Date(doc.fecha);
-      return docDate.getFullYear() === selectedAnio && docDate.getMonth() + 1 === selectedMes;
+      // Por texto, no por Date: new Date('2026-05-01') cae el 30 de abril en Chile.
+      const p = anioMesDe(doc.fecha);
+      return p?.anio === selectedAnio && p?.mes === selectedMes;
     });
   }, [documentos, selectedMes, selectedAnio]);
+
+  useEffect(() => {
+    if (periodoElegido || documentos.length === 0) return;
+    if (documentos.some((d) => { const p = anioMesDe(d.fecha); return p?.anio === selectedAnio && p?.mes === selectedMes; })) return;
+    const ultimo = documentos.map((d) => anioMesDe(d.fecha)).filter((p): p is { anio: number; mes: number } => p !== null)
+      .sort((a, b) => a.anio - b.anio || a.mes - b.mes).pop();
+    if (ultimo) { setSelectedAnio(ultimo.anio); setSelectedMes(ultimo.mes); }
+  }, [documentos, periodoElegido, selectedMes, selectedAnio]);
 
   // ── Mapear a estructura de registros para la tabla ────────────────────────────
   // Las notas de crédito (código 61) restan del libro: se registran con signo negativo.
@@ -160,7 +174,7 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
           {/* Selector de MES */}
           <select
             value={selectedMes}
-            onChange={(e) => setSelectedMes(Number(e.target.value))}
+            onChange={(e) => { setPeriodoElegido(true); setSelectedMes(Number(e.target.value)); }}
             className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {MESES.map((mes) => (
@@ -172,7 +186,7 @@ export default function LibroVentas({ tipo }: LibroVentasProps) {
           {/* Selector de AÑO — ahora funcional e independiente */}
           <select
             value={selectedAnio}
-            onChange={(e) => setSelectedAnio(Number(e.target.value))}
+            onChange={(e) => { setPeriodoElegido(true); setSelectedAnio(Number(e.target.value)); }}
             className="px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {[2023, 2024, 2025, 2026, 2027].map(y => (

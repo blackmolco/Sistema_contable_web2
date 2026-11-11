@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/Cards';
 import { Button, Input, Select } from '../components/ui/FormElements';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDate } from '../utils/calculos';
+import { anioMesDe } from '../utils/periodo';
 import { generarPDFAsientos } from '../services/reportesPdf';
 
 const MESES_OPTIONS = [
@@ -44,7 +45,7 @@ export default function LibroDiario() {
   // años que realmente tienen asientos, para no perder datos antiguos.
   const anioActual = new Date().getFullYear();
   const aniosDisponibles = Array.from(
-    new Set(state.asientos.map((a) => new Date(a.fecha).getFullYear()))
+    new Set(state.asientos.map((a) => anioMesDe(a.fecha)?.anio ?? new Date(a.fecha).getFullYear()))
   ).sort((a, b) => b - a);
   if (!aniosDisponibles.includes(anioActual)) aniosDisponibles.unshift(anioActual);
   const [anioFiltro, setAnioFiltro] = useState(String(anioActual));
@@ -55,9 +56,9 @@ export default function LibroDiario() {
   const asientosOrdenados = [...state.asientos]
     .filter(a => {
       if (a.estado === 'anulado') return false; // los anulados quedan fuera del libro
-      const fechaAsiento = new Date(a.fecha);
-      const coincideAnio = fechaAsiento.getFullYear() === anioFiltroNum;
-      const coincideMes = fechaAsiento.getMonth() + 1 === mesFiltroNum || mesFiltroNum === 0;
+      const periodo = anioMesDe(a.fecha); // por texto: new Date() corre el dia 1 al mes anterior
+      const coincideAnio = periodo?.anio === anioFiltroNum;
+      const coincideMes = periodo?.mes === mesFiltroNum || mesFiltroNum === 0;
       const coincideBusqueda =
         a.glosa.toLowerCase().includes(searchTerm.toLowerCase()) ||
         a.numero.toString().includes(searchTerm);
