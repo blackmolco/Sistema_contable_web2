@@ -12,6 +12,7 @@ import { Modal } from '../components/ui/Modal';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useApp } from '../context/AppContext';
 import { useCuentasSistema } from '../hooks/useCuentasSistema';
+import { esArchivoExcel, excelATextoSII } from '../utils/archivoSii';
 import { formatRUT, formatCurrency, generateId } from '../utils/calculos';
 import { cerrarImportacionInterrumpida, fetchImportacionesSII, finalizarImportacionSII, ingresoDocumento, iniciarImportacionSII, ImportacionSII, IngresoDocumentoPayload, revertirImportacionSII } from '../services/apiSync';
 import { Cuenta, TipoCuenta } from '../types';
@@ -408,14 +409,22 @@ export default function SincronizacionSII() {
     if (!file) return;
     setNombreArchivo(file.name);
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const buffer = ev.target?.result as ArrayBuffer;
-      const texto = arreglarMojibake(decodificarCSV(buffer));
+      // El RCV viene a veces como Excel (.xlsx/.xls) en vez de CSV: antes se leia
+      // como texto y salia basura ("no reconoce el libro"). Se detecta por contenido.
+      let texto: string;
+      try {
+        texto = esArchivoExcel(buffer) ? await excelATextoSII(buffer) : arreglarMojibake(decodificarCSV(buffer));
+      } catch {
+        showToast('error', 'No se pudo leer el archivo', 'El Excel está dañado o no es el RCV del SII.');
+        return;
+      }
       const { filas, debug } = parsearCSVSII(texto, tipoArchivo);
       setDebugInfo(debug);
       if (filas.length === 0) {
         showToast('error', 'Sin datos',
-          `No se leyeron registros. [${debug}] Verifica que sea el CSV del RCV del SII.`);
+          `No se leyeron registros. [${debug}] Verifica que sea el archivo (CSV o Excel) del RCV del SII.`);
         return;
       }
       setFilasPreview(filas);
@@ -845,7 +854,7 @@ export default function SincronizacionSII() {
                 <p className="text-sm font-medium text-gray-700">Haz clic para seleccionar archivo</p>
                 <p className="text-xs text-gray-400 mt-1">CSV exportado desde portal.sii.cl</p>
               </div>
-              <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFileChange} />
+              <input ref={fileRef} type="file" accept=".csv,.txt,.xlsx,.xls" className="hidden" onChange={handleFileChange} />
             </Card>
 
             {/* Panel derecho: preview */}
